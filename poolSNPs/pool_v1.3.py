@@ -13,7 +13,7 @@ from operator import *
 
 warnings.simplefilter('ignore')
 
-global source, KIND, MSS, POOLED, SAMPLES, chk_sz, wd
+global DATA, KIND, MSS, POOLED, SAMPLES, SETS
 
 ### README
 
@@ -81,7 +81,7 @@ def random_delete(rate=0.01, activate=False):
 ### CLASS AND METHODS FOR POOLING A SET OF SAMPLES
 
 
-def split_pools(idv_id, pool_size, seed=None):
+def split_pools(idv_id, pool_size):
     """
 
     :param idv_id:
@@ -93,8 +93,7 @@ def split_pools(idv_id, pool_size, seed=None):
     print('Number of {}-sized pools to create, number of single samples remaining: '.format(pool_size),
           nb_pool, left)
     # Create random pools
-    if seed != None:
-        np.random.seed(seed)
+    np.random.seed(123)
     pools = np.random.choice(idv_id, size=(nb_pool, pool_size), replace=False)
     left = np.isin(idv_id, pools.flatten())
     singles = np.extract(~left, idv_id)
@@ -154,8 +153,7 @@ class SNPsPool(np.ndarray):
         :param subset: 1D-nparray-like object with the variables IDs
         :return: pooling matrix with samples' names.
         """
-        self.subset = subset
-        sub = self.subset
+        sub = subset
         try:
             for i in range(self.shape[0]):
                 self[i, :] = sub[:self.shape[1]]
@@ -313,6 +311,7 @@ class SNPsPool(np.ndarray):
         for s in self.get_subset(): #16
             p = np.where(np.isin(np.asarray(pools), s))[0] # pools pair involved
             out = self.decoding_rules(pooled[:, p], nb_alt)
+            # print('{} new GT --> {}'.format(s, out))
             pooled_samples[s] = out
             if drop == True:
                 # missing data simulation
@@ -320,6 +319,7 @@ class SNPsPool(np.ndarray):
                        [0, 1],
                        [-1, -1]
                        )
+        #print(pooled_samples)
         return pooled_samples
 
     def __array_finalize__(self, obj):
@@ -333,38 +333,62 @@ class SNPsPool(np.ndarray):
         self.info = getattr(obj, 'info', None)
 
 
+### ARGUMENTS PARSING AND EXECUTION
+"""
+parser = argparse.ArgumentParser(description='''Computes pooled GL/GT data for each subset.
+ Subsets are written as new VCF files''')
+parser.add_argument('file_in',
+                    action='store',
+                    help='VCF file to process')
+parser.add_argument('kind',
+                    action='store',
+                    help='gl/gt')
+parser.add_argument('missing',
+                    action='store',
+                    help='Boolean for simulating missing data (default proportion = 1%)')
+parser.add_argument('file_out',
+                    action='store',
+                    help='VCF file processed')
+args = parser.parse_args()
+"""
+"""
+pll = mp.Pool(processes=4)
+params = list(zip(files_list, [args.kind]*len(files_list)))
+_ = pll.starmap(process_pool, params)
+"""
 #TODO: specific processing for the remaining samples
 
 
 ### PROCESS SUMMARY
 
 def get_data_chunk():
-    vcf = VCF(source)
     chunk = []
     n = 0
-    for variant in vcf:
+    for variant in DATA:
         chunk.append(variant)
         n+=1
 
 
-def process_file(data, groups, f, fileout):
+def process_file(f):
     """
         Computes and rewrites genotypes of all individuals for all samples.
         :param f: integer, index of the file to process in the list
     """
     print('Missing data: ', MSS[f])
-    w = Writer(fileout[f], data)
+    w = Writer(PATH_OUT[f], DATA)
     tm = time.time()
-    #for n, variant in enumerate(data('20:55167111-55167111')):
-    for n, variant in enumerate(data):
-        process_line(groups, f, w, variant)
+    for n, variant in enumerate(DATA('20:55167111-55167111')):
+    #for n, variant in enumerate(DATA):
+        # print(variant)
+        process_line(f, w, variant)
         if n%1000 == 0:
             print('{} variants processed in {:06.2f} sec'.format(n+1, time.time()-tm).ljust(80, '.'))
         # if n+1 == 1000:
         #     break
+    #DATA.add_to_header('##Number of missing genotypes: {}'.format(cnt))
+    #DATA.add_to_header('##Percentage of missing genotypes: {}'.format(cnt*100/(n*len(DATA.samples))))
 
-
-def process_line(groups, f, w, v):
+def process_line(f, w, v):
     """
     Computes and rewrites genotypes of all individual for one sample.
     :param f: integer, index of the file to process in the list
@@ -376,16 +400,13 @@ def process_line(groups, f, w, v):
     #tm = time.time()
     var = v # copy the variant object to make it readable several times
     pooled_samples = dict(zip(SAMPLES.keys(), np.array(var.genotypes)))
-    sets = []
-    for gp in groups[0]:
-        sets.append(SNPsPool().set_subset(gp))
     if POOLED[f]:
-        for p in sets:
+        for p in SETS:
             p.get_line(SAMPLES, var, KIND)
             dlt = random_delete(activate=MSS[f])
             pooled_samples = p.decode_genotypes(pooled_samples, drop=bool(dlt))
     else:
-        for p in sets:
+        for p in SETS:
             p.get_line(SAMPLES, var, KIND)
             dlt = random_delete(activate=MSS[f])
             if dlt:
@@ -396,24 +417,33 @@ def process_line(groups, f, w, v):
                            )
     output = sorted([[k, SAMPLES[k], pooled_samples[k]] for k in SAMPLES.keys()], key=itemgetter(1))
     var.genotypes = [out[2] for out in output]
+    # mask = np.ma.masked_where(np.array(var.genotypes)[0,1].sum() >= 0,
+    #                          np.array(var.genotypes))
+    # cnt += mask.count()
     w.write_record(var)
+    #print('Variant {} processed in {:06.2f} sec'.format(var.ID, time.time() - tm).ljust(80, '.'))
+    #return cnt
 
-def init_chunk(chunk=True):
-    """
 
-    :param chunk: boolean. If True, a new subfile from 1000
-    randomly drawm markers is created i.e. a new set of SNPs.
-    :return: list of 16-sized groups of samples i.e. pools
-    """
+if __name__ == '__main__':
     wd = '/home/camilleclouard/PycharmProjects/1000Genomes/data/tests-beagle'
+    os.chdir(wd)
     chk_sz = 1000
     PATH_IN = 'ALL.chr20.snps.gt.vcf.gz'
-
-    os.chdir(wd)
+    PATH_OUT = ['ALL.chr20.pooled.snps.gt.chunk{}.vcf'.format(str(chk_sz)),
+                'ALL.chr20.pooled.missing.snps.gt.chunk{}.vcf'.format(str(chk_sz)),
+                'ALL.chr20.missing.snps.gt.chunk{}.vcf'.format(str(chk_sz))]
     raw = VCF(PATH_IN)  # VCF iterator object
-    splits = split_pools(raw.samples, 16, seed=456)  # list of lists
+    splits = split_pools(raw.samples, 16)  # list of lists
 
-    if chunk:
+    # iteration = -1
+    iteration = 0
+    # iteration = 1
+    # iteration = 2
+    # iteration = None
+    print('Iteration --> ', iteration)
+
+    if iteration == -1:
         delete_file('ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(chk_sz)))
         delete_file('chunk_{}.vcf'.format(str(chk_sz)))
         delete_file('TMP.chr20.snps.gt.chunk.vcf')
@@ -441,9 +471,9 @@ def init_chunk(chunk=True):
 
         # Eliminate the remaining samples (not involved in any pool)
         subprocess.run(' '.join(['bcftools view -Ov -o ALL.chr20.snps.gt.chunk{}.vcf'.format(str(chk_sz)),
-                                 '-s',
-                                 '^' + ','.join(splits[1]),
-                                 'ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(chk_sz))]),
+                                  '-s',
+                                  '^' + ','.join(splits[1]),
+                                  'ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(chk_sz))]),
                        shell=True,
                        cwd='/home/camilleclouard/PycharmProjects/1000Genomes/data/tests-beagle')
         subprocess.run('bcftools view -Oz -o ALL.chr20.snps.gt.chunk{}.vcf.gz '.format(str(chk_sz))
@@ -461,64 +491,25 @@ def init_chunk(chunk=True):
                        shell=True,
                        cwd='/home/camilleclouard/PycharmProjects/1000Genomes/data/tests-beagle')
 
-    return splits
-
-
-def run(splits, iteration):
-    os.chdir(wd)
-
-    # Run one by one!
-    for it in iteration:
-        vcf = VCF(source)
-        print('Iteration --> ', it)
-        start = time.time()
-        process_file(vcf, splits, it, PATH_OUT)
-        stop = time.time()
-        print('Elapsed time for pooling the VCF files: {:06.2f} sec'.format(stop - start))
-        del vcf
-
-
-if __name__ == '__main__':
-    #TODO: encode "hard" pieces in parameters.py
-    wd = '/home/camilleclouard/PycharmProjects/1000Genomes/data/tests-beagle'
-    os.chdir(wd)
-    chk_sz = 1000
-    PATH_IN = 'ALL.chr20.snps.gt.vcf.gz'
-    PATH_OUT = ['ALL.chr20.pooled.snps.gt.chunk{}.vcf'.format(str(chk_sz)),
-                'ALL.chr20.pooled.missing.snps.gt.chunk{}.vcf'.format(str(chk_sz)),
-                'ALL.chr20.missing.snps.gt.chunk{}.vcf'.format(str(chk_sz))]
+    DATA = VCF('ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(chk_sz)))
     KIND = 'gt'
     MSS = [False, True, True]
     POOLED = [True, True, False]
-    source = 'ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(chk_sz))
-    data = VCF(source)
-    SAMPLES = dict(zip(data.samples, range(len(data.samples))))
+    SAMPLES = dict(zip(DATA.samples, range(len(DATA.samples))))
+    oo = SNPsPool()
+    SETS = []
+    for sp in splits[0]:
+        SETS.append(SNPsPool().set_subset(sp))
 
+    design = SNPsPool().design_matrix()
 
-    items = init_chunk(chunk = True)
-    run(items, range(3))
+    start = time.time()
+    # multiprocessing not usable with the VCF object structure!
+    # Smthg goes wrong in the source file when using mp...
 
+    # Run one by one!
+    #TODO: cmd version
+    process_file(iteration)
 
-### ARGUMENTS PARSING AND EXECUTION
-"""
-parser = argparse.ArgumentParser(description='''Computes pooled GL/GT data for each subset.
- Subsets are written as new VCF files''')
-parser.add_argument('file_in',
-                    action='store',
-                    help='VCF file to process')
-parser.add_argument('kind',
-                    action='store',
-                    help='gl/gt')
-parser.add_argument('missing',
-                    action='store',
-                    help='Boolean for simulating missing data (default proportion = 1%)')
-parser.add_argument('file_out',
-                    action='store',
-                    help='VCF file processed')
-args = parser.parse_args()
-"""
-"""
-pll = mp.Pool(processes=4)
-params = list(zip(files_list, [args.kind]*len(files_list)))
-_ = pll.starmap(process_pool, params)
-"""
+    stop = time.time()
+    print('Elapsed time for pooling the VCF files: {:06.2f} sec'.format(stop-start))
