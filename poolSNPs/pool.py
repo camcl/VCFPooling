@@ -4,19 +4,21 @@ import subprocess
 import warnings
 import numpy as np
 import time
-import math
-import itertools
-import multiprocessing as mp
+
 from scipy.stats import bernoulli as bn
 from cyvcf2 import VCF, Writer
 from operator import *
 
+from scripts.poolSNPs import parameters as prm
+from persotools.debugging import *
+from persotools.files import *
+
 warnings.simplefilter('ignore')
 
-global source, KIND, MSS, POOLED, SAMPLES, chk_sz, wd
+global source, KIND, MSS, POOL, SAMPLES, CHK_SZ, WD
 
 ### README
-
+#TODO: remove miss.pool
 """
 README: 
 Requirements: 
@@ -38,29 +40,6 @@ $ python3 pool.py /home/camilleclouard/PycharmProjects/1000Genomes/data/tests-be
 """
 
 ### TOOLS FUNCTIONS
-
-
-def delete_file(file_path):
-    """
-
-    :param file_path:
-    :return:
-    """
-    if os.path.exists(file_path):
-        os.remove(file_path)
-    else:
-        print("The file does not exists")
-
-
-def file_size(fname):
-    """
-
-    :param fname:
-    :return:
-    """
-    statinfo = os.stat(fname)
-    return statinfo.st_size
-
 
 def random_delete(rate=0.01, activate=False):
     """
@@ -121,7 +100,7 @@ class SNPsPool(np.ndarray):
         cls.pools_nb = pools_nb
         cls.pools_size = pools_size
         cls.subset = list()
-        cls.samples = dict()
+        cls.samples = list()
         cls.variant = object
         cls.call = []
         cls.kind = ''
@@ -212,115 +191,85 @@ class SNPsPool(np.ndarray):
                 return self.variant
 
     def get_call(self):
-        ids = self.get_subset()
-        self.call = [self.variant[self.samples[i]] for i in ids]
-        return np.asarray(self.call)
-
-    def pooling_rules(self, idvs):
-        """
-
-        :param idvs: array of samples with genotypes
-        :return: pooled 'genotype' over the input array
-        """
-        idvs = np.asarray(idvs)
-        if np.sum(idvs[:, :-1])/2 == len(idvs):
-            pooled_G = np.asarray([1, 1, 0])
-        elif np.any(np.isin(idvs[:, :-1], 1)):
-            pooled_G = np.asarray([1, 0, 0])
-        elif np.all(np.isin(idvs[:, :-1], -1)):
-            pooled_G = np.asarray([-1, -1, 0])
-        else:
-            pooled_G = np.asarray([0, 0, 0])
-
-        return pooled_G # REF, ALT but no phase
-
-    def decoding_rules(self, pattern, nb_alt):
-        # 2 pools involved for each idv
-        # --> pattern has 2 elements, 2*2 binary alleles
-        pp = pattern[:, :, :-1].squeeze()
-
-        if np.isin(pp, -1).any():
-            gt = np.asarray([-1, -1, 0])
-        elif np.all(np.isin(pp, 0)):
-            gt = np.asarray([0, 0, 0])
-
-        elif nb_alt == 0:
-            gt = np.asarray([0, 0, 0])
-
-        elif nb_alt == 1:
-            print('Impossible combination. Error occured in pooling.')
-
-        elif nb_alt == 2:
-            # 1 idv wih ALT (no matter how many)
-            if np.sum(pp) == 2:
-                # 1/0 x 1/0
-                gt = np.asarray([1, -1, 0])
-            elif np.sum(pp) == 1:
-                # 0/0 x 1/0
-                gt = np.asarray([0, 0, 0])
-            else:
-                # 1/1 x 1/0
-                gt = np.asarray([1, 1, 0])
-
-
-        else:
-            if np.sum(pp) == 0:
-                # 0/0 x 0/0
-                gt = np.asarray([0, 0, 0])
-            elif np.sum(pp) == 1:
-                # 0/0 x 1/0
-                gt = np.asarray([0, 0, 0])
-            elif np.sum(pp) == 2:
-                # 1/0 x 1/0
-                gt = np.asarray([-1, -1, 0])
-            elif np.sum(pp) == 3:
-                # 1/1 x 1/0
-                gt = np.asarray([1, 1, 0])
-            else: # sum = 4
-                gt = np.asarray([1, 1, 0])
-        return gt
-
+        subset = self.get_subset()
+        idx = np.argwhere(np.isin(self.samples, subset))
+        self.call = np.asarray(self.variant)[idx]
+        return self.call
 
     def pool_genotypes(self):
         """
         Computes genotypes of the different pools.
         :return: array of {0,1} GLs for RR|RA|AA for each pool
         """
-        d = self.design_matrix()
-        call = self.get_call()
-        pools = np.zeros((1, self.pools_nb, 3), dtype=int)
-        for i in range(d.shape[0]):
-            cache = d[i, :]
-            poolval = call[np.argwhere(cache == 1)].squeeze()
-            pools[:, i, :] = self.pooling_rules(poolval)
-        return pools
+        call = self.get_call().reshape((1, self.size, 3))
+        scores = np.apply_along_axis(sum, axis=-1, arr=call[:, :, :-1])
 
-    def decode_genotypes(self, pooled_samples, drop=False):
+        if np.isin(call, -1).any():
+            x = np.ones((1, self.pools_nb, 1))
+            y = np.asarray([-1, -1, 0])
+            b = np.broadcast(x, y)
+            p = np.empty(b.shape)
+            p.flat = [u * v for (u, v) in b]
+        else:
+            pooled_gt = np.dot(self.design_matrix(),
+                               np.transpose(scores)).reshape((1, self.pools_nb, 1))
+            pooled_gt = np.broadcast_to(pooled_gt, (1, self.pools_nb, 3))
+            pooler = lambda x: ([0, 0, 0] if np.all(x == 0)
+                                else ([1, 1, 0] if np.all(x == self.pools_nb)
+                                      else [1, 0, 0]))
+            p = np.apply_along_axis(pooler, axis=-1, arr=pooled_gt)
+
+        return p  # list of gt for the 8 pools from design matrix
+
+    def decode_genotypes(self, samples_gt, drop=False):
         """
         Recoomputes genotypes of samples with/without pooling/missing data
         :param pooled_samples: Variant.genotypes
         :return:
         """
-        pools = self.pools_list()
         pooled = self.pool_genotypes()
+        scores = np.apply_along_axis(sum, axis=-1, arr=pooled[:, :, :-1])
+        p = np.argwhere(np.isin(self.samples, self.subset))
+
         nb_alt = np.sum(
             np.apply_along_axis(
-                lambda x: 1 in x,
-                -1,
-                pooled[:, :, :-1]
+                lambda x: 1 if 1 in x else 0, axis=0, arr=pooled[:, :, :-1]
             )
         )
-        for s in self.get_subset(): #16
-            p = np.where(np.isin(np.asarray(pools), s))[0] # pools pair involved
-            out = self.decoding_rules(pooled[:, p], nb_alt)
-            pooled_samples[s] = out
-            if drop == True:
-                # missing data simulation
-                np.put(pooled_samples[s],
-                       [0, 1],
-                       [-1, -1]
-                       )
-        return pooled_samples
+
+        if np.isin(pooled, -1).any():
+            x = np.ones((1, self.size, 1))
+            y = np.asarray([-1, -1, 0])
+            b = np.broadcast(x, y)
+            decoded_gt = np.empty(b.shape)
+            decoded_gt.flat = [u * v for (u, v) in b]
+
+        else:
+            encoded = np.dot(scores,
+                             self.design_matrix()).reshape(1, self.size, 1)
+            b = np.broadcast_to(encoded, (1, self.size, 3))
+            if nb_alt == 0:
+                decoded_gt = np.zeros_like(b)
+            elif nb_alt == 2:
+                decoder = lambda x: [1, -1, 0] if np.all(x == 2) else [0, 0, 0]
+                # np.all() because of b.shape
+                decoded_gt = np.apply_along_axis(decoder, axis=-1, arr=b)
+            else:  # nb_alt > 2 and nb_alt < 8: # nb_alt = 2*n with n > 1
+                decoder = lambda x: ([-1, -1, 0] if np.all(x == 2)
+                                     else ([0, 0, 0] if (np.all(x == 1) or np.all(x == 0))
+                                           else [1, 1, 0]))
+                decoded_gt = np.apply_along_axis(decoder, axis=-1, arr=b)
+        np.put_along_axis(samples_gt,
+                          np.broadcast_to(p, (self.size, 3)),
+                          decoded_gt.squeeze(),
+                          axis=0)
+
+        if drop == True:
+            #TODO: move to pool_genotypes
+            # missing data simulation
+            np.put(samples_gt, p, [-1, -1, 0])
+
+        return samples_gt
 
     def __array_finalize__(self, obj):
         """
@@ -333,27 +282,24 @@ class SNPsPool(np.ndarray):
         self.info = getattr(obj, 'info', None)
 
 
-#TODO: specific processing for the remaining samples
+#TODO: specific processing for the remaining samples?
 
 
 ### PROCESS SUMMARY
 
 def get_data_chunk():
-    vcf = VCF(source)
-    chunk = []
-    n = 0
-    for variant in vcf:
-        chunk.append(variant)
-        n+=1
+    pass
 
 
 def process_file(data, groups, f, fileout):
     """
-        Computes and rewrites genotypes of all individuals for all samples.
-        :param f: integer, index of the file to process in the list
+    Computes and rewrites genotypes of all individuals for all samples.
+    :param f: integer, index of the file to process in the list
     """
     print('Missing data: ', MSS[f])
+    print('Pooling: ', POOL[f])
     w = Writer(fileout[f], data)
+    w.set_threads(4)
     tm = time.time()
     #for n, variant in enumerate(data('20:55167111-55167111')):
     for n, variant in enumerate(data):
@@ -364,7 +310,7 @@ def process_file(data, groups, f, fileout):
         #     break
 
 
-def process_line(groups, f, w, v):
+def process_line(groups, f, w, v, write=True):
     """
     Computes and rewrites genotypes of all individual for one sample.
     :param f: integer, index of the file to process in the list
@@ -373,13 +319,12 @@ def process_line(groups, f, w, v):
     :param cnt: integer, counts missing data
     :return: variant object with pooled values for GT/GL
     """
-    #tm = time.time()
     var = v # copy the variant object to make it readable several times
-    pooled_samples = dict(zip(SAMPLES.keys(), np.array(var.genotypes)))
+    pooled_samples = np.asarray(var.genotypes)
     sets = []
     for gp in groups[0]:
         sets.append(SNPsPool().set_subset(gp))
-    if POOLED[f]:
+    if POOL[f]:
         for p in sets:
             p.get_line(SAMPLES, var, KIND)
             dlt = random_delete(activate=MSS[f])
@@ -388,15 +333,16 @@ def process_line(groups, f, w, v):
         for p in sets:
             p.get_line(SAMPLES, var, KIND)
             dlt = random_delete(activate=MSS[f])
+            idx = np.argwhere(np.isin(SAMPLES, p))
             if dlt:
-                for s in np.array(p).flatten():
-                    np.put(pooled_samples[s],
-                           [0, 1],
-                           [-1, -1]
-                           )
-    output = sorted([[k, SAMPLES[k], pooled_samples[k]] for k in SAMPLES.keys()], key=itemgetter(1))
-    var.genotypes = [out[2] for out in output]
-    w.write_record(var)
+                np.put(pooled_samples, idx , np.asarray([-1, -1, 0]))
+
+    var.genotypes = pooled_samples.tolist()
+    if write:
+        w.write_record(var)
+    else:
+        return var
+
 
 def init_chunk(chunk=True):
     """
@@ -405,99 +351,125 @@ def init_chunk(chunk=True):
     randomly drawm markers is created i.e. a new set of SNPs.
     :return: list of 16-sized groups of samples i.e. pools
     """
-    wd = '/home/camilleclouard/PycharmProjects/1000Genomes/data/tests-beagle'
-    chk_sz = 1000
     PATH_IN = 'ALL.chr20.snps.gt.vcf.gz'
 
-    os.chdir(wd)
-    raw = VCF(PATH_IN)  # VCF iterator object
-    splits = split_pools(raw.samples, 16, seed=456)  # list of lists
+    os.chdir(WD)
+    raw = VCF(PATH_IN, threads=4)  # VCF iterator object
+    splits = split_pools(raw.samples, 16, seed=123)  # list of lists
+    with open('ALL.chr20.snps.gt.allID.txt', 'w') as f:
+        for s in splits[0]:
+            for i in s:
+                f.write(i + os.linesep)
 
     if chunk:
-        delete_file('ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(chk_sz)))
-        delete_file('chunk_{}.vcf'.format(str(chk_sz)))
+        delete_file('ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(CHK_SZ)))
+        delete_file('chunk_{}.vcf'.format(str(CHK_SZ)))
         delete_file('TMP.chr20.snps.gt.chunk.vcf')
 
         print('Extracting header'.ljust(80, '.'))
         subprocess.run('bcftools view -h -Ov -o headers.ALL.chr20.snps.gt.vcf ALL.chr20.snps.gt.vcf.gz',
                        shell=True,
-                       cwd=wd)
+                       cwd=WD)
         print('Sampling markers'.ljust(80, '.'))
         subprocess.run('bcftools view -H ALL.chr20.snps.gt.vcf.gz '
-                       + '| sort -R | head -{} > chunk_{}.vcf'.format(str(chk_sz), str(chk_sz)),
+                       + '| sort -R | head -{} > chunk_{}.vcf'.format(str(CHK_SZ), str(CHK_SZ)),
                        shell=True,
-                       cwd=wd)
-        subprocess.run('cat headers.ALL.chr20.snps.gt.vcf chunk_{}.vcf '.format(str(chk_sz))
+                       cwd=WD)
+        subprocess.run('cat headers.ALL.chr20.snps.gt.vcf chunk_{}.vcf '.format(str(CHK_SZ))
                        + '> TMP.chr20.snps.gt.chunk.vcf',
                        shell=True,
-                       cwd=wd)
+                       cwd=WD)
         print('BGzipping chunk file'.ljust(80, '.'))
-        subprocess.run('bcftools view -Oz -o ALL.chr20.snps.gt.chunk{}.vcf.gz '.format(str(chk_sz))
+        subprocess.run('bcftools view -Oz -o ALL.chr20.snps.gt.chunk{}.vcf.gz '.format(str(CHK_SZ))
                        + 'TMP.chr20.snps.gt.chunk.vcf',
                        shell=True,
-                       cwd=wd)
-        delete_file('chunk_{}.vcf'.format(str(chk_sz)))
+                       cwd=WD)
+        delete_file('chunk_{}.vcf'.format(str(CHK_SZ)))
         delete_file('TMP.chr20.snps.gt.chunk.vcf')
 
         # Eliminate the remaining samples (not involved in any pool)
-        subprocess.run(' '.join(['bcftools view -Ov -o ALL.chr20.snps.gt.chunk{}.vcf'.format(str(chk_sz)),
+        subprocess.run(' '.join(['bcftools view -Ov -o ALL.chr20.snps.gt.chunk{}.vcf'.format(str(CHK_SZ)),
                                  '-s',
                                  '^' + ','.join(splits[1]),
-                                 'ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(chk_sz))]),
+                                 'ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(CHK_SZ))]),
                        shell=True,
-                       cwd='/home/camilleclouard/PycharmProjects/1000Genomes/data/tests-beagle')
-        subprocess.run('bcftools view -Oz -o ALL.chr20.snps.gt.chunk{}.vcf.gz '.format(str(chk_sz))
-                       + 'ALL.chr20.snps.gt.chunk{}.vcf'.format(str(chk_sz)),
+                       cwd=WD)
+        subprocess.run('bcftools view -Oz -o ALL.chr20.snps.gt.chunk{}.vcf.gz '.format(str(CHK_SZ))
+                       + 'ALL.chr20.snps.gt.chunk{}.vcf'.format(str(CHK_SZ)),
                        shell=True,
-                       cwd='/home/camilleclouard/PycharmProjects/1000Genomes/data/tests-beagle')
-        subprocess.run('bcftools index -f ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(chk_sz)),
+                       cwd=WD)
+        subprocess.run('bcftools index -f ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(CHK_SZ)),
                        shell=True,
-                       cwd='/home/camilleclouard/PycharmProjects/1000Genomes/data/tests-beagle')
-        subprocess.run('bcftools sort -Oz -o ALL.chr20.snps.gt.chunk{}.vcf.gz '.format(str(chk_sz))
-                       + 'ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(chk_sz)),
+                       cwd=WD)
+        subprocess.run('bcftools sort -Oz -o ALL.chr20.snps.gt.chunk{}.vcf.gz '.format(str(CHK_SZ))
+                       + 'ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(CHK_SZ)),
                        shell=True,
-                       cwd='/home/camilleclouard/PycharmProjects/1000Genomes/data/tests-beagle')
-        subprocess.run('bcftools index -f ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(chk_sz)),
+                       cwd=WD)
+        subprocess.run('bcftools index -f ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(CHK_SZ)),
                        shell=True,
-                       cwd='/home/camilleclouard/PycharmProjects/1000Genomes/data/tests-beagle')
+                       cwd=WD)
 
     return splits
 
 
 def run(splits, iteration):
-    os.chdir(wd)
+    os.chdir(WD)
 
-    # Run one by one!
     for it in iteration:
-        vcf = VCF(source)
+        vcf = VCF(source, threads=4)
         print('Iteration --> ', it)
         start = time.time()
         process_file(vcf, splits, it, PATH_OUT)
         stop = time.time()
         print('Elapsed time for pooling the VCF files: {:06.2f} sec'.format(stop - start))
-        del vcf
+
+
+def write_truncate_vcf(path_in, path_out, trunc):
+    w = Writer(path_out, VCF(path_in))
+    for i, v in enumerate(VCF(path_in)):
+        if i == trunc:
+            break
+        else:
+            w.write_record(v)
 
 
 if __name__ == '__main__':
-    #TODO: encode "hard" pieces in parameters.py
-    wd = '/home/camilleclouard/PycharmProjects/1000Genomes/data/tests-beagle'
-    os.chdir(wd)
-    chk_sz = 1000
-    PATH_IN = 'ALL.chr20.snps.gt.vcf.gz'
-    PATH_OUT = ['ALL.chr20.pooled.snps.gt.chunk{}.vcf'.format(str(chk_sz)),
-                'ALL.chr20.pooled.missing.snps.gt.chunk{}.vcf'.format(str(chk_sz)),
-                'ALL.chr20.missing.snps.gt.chunk{}.vcf'.format(str(chk_sz))]
-    KIND = 'gt'
-    MSS = [False, True, True]
-    POOLED = [True, True, False]
-    source = 'ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(chk_sz))
+    WD = prm.WD
+    os.chdir(WD)
+    CHK_SZ = prm.CHK_SZ
+    PATH_IN = prm.PATH_IN
+    PATH_OUT = prm.PATH_OUT
+    KIND = prm.KIND
+    MSS = prm.MSS
+    POOL = prm.POOL
+    source = prm.SOURCE
+
+    items = init_chunk(chunk=False)
+
     data = VCF(source)
-    SAMPLES = dict(zip(data.samples, range(len(data.samples))))
+    SAMPLES = data.samples
 
+    #run(items, range(2))
 
-    items = init_chunk(chunk = True)
-    run(items, range(3))
-
+    for fi in PATH_OUT:
+        trc = prm.SUBCHUNK
+        write_truncate_vcf(fi, fi.replace('chunk' + str(CHK_SZ), 'chunk' + str(trc)), trc)
+    print('Creating subchunk file'.ljust(80, '.'))
+    write_truncate_vcf(source[:-3], source[:-3].replace('chunk' + str(CHK_SZ), 'chunk' + str(trc)), trc)
+    # source[:-3] deleting '.gz' in the name
+    print('BGzipping subchunk file'.ljust(80, '.'))
+    subprocess.run('bcftools view -Oz -o ALL.chr20.snps.gt.chunk{}.vcf.gz '.format(str(trc))
+                   + 'ALL.chr20.snps.gt.chunk{}.vcf '.format(str(trc)),
+                   shell=True,
+                   cwd=WD)
+    print('Sorting and indexing subchunk file'.ljust(80, '.'))
+    subprocess.run('bcftools sort -Oz -o ALL.chr20.snps.gt.chunk{}.vcf.gz '.format(str(trc))
+                   + 'ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(trc)),
+                   shell=True,
+                   cwd=WD)
+    subprocess.run('bcftools index -f ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(trc)),
+                   shell=True,
+                   cwd=WD)
 
 ### ARGUMENTS PARSING AND EXECUTION
 """

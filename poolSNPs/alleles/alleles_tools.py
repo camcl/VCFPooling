@@ -7,6 +7,8 @@ import collections
 from scipy.stats import *
 import math
 from . import thread_wrapping as tw
+from persotools.debugging import *
+from persotools.files import *
 
 
 """
@@ -19,7 +21,25 @@ Plot different analysis.
 # TODO: try to characterize behav# TODO: try to characterize behavior of markers
 
 
-### TOOLS
+### GENERAL TOOLS
+
+def pgcd(a, b):
+    """pgcd(a,b): calcul du 'Plus Grand Commun Diviseur' entre les 2 nombres entiers a et b"""
+    while b != 0:
+        r = a % b
+        a, b = b, r
+    return a
+
+
+def ppcm(a, b):
+    """ppcm(a,b): calcul du 'Plus Petit Commun Multiple' entre 2 nombres entiers a et b"""
+    if (a == 0) or (b == 0):
+        return 0
+    else:
+        return (a*b)//pgcd(a, b)
+
+
+### SPECIFIC TOOLS
 
 def per_site_sample_error(elem2x2):
     """
@@ -27,9 +47,9 @@ def per_site_sample_error(elem2x2):
     the true data set vs. imputed at one site for one sample.
     :param elem2x2: 2*2 array representing the pair of GTs to compare.
     Ex. 0|0  vs. 1|0 = [[0 0] [0 1]]
-    :return: integer score for error: 0 = right, > 0 = wrong
+    :return: Z-norm. score for error: 0 = right, > 0 = wrong, max = 1
     """
-    return np.array(abs(elem2x2[:2].sum() - elem2x2[2:].sum()))
+    return np.array(abs(elem2x2[:2].sum() - elem2x2[2:].sum()))/2
 
 
 def para_array(arr1, arr2):
@@ -51,7 +71,7 @@ def per_element_error(arr4d, ax):
     """
     arr = np.rollaxis(arr4d, ax)
     arr2d = np.reshape(arr, (arr.shape[0]*arr.shape[1], 2*2))
-    errors =  np.apply_along_axis(per_site_sample_error, 1, arr2d)
+    errors = np.apply_along_axis(per_site_sample_error, 1, arr2d)
     return errors.reshape(arr.shape[0], arr.shape[1])
 
 
@@ -99,17 +119,27 @@ def vcf2dframe(vcf_obj, size):
     return df0, df1
 
 
+def convert_maf(x):
+    try:
+        x = float(x)
+    except:
+        x = np.nan
+    finally:
+        return x
+
+
 def get_maf(vcf_raw):
     subprocess.run(['''bcftools query -f '%ID\t%AF\n' {0} > {1}/TMP.maf.csv'''.format(vcf_raw, os.getcwd())],
                     shell=True,
-                    cwd='/home/camilleclouard/PycharmProjects/1000Genomes/data/tests-beagle')
+                    cwd='/home/camille/PycharmProjects/1000Genomes/data/tests-beagle')
     df_maf = pd.read_csv('TMP.maf.csv',
                       sep='\t',
                       names=['id', 'maf'])
     df_maf.sort_values('id', axis=0, inplace=True)
     df_maf.reset_index(drop=True, inplace=True)
     df_maf.set_index('id', drop=False, inplace=True)
-    df_maf['maf_inter'] = np.digitize(df_maf['maf'].astype(float),
+    convert = np.vectorize(lambda x: convert_maf(x))
+    df_maf['maf_inter'] = np.digitize(convert(df_maf['maf']),
                                       bins=np.array([0.00, 0.01, 0.05]))
     os.remove('TMP.maf.csv')
     return df_maf
@@ -119,14 +149,10 @@ def compute_imp_err(set_names, objs, raw, idx1, idx2, sorting):
     set_err = {}
     for k, dset in dict(zip(set_names, objs)).items():
         db = para_array(raw, dset)  # shape=(1000, 1992, 2, 2) OK
-        print('Errors in {} dataset...'.format(k).ljust(80, '.'))
+        print('Errors in {} dataset'.format(k).ljust(80, '.'))
         single_errors = per_element_error(db, 0)
         df = pd.DataFrame(data=single_errors, index=idx1, columns=idx2)
-        set_err[k] = {}
-        set_err[k]['grid'] = df
-        set_err[k]['mean'] = np.mean(single_errors)
-        vsqr = np.vectorize(lambda x: np.power(x, 2))
-        set_err[k]['log1p_mse'] = math.log1p(np.mean(vsqr(single_errors)))
+        set_err[k] = df
         df.to_csv(k + '{}.csv'.format('.sorted' if sorting else ''),
                   sep='\t',
                   encoding='utf-8')
@@ -135,12 +161,12 @@ def compute_imp_err(set_names, objs, raw, idx1, idx2, sorting):
 
 def tag_heteroz(arr):
     if np.isin(arr, 0).any() and np.isin(arr, 1).any():
-        return True
+        return 1
     else:
-        return False
+        return 0
 
 
-def tag_missing(arr): # nan or -1?
+def tag_missing(arr):
     if np.sum(arr) == 2:
         return 2
     elif np.isin(arr, -1).any():
@@ -158,32 +184,72 @@ def minor_allele(arr):
         return 0
 
 
-def per_site_heteroz(vcf_path):
+def per_site_heteroz(vcf_path=None, gt_array=None):
     """
 
     :param vcf_obj:
     :return:
     """
-    vcf_obj = VCF(vcf_path)
-    dic_het = {}
-    for var in vcf_obj:
-        gt = np.array(var.genotypes)[:, :-1]
-        dic_het[var.ID] = np.count_nonzero(np.apply_along_axis(tag_heteroz, 1, gt).astype(int))
-    return dic_het
+    dic_het = collections.OrderedDict()
+
+    if vcf_path is not None and gt_array is not None:
+        raise ValueError
+
+    elif vcf_path is None and gt_array is None:
+        het = None
+
+    elif vcf_path is not None:
+        vcf_obj = VCF(vcf_path)
+        for var in vcf_obj:
+            gt = np.array(var.genotypes)[:, :-1]
+            dic_het[var.ID] = np.sum(
+                np.apply_along_axis(
+                tag_heteroz, 1, gt
+                ).astype(int)
+            )
+
+        het = np.asarray([[k, v] for k, v in dic_het.items()])
+
+    else:
+        tag = np.apply_along_axis(
+            tag_heteroz, -1, gt_array[:, :, :-1]
+        ).astype(int)
+        het = np.apply_along_axis(np.sum, 0, tag)
+
+    return het
 
 
-def count_missing_alleles(vcf_path):
+def count_missing_alleles(vcf_path=None, gt_array=None):
     """
 
     :param vcf_obj:
     :return:
     """
-    vcf_obj = VCF(vcf_path)
-    dic_mis = {}
-    for var in vcf_obj:
-        gt = np.array(var.genotypes)[:, :-1]
-        dic_mis[var.ID] = np.sum(np.apply_along_axis(tag_missing, 1, gt))#/(len(var.genotypes)*2) ?
-    return dic_mis
+    dic_mis = collections.OrderedDict()
+
+    if vcf_path is not None and gt_array is not None:
+        raise ValueError
+
+    elif vcf_path is None and gt_array is None:
+        mis = None
+
+    elif vcf_path is not None:
+        vcf_obj = VCF(vcf_path)
+        for var in vcf_obj:
+            gt = np.array(var.genotypes)[:, :-1]
+            dic_mis[var.ID] = np.sum(
+                np.apply_along_axis(
+                    tag_missing, 1, gt)
+            )/(len(var.genotypes)*2)
+        mis = np.asarray([[k, v] for k, v in dic_mis.items()])
+
+    else:
+        tag = np.apply_along_axis(
+            tag_missing, -1, gt_array[:, :, :-1]
+        ).astype(int)
+        mis = np.apply_along_axis(np.sum, 0, tag)
+
+    return mis
 
 
 def compute_maf(vcf_path, verbose=False):
@@ -215,7 +281,7 @@ def compute_maf_evol(set):
     :param df_maf: maf from the original vcf-chunked file, with markers ID as index
     :return:
     """
-    print('Set --> ', set.upper())
+    print('\r\nSet --> ', set.upper())
     o = tw.read_queue(set)
     d = {**o[0], **o[1]}
     postimp_maf = d['postimp']
@@ -224,3 +290,18 @@ def compute_maf_evol(set):
     dic['preimp_' + set] = preimp_maf # caution, still missing data!
     dic['postimp_' + set] = postimp_maf
     return dic
+
+
+def rmse_df(df, kind='rmse', ax=None, lev=None):
+    df.astype(float, copy=False)
+    sqr = df.applymap(lambda x: np.power(x, 2))
+    if ax is None: # rmse overall
+        mse = np.mean(sqr.values)
+        rmse = math.sqrt(mse)
+    else: # rmse per marker/per sample
+        mse = sqr.mean(axis=ax, level=lev)
+        rmse = mse.apply(math.sqrt).rename('rmse')
+    if kind == 'rmse':
+        return rmse
+    else:
+        return mse
