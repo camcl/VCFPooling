@@ -1,4 +1,4 @@
-from cyvcf2 import VCF
+from cyvcf2 import VCF, Writer, Variant, Genotypes
 import os
 import numpy as np
 import pandas as pd
@@ -7,8 +7,11 @@ import collections
 from scipy.stats import *
 import math
 from . import thread_wrapping as tw
+import scripts.poolSNPs.parameters as prm
 from persotools.debugging import *
 from persotools.files import *
+import pickle
+import inspect
 
 
 """
@@ -122,7 +125,7 @@ def vcf2dframe(vcf_obj, size):
 def convert_maf(x):
     try:
         x = float(x)
-    except:
+    except TypeError:
         x = np.nan
     finally:
         return x
@@ -153,7 +156,7 @@ def compute_imp_err(set_names, objs, raw, idx1, idx2, sorting):
         single_errors = per_element_error(db, 0)
         df = pd.DataFrame(data=single_errors, index=idx1, columns=idx2)
         set_err[k] = df
-        df.to_csv(k + '{}.csv'.format('.sorted' if sorting else ''),
+        df.to_csv(k + '{}.chunk{}.csv'.format('.sorted' if sorting else '', prm.CHK_SZ),
                   sep='\t',
                   encoding='utf-8')
     return set_err
@@ -281,15 +284,17 @@ def compute_maf_evol(set):
     :param df_maf: maf from the original vcf-chunked file, with markers ID as index
     :return:
     """
-    print('\r\nSet --> ', set.upper())
-    o = tw.read_queue(set)
-    d = {**o[0], **o[1]}
-    postimp_maf = d['postimp']
-    preimp_maf = d['preimp']
-    dic = dict()
-    dic['preimp_' + set] = preimp_maf # caution, still missing data!
-    dic['postimp_' + set] = postimp_maf
-    return dic
+    print('\r\nSet --> ', set)
+    steps = {'preimp': 'IMP.chr20.{}.snps.gt.chunk{}.vcf.gz'.format(set, str(prm.CHK_SZ)),
+             'postimp': 'IMP.chr20.{}.beagle2.chunk{}.corr.vcf.gz'.format(set, str(prm.CHK_SZ))}
+    temp = []
+    for d, vcf in steps.items():
+        df = pd.DataFrame.from_dict(compute_maf(vcf),
+                                    orient='index',
+                                    columns=[d + '_' + set])
+        temp.append(df)
+
+    return temp
 
 
 def rmse_df(df, kind='rmse', ax=None, lev=None):
@@ -305,3 +310,78 @@ def rmse_df(df, kind='rmse', ax=None, lev=None):
         return rmse
     else:
         return mse
+
+
+def map_gt_gl(arr_in):
+    gt = arr_in[:-1]
+    if gt.all() == np.array([0, 1]).all():
+        gl = np.array([-5.0, 0.0, -5.0])
+    elif gt.all() == np.array([1, 1]).all():
+        gl = np.array([-5.0, -5.0, 0.0])
+    elif gt.all() == np.array([0, 0]).all():
+        gl = np.array([0.0, -5.0, -5.0])
+    elif gt.all() == np.array([1, np.nan]).all():
+        gl = np.array([-5.0, math.log10(0.5), math.log10(0.5)])
+    else: # np.nan, np.nan
+        gl = np.array([math.log10(0.2), math.log10(0.4), math.log10(0.4)])
+    return gl
+
+
+def repr_gl_array(arr):
+    arr_str = np.apply_along_axis(lambda x: ','.join(x),
+                                  axis=-1,
+                                  arr=np.asarray(arr, dtype=str))
+    strg = np.apply_along_axis(lambda x: '\t'.join(x),
+                                  axis=-1,
+                                  arr=np.asarray(arr_str, dtype=str))
+    return strg
+
+
+def bin_gl_converter(v_in):
+    # v_in: cyvcf2 variant
+    g_in = v_in.genotypes
+    g_out = np.apply_along_axis(map_gt_gl, 1, g_in)
+    return g_out
+
+
+def fmt_gl_variant(v_in):
+    info = ';'.join([kv for kv in ['='.join([str(k), str(v)]) for k, v in v_in.INFO]])
+    gl = repr_gl_array(bin_gl_converter(v_in))
+    toshow = np.asarray([v_in.CHROM,
+                         v_in.POS,
+                         v_in.ID,
+                         v_in.REF[0],
+                         v_in.ALT[0],
+                         v_in.QUAL,
+                         'PASS' if v_in.FILTER is None else v_in.FILTER,
+                         info,
+                         'GL',
+                         gl],
+                        dtype=str)
+    return '\t'.join(toshow)
+
+
+def file_likelihood_converter(f_in, f_out):
+    str_header = '##FORMAT=<ID=GL,Number=G,Type=Float,Description="three log10-scaled likelihoods for RR,RA,AA genotypes">'
+    dic_header = {'ID': 'GL',
+                  'Number': 'G',
+                  'Type': 'Float',
+                  'Description': 'three log10-scaled likelihoods for RR,RA,AA genotypes'}
+    vcf_in = VCF(f_in)
+    vcf_in.add_format_to_header(dic_header)
+
+    for lin in vcf_in.header_iter():
+        try:
+            lin['ID'] == 'GT'
+            del lin
+        except KeyError:
+            pass
+
+    w1 = Writer(f_out, vcf_in)
+    w1.write_header()
+    w1.close()
+
+    with open(f_out, 'ab') as w2:
+        for var_in in vcf_in:
+            w2.write(fmt_gl_variant(var_in).encode())
+

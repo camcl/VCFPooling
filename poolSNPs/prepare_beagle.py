@@ -1,12 +1,9 @@
-import os
-import argparse
 import subprocess
 
 from scripts.poolSNPs import parameters as prm
+from scripts.poolSNPs.alleles import alleles_tools as alltls
 from persotools.debugging import *
 from persotools.files import *
-
-#TODO: remove miss.pool
 
 '''
 Run bcftools manipulations for preprocessing the files which are used for Beagle imputation.
@@ -24,13 +21,23 @@ missing = prm.MISSING
 
 miss_pool = prm.MISS_POOL
 
-subset = True #if susbset get the first 1000 lines to recreate ech method file: polled, missing etc
+subset = prm.SUBSET #if susbset get the first 1000 lines to recreate ech method file: pooled, missing etc
 trc = prm.SUBCHUNK
+GTGL = 'GT'
+
+### GL CONVERSION
+if GTGL == 'GL':
+    print('GT to GL in {}'.format(os.getcwd()).ljust(80, '.'))
+    for dic in [pooled, missing, raw]:
+        alltls.file_likelihood_converter(dic['vcf'], dic['vcf'].replace('.gt', '.gl'))
+        for k, v in dic.items():
+            dic[k] = v.replace('gt', 'gl')
 
 ### BGZIP
 print('BGZIP in {}'.format(os.getcwd()).ljust(80, '.'))
 for dic in [pooled, missing]:
     delete_file(dic['gz'])
+    delete_file(dic['gz'] + '.csi')
     if subset:
         delete_file(dic['gz'].replace('chunk' + str(chk_sz), 'chunk' + str(trc)) + '.vcf.gz')
 
@@ -62,10 +69,10 @@ for dic in [pooled, missing]:
         subprocess.run(sort.replace('chunk' + str(chk_sz), 'chunk' + str(trc)), shell=True, cwd=cd)
         subprocess.run(idxgz.replace('chunk' + str(chk_sz), 'chunk' + str(trc)), shell=True, cwd=cd)
 
-samples_files = ['cat ALL.chr20.snps.gt.allID.txt | head -{} > ALL.chr20.snps.gt.impID.txt'.format(prm.NB_IMP),
-                 'cat ALL.chr20.snps.gt.allID.txt | tail -{} > ALL.chr20.snps.gt.refID.txt'.format(prm.NB_REF),
-                 'dos2unix ALL.chr20.snps.gt.refID.txt',
-                 'dos2unix ALL.chr20.snps.gt.impID.txt']
+samples_files = ['cat ALL.chr20.snps.allID.txt | head -{} > ALL.chr20.snps.impID.txt'.format(prm.NB_IMP),
+                 'cat ALL.chr20.snps.allID.txt | tail -{} > ALL.chr20.snps.refID.txt'.format(prm.NB_REF),
+                 'dos2unix ALL.chr20.snps.refID.txt',
+                 'dos2unix ALL.chr20.snps.impID.txt']
 for f in samples_files:
     subprocess.run(f, shell=True, cwd=cd)
 
@@ -73,6 +80,7 @@ for f in samples_files:
 print('REF/IMP SAMPLING'.ljust(80, '.'))
 for dic in [raw, pooled, missing]:
     delete_file(dic['imp'])
+    delete_file(dic['imp'] + '.csi')
     if subset:
         delete_file(dic['imp'].replace('chunk' + str(chk_sz), 'chunk' + str(trc)) + '.vcf.gz')
 
@@ -80,7 +88,7 @@ for dic in [raw, pooled, missing]:
                      'view',
                      '-Oz -o',
                      dic['imp'],
-                     '-S ALL.chr20.snps.gt.impID.txt',
+                     '-S ALL.chr20.snps.impID.txt',
                      dic['gz']
                      ])
 
@@ -99,7 +107,7 @@ samp = ' '.join(['bcftools',
                  'view',
                  '-Oz -o',
                  raw['ref'],
-                 '-S ALL.chr20.snps.gt.refID.txt',
+                 '-S ALL.chr20.snps.refID.txt',
                  raw['gz']
                  ])
 
@@ -108,9 +116,11 @@ idxsp = ' '.join(['bcftools',
                   raw['ref']
                   ])
 
+delete_file(raw['ref'] + '.csi')
 subprocess.run(samp, shell=True, cwd=cd)
 subprocess.run(idxsp, shell=True, cwd=cd)
 if subset:
+    delete_file(raw['ref'].replace('chunk' + str(chk_sz), 'chunk' + str(trc)) + '.csi')
     subprocess.run(samp.replace('chunk' + str(chk_sz), 'chunk' + str(trc)), shell=True, cwd=cd)
     subprocess.run(idxsp.replace('chunk' + str(chk_sz), 'chunk' + str(trc)), shell=True, cwd=cd)
 
@@ -129,14 +139,14 @@ if subset:
     delete_file(raw['b1i'].replace('chunk' + str(chk_sz), 'chunk' + str(trc)) + '.vcf.gz')
 
 
-bgl1 = ' '.join(['java -Xmx4000m -jar beagle.27Jan18.7e1.jar',
-                 'gt=' + raw['imp'],
+bgl1 = ' '.join(['java -Xmx4000m -jar {}'.format(prm.BEAGLE_JAR),
+                 '{}='.format('gt' if GTGL == 'GT' else 'gl') + raw['imp'],
                  'impute=false',
                  'gprobs=true',
                  'out=' + raw['b1i'],
                  '&',
-                 'java -Xmx4000m -jar beagle.27Jan18.7e1.jar',
-                 'gt=' + raw['ref'],
+                 'java -Xmx4000m -jar {}'.format(prm.BEAGLE_JAR),
+                 '{}='.format('gt' if GTGL == 'GT' else 'gl') + raw['ref'],
                  'impute=false',
                  'gprobs=true',
                  'out=' + raw['b1r']
@@ -165,10 +175,10 @@ for dic in [pooled, missing]:
     if subset:
         delete_file(dic['cfgt'].replace('chunk' + str(chk_sz), 'chunk' + str(trc)) + '.vcf.gz')
 
-    cfgt = ' '.join(['java -jar conform-gt.jar',
-                     'gt=' + dic['imp'],
+    cfgt = ' '.join(['java -jar {}'.format(prm.CFGT_JAR),
+                     '{}='.format('gt' if GTGL == 'GT' else 'gl') + dic['imp'],
                      'chrom=20:60343-62965354',
-                     'ref=REF.chr20.snps.gt.chunk{}.vcf.gz'.format(str(chk_sz)),
+                     'ref={}'.format(str(raw['ref'])),
                      'out=' + dic['cfgt']
                      ])
 
@@ -190,9 +200,9 @@ for dic in [pooled, missing]:
     if subset:
         delete_file(dic['b2'].replace('chunk' + str(chk_sz), 'chunk' + str(trc)) + '.vcf.gz')
 
-    bgl2 = ' '.join(['java -Xmx4000m -jar beagle.27Jan18.7e1.jar',
-                     'gt=' + dic['cfgt'] + '.vcf.gz',
-                     'ref=REF.chr20.beagle1.chunk{}.vcf.gz'.format(str(chk_sz)),
+    bgl2 = ' '.join(['java -Xmx4000m -jar {}'.format(prm.BEAGLE_JAR),
+                     '{}='.format('gt' if GTGL == 'GT' else 'gl') + dic['cfgt'] + '.vcf.gz',
+                     'ref={}.vcf.gz'.format(str(raw['b1r'])),
                      'impute=true',
                      'gprobs=true',
                      'out=' + dic['b2']
@@ -206,7 +216,7 @@ for dic in [pooled, missing]:
     subprocess.run(bgl2, shell=True, cwd=cd)
     subprocess.run(idxb2, shell=True, cwd=cd)
     if subset:
-        subprocess.run(bgl1.replace('chunk' + str(chk_sz), 'chunk' + str(trc)), shell=True, cwd=cd)
+        subprocess.run(bgl2.replace('chunk' + str(chk_sz), 'chunk' + str(trc)), shell=True, cwd=cd)
         subprocess.run(idxb2.replace('chunk' + str(chk_sz), 'chunk' + str(trc)), shell=True, cwd=cd)
 
 ### FIX DS AND GP FORMAT FIELDS
@@ -231,45 +241,3 @@ for dic in [pooled, missing]:
     if subset:
         subprocess.run(refmt.replace('chunk' + str(chk_sz), 'chunk' + str(trc)), shell=True, cwd=cd)
         subprocess.run(idxfm.replace('chunk' + str(chk_sz), 'chunk' + str(trc)), shell=True, cwd=cd)
-
-
-### RESULTS COMPARISON
-print('RESULTS plot-vcfstats'.ljust(80, '.'))
-for dic in [pooled, missing]:
-    straw = ' '.join(['bcftools stats --verbose',
-                      'IMP.chr20.beagle1.vcf.gz -t "Raw"',
-                      dic['b2'] + '.vcf.gz -t "Processed"',
-                      '> ' + dic['b2'] + '.check'
-                      ])
-    plot = ' '.join(['plot-vcfstats -s ',
-                     '-t "Raw vs. {}"'.format(dic['imp']),
-                     '-p ./' + dic['b2'],
-                     dic['b2'] + '.check'])
-
-    # subprocess.run(straw, shell=True, cwd=cd)
-    # subprocess.run(plot, shell=True, cwd=cd)
-
-missdiff = ' '.join(['bcftools stats --verbose',
-                     'IMP.chr20.pooled.beagle2.vcf.gz',
-                     'IMP.chr20.missing.pooled.beagle2.vcf.gz',
-                     '> IMP.chr20.missdiff.check'
-                     ])
-pooldiff = ' '.join(['bcftools stats --verbose',
-                     'IMP.chr20.missing.beagle2.vcf.gz',
-                     'IMP.chr20.missing.pooled.beagle2.vcf.gz',
-                     '> IMP.chr20.pooldiff.check'
-                     ])
-pltdiff = ' '.join(['plot-vcfstats -s',
-                    '-t "Pooldiff"',
-                    '-p ./pooldiff',
-                    'IMP.chr20.pooldiff.check',
-                    '&',
-                    'plot-vcfstats -s',
-                    '-t "Missdiff"',
-                    '-p ./missdiff',
-                    'IMP.chr20.missdiff.check'
-                    ])
-
-# subprocess.run(missdiff, shell=True, cwd=cd)
-# subprocess.run(pooldiff, shell=True, cwd=cd)
-# subprocess.run(pltdiff, shell=True, cwd=cd)

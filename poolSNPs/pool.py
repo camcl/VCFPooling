@@ -308,6 +308,7 @@ def process_file(data, groups, f, fileout):
             print('{} variants processed in {:06.2f} sec'.format(n+1, time.time()-tm).ljust(80, '.'))
         # if n+1 == 1000:
         #     break
+    w.close()
 
 
 def process_line(groups, f, w, v, write=True):
@@ -344,19 +345,17 @@ def process_line(groups, f, w, v, write=True):
         return var
 
 
-def init_chunk(chunk=True):
+def init_chunk(path_in, chunk=True):
     """
 
-    :param chunk: boolean. If True, a new subfile from 1000
+    :param chunk: boolean. If True, a new subfile from parameters.CHK_SZ
     randomly drawm markers is created i.e. a new set of SNPs.
     :return: list of 16-sized groups of samples i.e. pools
     """
-    PATH_IN = 'ALL.chr20.snps.gt.vcf.gz'
-
     os.chdir(WD)
-    raw = VCF(PATH_IN, threads=4)  # VCF iterator object
+    raw = VCF(path_in, threads=4)  # VCF iterator object
     splits = split_pools(raw.samples, 16, seed=123)  # list of lists
-    with open('ALL.chr20.snps.gt.allID.txt', 'w') as f:
+    with open('ALL.chr20.snps.allID.txt', 'w') as f:
         for s in splits[0]:
             for i in s:
                 f.write(i + os.linesep)
@@ -431,6 +430,36 @@ def write_truncate_vcf(path_in, path_out, trunc):
             break
         else:
             w.write_record(v)
+    return i
+
+
+def subset_chunked_vcf(wd, src, path_out, chz_sz, trc):
+    for fi in path_out:
+        delete_file(fi.replace('chunk' + str(chz_sz), 'chunk' + str(trc)) + '.gz.csi')
+        print('Creating subchunk file for {}'.format(fi).ljust(80, '.'))
+        lgth = write_truncate_vcf(fi, fi.replace('chunk' + str(CHK_SZ), 'chunk' + str(trc)), trc)
+        print('Subchunk size: ', lgth)
+
+    delete_file(source.replace('chunk' + str(chz_sz), 'chunk' + str(trc)) + '.csi')
+    delete_file(src[:-3].replace('chunk' + str(chz_sz), 'chunk' + str(trc)))
+    print('Creating subchunk file for {}'.format(src).ljust(80, '.'))
+    lgth = write_truncate_vcf(src, src[:-3].replace('chunk' + str(chz_sz), 'chunk' + str(trc)), trc)
+    print('Subchunk size: ', lgth)
+    # source[:-3] deleting '.gz' in the name
+
+    print('BGzipping subchunk file from {}'.format(src).ljust(80, '.'))
+    subprocess.run('bcftools view -Oz -o ALL.chr20.snps.gt.chunk{}.vcf.gz '.format(str(trc))
+                   + 'ALL.chr20.snps.gt.chunk{}.vcf '.format(str(trc)),
+                   shell=True,
+                   cwd=wd)
+    print('Sorting and indexing subchunk file'.ljust(80, '.'))
+    subprocess.run('bcftools sort -Oz -o ALL.chr20.snps.gt.chunk{}.vcf.gz '.format(str(trc))
+                   + 'ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(trc)),
+                   shell=True,
+                   cwd=wd)
+    subprocess.run('bcftools index -f ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(trc)),
+                   shell=True,
+                   cwd=wd)
 
 
 if __name__ == '__main__':
@@ -443,33 +472,17 @@ if __name__ == '__main__':
     MSS = prm.MSS
     POOL = prm.POOL
     source = prm.SOURCE
+    subset = prm.SUBSET
 
-    items = init_chunk(chunk=False)
+    items = init_chunk(PATH_IN, chunk=False)
 
     data = VCF(source)
     SAMPLES = data.samples
 
     #run(items, range(2))
 
-    for fi in PATH_OUT:
-        trc = prm.SUBCHUNK
-        write_truncate_vcf(fi, fi.replace('chunk' + str(CHK_SZ), 'chunk' + str(trc)), trc)
-    print('Creating subchunk file'.ljust(80, '.'))
-    write_truncate_vcf(source[:-3], source[:-3].replace('chunk' + str(CHK_SZ), 'chunk' + str(trc)), trc)
-    # source[:-3] deleting '.gz' in the name
-    print('BGzipping subchunk file'.ljust(80, '.'))
-    subprocess.run('bcftools view -Oz -o ALL.chr20.snps.gt.chunk{}.vcf.gz '.format(str(trc))
-                   + 'ALL.chr20.snps.gt.chunk{}.vcf '.format(str(trc)),
-                   shell=True,
-                   cwd=WD)
-    print('Sorting and indexing subchunk file'.ljust(80, '.'))
-    subprocess.run('bcftools sort -Oz -o ALL.chr20.snps.gt.chunk{}.vcf.gz '.format(str(trc))
-                   + 'ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(trc)),
-                   shell=True,
-                   cwd=WD)
-    subprocess.run('bcftools index -f ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(trc)),
-                   shell=True,
-                   cwd=WD)
+    if subset:
+        subset_chunked_vcf(WD, source, PATH_OUT, CHK_SZ, prm.SUBCHUNK)
 
 ### ARGUMENTS PARSING AND EXECUTION
 """

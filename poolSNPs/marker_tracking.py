@@ -1,18 +1,16 @@
 from cyvcf2 import VCF
-import os
-import numpy as np
 import pandas as pd
 import subprocess
-import matplotlib as mpl
 import matplotlib.pyplot as plt
 from scipy.stats import *
-import math
 import itertools
 from scripts.poolSNPs import parameters as prm
 from scripts.poolSNPs import pool
 from scripts.poolSNPs.alleles import alleles_tools as alltls
 from scripts.poolSNPs.alleles import alleles_plots as allplt
 from scripts.poolSNPs import results as res
+from persotools.debugging import *
+from persotools.files import *
 
 print('Load parameters'.ljust(80, '.'))
 os.chdir(prm.WD)
@@ -48,7 +46,7 @@ rs73913563  0.037540 2          0.041667
 targets = {'pooled': {'id': ['rs16997717', 'rs76237652', 'rs16991943', 'rs73911387', 'rs73913563'],
                       'pos': ['20:51799439', '20:25549099', '20:6177243', '20:50359566', '20:45829538'],
                       'maf': [0.0465256, 0.037340, 0.037540, 0.037540, 0.037540]},
-           'missing': ['rs73911387', '20:50359566']}
+           'missing': ['rs73911387', '20:50359566']} #rs6031147 for missing
 
 err = pd.read_csv('pooled.sorted.csv',
                   sep='\t',

@@ -31,7 +31,7 @@ def read_queue(s): # 2 queues: 1 for pushing input, 1 for getting results
 
     out_t = []
     output_names = [{'preimp' : 'IMP.chr20.{}.snps.gt.chunk{}.vcf.gz'.format(s, str(chk_sz))},
-                    {'postimp': 'IMP.chr20.{}.beagle2.corr.vcf.gz'.format(s)}]
+                    {'postimp': 'IMP.chr20.{}.beagle2.chunk{}.corr.vcf.gz'.format(s, str(chk_sz))}]
 
     threads = []
     for i in range(1):

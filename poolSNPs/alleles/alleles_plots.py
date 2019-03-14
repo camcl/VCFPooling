@@ -85,7 +85,7 @@ def plot_heat_map(dtfr, figname, figsize, sorting, title='{}', rightYaxis=False)
                        # fontsize=0.1)
     #fig.tight_layout(h_pad=0.5)
 
-    plt.savefig(figname +'.heatmap{}.png'.format('.sorted' if sorting else ''),
+    plt.savefig(figname + '.heatmap{}.chunk{}.png'.format('.sorted' if sorting else '', prm.CHK_SZ),
                 orientation='landscape',
                 dpi='figure')
 
@@ -129,55 +129,57 @@ def boxplot_densities(set_errors):
                      bbox_to_anchor=(1.05, 0.5),
                      borderaxespad=0,
                      frameon=True)
-    plt.savefig('root.mean.square.error.box.density.png', dpi='figure')
+    plt.savefig('root.mean.square.error.box.density.chunk{}.png'.format(prm.CHK_SZ), dpi='figure')
 
 
-def plot_mafs(err_dic, path_all, boxplot=True, lineplot=True):
-    if boxplot:
-        box_maf, ax_box = plt.subplots(nrows=1, ncols=3, sharey=True)
-    if lineplot:
-        lin_maf, ax_lin = plt.subplots()
-    df_maf = alltls.get_maf(path_all).set_index('id')
+def plot_maf_evol(err_dic, path_all, bin_maf=False):
+    plt.rcParams["figure.figsize"] = [12, 6]
+    plt.rcParams["figure.autolayout"] = True
+
+    df_maf = alltls.get_maf(path_all)
+    df_maf.drop('id', axis=1, inplace=True)
+
+    if prm.SUBSET:
+        df_maf = df_maf.iloc[:prm.SUBCHUNK]
+
+    for k_set in err_dic.keys():
+        list_maf = alltls.compute_maf_evol(k_set)
+        df_maf = df_maf.join(list_maf)
+    df_maf.sort_values(by='maf', axis=0, inplace=True)
+    if bin_maf:
+        convert = np.vectorize(lambda x: alltls.convert_maf(x))
+        np_bin_maf = np.digitize(convert(df_maf.values),
+                                 bins=np.arange(0, 1, 0.1))
+        np_bin_maf = np.subtract(np_bin_maf/10, 0.00)
+        df_maf = pd.DataFrame(data=np_bin_maf, index=df_maf.index, columns=df_maf.columns)
+    print(df_maf)
+
+    lin_maf, ax_lin = plt.subplots()
     a = 0
     colors = ['b', 'g', 'r']
     for k_set in err_dic.keys():
-        dic_maf = alltls.compute_maf_evol(k_set)
-        df_maf = pd.concat([df_maf,
-                            pd.DataFrame.from_dict(dic_maf)],
-                           axis=1,
-                           sort=True)
-        df_maf.sort_values(by='maf', axis=0, inplace=True)
-
-        if boxplot:
-            df_maf['delta_pre_' + k_set] = (df_maf['preimp_' + k_set] - df_maf['maf']).map(abs)
-            df_maf['delta_post_' + k_set] = (df_maf['postimp_' + k_set] - df_maf['maf']).map(abs)
-            df_maf[['delta_pre_' + k_set, 'delta_post_' + k_set]].plot.box(by='maf_inter',
-                                                                       ax=ax_box[a],
-                                                                       showfliers=False,
-                                                                       showmeans=True)
-
-            plt.ylim(0.0, 0.001)
-
-        if lineplot:
-            df_maf.plot.line(x='maf',
-                             y='preimp_' + k_set,
-                             ax = ax_lin,
-                             linestyle='--',
-                             color=colors[a])
-            df_maf.plot.line(x='maf',
-                                y='postimp_' + k_set,
-                                ax=ax_lin,
-                                linestyle='-',
-                                color=colors[a])
-            plt.xlabel('Theoretical MAF')
-            plt.ylabel('Dataset MAF')
-            plt.plot(range(2), linestyle='-', color='k')
-            plt.legend()
-
+        df_maf.plot.line(x='maf',
+                         y='preimp_' + k_set,
+                         ax = ax_lin,
+                         linestyle='--',
+                         color=colors[a])
+        df_maf.plot.line(x='maf',
+                         y='postimp_' + k_set,
+                         ax=ax_lin,
+                         linestyle='-',
+                         color=colors[a])
+        plt.xlabel('Theoretical MAF')
+        plt.ylabel('Dataset MAF')
+        plt.plot(range(2), linestyle='-', color='k')
+        delta_post = df_maf['postimp_' + k_set].sub(df_maf['maf'])
+        err_post = alltls.rmse_df(delta_post.to_frame(), kind='mse')
+        plt.text(0.65, 0.25-0.1*a, 'MSE postimp_' + k_set + ' = ' + str(err_post))
+        plt.legend()
         a += 1
+
     plt.title('MAF evolution through processing of data sets', loc='center')
     plt.suptitle("")
-    plt.savefig('maf_evol.png',
+    plt.savefig('maf_evol.chunk{}.png'.format(prm.CHK_SZ),
                 orientation='landscape',
                 dpi='figure')
 
@@ -227,7 +229,7 @@ def plot_err_vs_het(dset, err_set, file_in, err_kind='rmse', low_maf=False, save
         #             linestyle='dashed',
         #             color='k',
         #             label='mean error')
-        plt.savefig('{}.heterozygosity.{}.png'.format(err_kind, dset),
+        plt.savefig('{}.heterozygosity.{}.chunk{}.png'.format(err_kind, dset, prm.CHK_SZ),
                     dpi='figure')
 
     return ax
@@ -241,13 +243,13 @@ def plot_err_vs_miss(k, err_set, err_kind='rmse'):
     site_err.reset_index(level=['maf'], drop=False, inplace=True)
     site_err['maf'].astype(float, copy=False)
     # missing data from the preimputed dataset
-    misNp = alltls.count_missing_alleles('IMP.chr20.{}.cfgt.vcf.gz'.format(k))
+    misNp = alltls.count_missing_alleles('IMP.chr20.{}.cfgt.chunk{}.vcf.gz'.format(k, prm.CHK_SZ))
     misSer = pd.Series(misNp[:, -1], index=misNp[:, 0]).astype(float, copy=True)
     misPct = misSer.apply(lambda h: h * 100 / nb_samples).rename('miss').to_frame()
     site_err = site_err.join(misPct, on='id')
     site_err.plot.scatter('miss', err_kind, c='maf', cmap=plt.cm.viridis)
     plt.title('Imputation error vs. missing data rate in {} data set'.format(k))
-    plt.savefig('rmse.missing.data.{}.png'.format(k.upper()),
+    plt.savefig('rmse.missing.data.{}.chunk{}.png'.format(k, prm.CHK_SZ),
                 dpi='figure')
 
 
@@ -264,7 +266,7 @@ def multiplot_err_het(err):
         print(low_err.query('maf_inter == 2', inplace=False).mean(axis=1).describe())
         print(low_err.query('maf_inter == 1', inplace=False).mean(axis=1).describe())
         low_err.set_index('maf', drop=True, append=True, inplace=True)
-        file1 = 'IMP.chr20.{}.beagle2.corr.vcf.gz'.format(k)
+        file1 = 'IMP.chr20.{}.beagle2.chunk{}.corr.vcf.gz'.format(k, prm.CHK_SZ)
         axm[i,j] = plot_err_vs_het(k,
                                    low_err,
                                    file1,
@@ -291,4 +293,4 @@ def multiplot_err_het(err):
                                     ax=axm[i,j])
         j += 1
     #plt.show()
-    plt.savefig('root.mean.square.error.maf.low.png', dpi='figure')
+    plt.savefig('root.mean.square.error.maf.low.chunk{}.png'.format(prm.CHK_SZ), dpi='figure')

@@ -14,8 +14,10 @@ from cyvcf2 import VCF
 global DATA_PATH, PLOTS_PATH
 global CHK_SZ, SOURCE, KIND, MSS, POOL, WD
 global RAW, POOLED, MISSING, MISS_POOL
+global SUBSET
 
 ### GENERAL TOOLS
+
 
 def pgcd(a, b):
     """pgcd(a,b): calcul du 'Plus Grand Commun Diviseur' entre les 2 nombres entiers a et b"""
@@ -36,11 +38,12 @@ def ppcm(a, b):
 ### all
 DATA_PATH = '/home/camille/PycharmProjects/1000Genomes/data'
 PLOTS_PATH = '/home/camille/PycharmProjects/1000Genomes/plots'
+SCRIPTS_PATH = '/home/camille/PycharmProjects/1000Genomes/scripts'
 
 
 ### pool.py
 WD = os.path.join(DATA_PATH, 'tests-beagle')
-CHK_SZ = 10000
+CHK_SZ = 1000
 SUBCHUNK = 1000
 PATH_IN = 'ALL.chr20.snps.gt.vcf.gz'
 PATH_OUT = ['ALL.chr20.pooled.snps.gt.chunk{}.vcf'.format(str(CHK_SZ)),
@@ -54,40 +57,56 @@ SOURCE = 'ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(CHK_SZ))
 
 
 ### beagle.py
+BEAGLE_JAR = os.path.join(SCRIPTS_PATH, 'beagle.11Mar19.69c.jar')
+CFGT_JAR = os.path.join(SCRIPTS_PATH, 'conform-gt.jar')
+
 RAW = {'vcf':'ALL.chr20.snps.gt.chunk{}.vcf'.format(str(CHK_SZ)),
        'gz':'ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(CHK_SZ)),
        'ref': 'REF.chr20.snps.gt.chunk{}.vcf.gz'.format(str(CHK_SZ)),
        'imp': 'IMP.chr20.snps.gt.chunk{}.vcf.gz'.format(str(CHK_SZ)),
-       'b1r':'REF.chr20.beagle1.chunk{}'.format(str(CHK_SZ)),
-       'b1i':'IMP.chr20.beagle1.chunk{}'.format(str(CHK_SZ))}
+       'b1r':'REF.chr20.beagle1.gt.chunk{}'.format(str(CHK_SZ)),
+       'b1i':'IMP.chr20.beagle1.gt.chunk{}'.format(str(CHK_SZ))}
 
 POOLED = {'vcf':'ALL.chr20.pooled.snps.gt.chunk{}.vcf'.format(str(CHK_SZ)),
           'gz':'ALL.chr20.pooled.snps.gt.chunk{}.vcf.gz'.format(str(CHK_SZ)),
           'imp': 'IMP.chr20.pooled.snps.gt.chunk{}.vcf.gz'.format(str(CHK_SZ)),
-          'b1':'IMP.chr20.pooled.beagle1.chunk{}'.format(str(CHK_SZ)),
-          'b2':'IMP.chr20.pooled.beagle2.chunk{}'.format(str(CHK_SZ)),
-          'corr':'IMP.chr20.pooled.beagle2.chunk{}.corr'.format(str(CHK_SZ)),
-          'cfgt': 'IMP.chr20.pooled.cfgt.chunk{}'.format(str(CHK_SZ))}
+          'b1':'IMP.chr20.pooled.beagle1.gt.chunk{}'.format(str(CHK_SZ)),
+          'b2':'IMP.chr20.pooled.beagle2.gt.chunk{}'.format(str(CHK_SZ)),
+          'corr':'IMP.chr20.pooled.beagle2.gt.chunk{}.corr'.format(str(CHK_SZ)),
+          'cfgt': 'IMP.chr20.pooled.cfgt.gt.chunk{}'.format(str(CHK_SZ))}
 
 MISSING = {'vcf':'ALL.chr20.missing.snps.gt.chunk{}.vcf'.format(str(CHK_SZ)),
            'gz':'ALL.chr20.missing.snps.gt.chunk{}.vcf.gz'.format(str(CHK_SZ)),
            'imp': 'IMP.chr20.missing.snps.gt.chunk{}.vcf.gz'.format(str(CHK_SZ)),
-           'b1':'IMP.chr20.missing.beagle1.chunk{}'.format(str(CHK_SZ)),
-           'b2':'IMP.chr20.missing.beagle2.chunk{}'.format(str(CHK_SZ)),
-           'corr': 'IMP.chr20.missing.beagle2.chunk{}.corr'.format(str(CHK_SZ)),
-           'cfgt': 'IMP.chr20.missing.cfgt.chunk{}'.format(str(CHK_SZ))}
+           'b1':'IMP.chr20.missing.beagle1.gt.chunk{}'.format(str(CHK_SZ)),
+           'b2':'IMP.chr20.missing.beagle2.gt.chunk{}'.format(str(CHK_SZ)),
+           'corr': 'IMP.chr20.missing.beagle2.gt.chunk{}.corr'.format(str(CHK_SZ)),
+           'cfgt': 'IMP.chr20.missing.cfgt.gt.chunk{}'.format(str(CHK_SZ))}
 
 MISS_POOL = {'vcf':'ALL.chr20.missing.snps.gt.chunk{}.vcf'.format(str(CHK_SZ)),
              'gz':'ALL.chr20.missing.pooled.snps.gt.chunk{}.vcf.gz'.format(str(CHK_SZ)),
              'imp': 'IMP.chr20.missing.pooled.snps.gt.chunk{}.vcf.gz'.format(str(CHK_SZ)),
-             'b1':'IMP.chr20.missing.pooled.beagle1.chunk{}'.format(str(CHK_SZ)),
-             'b2':'IMP.chr20.missing.pooled.beagle2.chunk{}'.format(str(CHK_SZ)),
-             'corr': 'IMP.chr20.missing.pooled.beagle2.chunk{}.corr'.format(str(CHK_SZ)),
-             'cfgt': 'IMP.chr20.missing.pooled.cfgt.chunk{}'.format(str(CHK_SZ))}
+             'b1':'IMP.chr20.missing.pooled.beagle1.gt.chunk{}'.format(str(CHK_SZ)),
+             'b2':'IMP.chr20.missing.pooled.beagle2.gt.chunk{}'.format(str(CHK_SZ)),
+             'corr': 'IMP.chr20.missing.pooled.beagle2.gt.chunk{}.corr'.format(str(CHK_SZ)),
+             'cfgt': 'IMP.chr20.missing.pooled.cfgt.gt.chunk{}'.format(str(CHK_SZ))}
 
 nb_samples = len(VCF(os.path.join(WD, RAW['gz'])).samples)
 pools_size = 16
 pools_imp = ppcm(nb_samples, pools_size) // (10 * pools_size)
 NB_IMP = pools_imp * pools_size
 NB_REF = nb_samples - NB_IMP
-print(nb_samples, pools_imp)
+
+
+### subchunking experiment
+SUBSET = False
+
+
+### PRINTING
+print('*'.ljust(80, '*'))
+print('Parameters configured:')
+print('working directory: ', WD)
+print('number of markers to extract and process: ', CHK_SZ)
+print('subsetting the main data set at 10%: ', SUBSET)
+print('*'.ljust(80, '*'))
+print('\r\n')
