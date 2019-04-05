@@ -1,6 +1,6 @@
 from cyvcf2 import VCF
 import pandas as pd
-import subprocess
+import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import *
 import itertools
@@ -27,32 +27,21 @@ splits = pool.split_pools(VCF(f).samples, 16, seed=123)  # list of lists
 
 """
 id          maf      maf_inter  err
-rs73303402  0.032348 2          0.039583
-rs117459664 0.032548 2          0.054167
-rs1892329   0.032748 2          0.041667
-rs6099571   0.032748 2          0.037500
-rs76001984  0.032748 2          0.037500
-rs1892329   0.032748 2          0.041667
-rs113855134 0.034944 2          0.045833
-rs112426140 0.035144 2          0.043750
-rs115452279 0.035144 2          0.045833
-
-rs76237652  0.037340 2          0.047917
-rs16991943  0.037540 2          0.050000
-rs73911387  0.037540 2          0.064583
-rs73913563  0.037540 2          0.041667
+rs6052163   0.442107 3          0.000000
+rs1418029   0.443510 3          0.029167
+rs2011489   0.448518 3          0.000000
+rs2325843   0.459335 3          0.006250
+rs11475696  0.486579 3          0.233333
+rs202537    0.488982 3          0.000000
+rs6054087   0.489383 3          0.118750
+rs2281575   0.494992 3          0.000000
+rs6042207   0.538462 3          0.000000
+rs6139234   0.551082 3          0.000000
+rs2326371   0.573518 3          0.006250
+rs6417627   0.586939 3          0.002083
+rs4350821   0.600962 3          0.008333
+rs912111    0.603165 3          0.316667
 """
-
-targets = {'pooled': {'id': ['rs16997717', 'rs76237652', 'rs16991943', 'rs73911387', 'rs73913563'],
-                      'pos': ['20:51799439', '20:25549099', '20:6177243', '20:50359566', '20:45829538'],
-                      'maf': [0.0465256, 0.037340, 0.037540, 0.037540, 0.037540]},
-           'missing': ['rs73911387', '20:50359566']} #rs6031147 for missing
-
-err = pd.read_csv('pooled.sorted.csv',
-                  sep='\t',
-                  header=[0, 1],
-                  index_col=[0, 1, 2])
-err_per_mrk = alltls.rmse_df(err)
 
 
 def count_alt(arr): # counts carriers if on raw samples
@@ -84,14 +73,17 @@ def decoding_power(mtx=pool.SNPsPool().design_matrix()):
 
 
 def marker_stats(data, idn, verbose=False):
-    for v in data(idn):
+    m = None
+    for n, v in enumerate(data(idn)):
+        print(v)
+        m = v
         if verbose:
             print('Number of known samples: ', v.num_called)
             print('Number of unknown samples: ', v.num_unknown)
             print('Number of heterozygotes: ', v.num_het)
             print('Number of alt homozygotes: ', v.num_hom_alt)
-        m = v
-        break
+        if n == 0:
+            break
     return m
 
 
@@ -161,9 +153,11 @@ def frame_comb_count():
     return df
 
 
-def barplot_comb(df, lab):
-    df.plot.bar(label=lab)
-    plt.legend
+def barplot_comb(df, lab, ttl):
+    ax = df.plot.bar(title=ttl)
+    handles, labels = ax.get_legend_handles_labels()
+    ax.legend(handles, lab,
+              bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
     plt.show()
 
 
@@ -173,53 +167,76 @@ def boxplot_err_comb(df, cols=None):
     plt.show()
 
 
-decoding_power()
+if __name__ == '__main__':
+    decoding_power()
+    targets = {'pooled': {'id': ['rs1418029', 'rs2011489', 'rs2325843', 'rs11475696',
+                                 'rs138183721', 'rs138276627', 'rs139656140'],
+                          'pos': ['20:2060151', '20:888523', '20:2348882', '20:5749550',
+                                  '20:3108058', '20:686062', '20:1169354'],
+                          'maf': [0.443510, 0.448518, 0.459335, 0.486579,
+                                  0.000200, 0.000200, 0.000200],
+                          'err': [0.029167, 0.0, 0.006250, 0.233333,
+                                  0.0, 0.152083, 0.002083]},
+               'missing': ['rs73911387', '20:50359566']}  # rs6031147 for missing
 
+    err = pd.read_csv('pooled.sorted.chunk{}.csv'.format(prm.CHK_SZ),
+                      sep='\t',
+                      header=[0, 1],
+                      index_col=[0, 1, 2])
+    # Sort by ascending MAF, descending error
+    eps = err.mean(axis=1).rename('err').to_frame()
+    slc = eps.sort_values(by='err', ascending=False).sort_index(axis=0,
+                                                                level='maf',
+                                                                ascending=True)
+    print(slc)
 
-d1, d2 = list(), list()
-for it in range(len(targets['pooled']['pos'])):
-    mrk = marker_stats(raw, targets['pooled']['pos'][it], verbose=True)
-    g0 = raw_gt(splits, raw, mrk)
-    g1 = pooled_gt(splits, raw, mrk)
-    g2 = decoded_gt(splits, raw, mrk)
-    g3 = imputed_gt(splits, VCF(prm.POOLED['corr'] + '.vcf.gz'), targets['pooled']['pos'][it])
+    d1, d2 = list(), list()
+    for it in range(len(targets['pooled']['pos'])):
+        mrk = marker_stats(raw, targets['pooled']['pos'][it], verbose=True)
+        g0 = raw_gt(splits, raw, mrk)
+        g1 = pooled_gt(splits, raw, mrk)
+        g2 = decoded_gt(splits, raw, mrk)
+        g3 = imputed_gt(splits, VCF(prm.POOLED['corr'] + '.vcf.gz'), targets['pooled']['pos'][it])
 
-    df0 = frame_comb_count()
-    df1 = pd.DataFrame(data=np.empty((prm.pools_imp, 4),
-                                     dtype=float),
-                       columns=['nbRow', 'nbCol', 'missing_alleles', 'imp_err'])
-    for i, g in enumerate(itertools.zip_longest(g0, g1, g2, g3)):
-        df1.loc[i, 'nbRow'] = count_alt(g[1][:, :4, :-1])
-        df1.loc[i, 'nbCol'] = count_alt(g[1][:, 4:, :-1])
-        diff03 = alltls.para_array(g[0][:, :, :-1], g[3][:, :, :-1])
-        df1.loc[i, 'imp_err'] = alltls.per_axis_error(diff03, 0)
-        df1.loc[i, 'missing_alleles'] = np.sum(alltls.count_missing_alleles(gt_array=g[2]))
-    df1 = df1.astype({'nbRow': int, 'nbCol': int}, copy=True)
-    d1.append(df1)
-    # boxplot_err_comb(df1, cols=['missing_alleles'])
-    # boxplot_err_comb(df1, cols=['imp_err'])
+        df0 = frame_comb_count()
+        df1 = pd.DataFrame(data=np.empty((prm.pools_imp, 4),
+                                         dtype=float),
+                           columns=['nbRow', 'nbCol', 'missing_alleles', 'imp_err'])
+        for i, g in enumerate(itertools.zip_longest(g0, g1, g2, g3)):
+            df1.loc[i, 'nbRow'] = count_alt(g[1][:, :4, :-1])
+            df1.loc[i, 'nbCol'] = count_alt(g[1][:, 4:, :-1])
+            diff03 = alltls.para_array(g[0][:, :, :-1], g[3][:, :, :-1])
+            df1.loc[i, 'imp_err'] = alltls.per_axis_error(diff03, 0)
+            df1.loc[i, 'missing_alleles'] = np.sum(alltls.count_missing_alleles(gt_array=g[2]))
+        df1 = df1.astype({'nbRow': int, 'nbCol': int}, copy=True)
+        d1.append(df1)
+        # boxplot_err_comb(df1, cols=['missing_alleles'])
+        # boxplot_err_comb(df1, cols=['imp_err'])
 
-    df2 = df1.groupby(['nbRow', 'nbCol'])['missing_alleles'].count()#.rename(columns={'missing_alleles': 'count'})
-    d2.append(df2)
+        df2 = df1.groupby(['nbRow', 'nbCol'])['missing_alleles'].count()#.rename(columns={'missing_alleles': 'count'})
+        d2.append(df2)
 
-    for i, j in df2.index:
-        tot_ij = df2.xs((i, j))
-        if i != j:
-            try:
-                tot_ij += df2.xs((j, i))
-            except:
-                pass
-        df0.loc[(df0['N1'] == i) & (df0['N2'] == j), 'count'] = tot_ij
-    df0.reset_index(drop=True, inplace=True)
-    df0.set_index(['N1', 'N2'], inplace=True)
-    if it == 0:
-        d0 = df0
-    else:
-        d0 = d0.join(df0, rsuffix='_' + targets['pooled']['id'][it])
+        for i, j in df2.index:
+            tot_ij = df2.xs((i, j))
+            if i != j:
+                try:
+                    tot_ij += df2.xs((j, i))
+                except:
+                    pass
+            df0.loc[(df0['N1'] == i) & (df0['N2'] == j), 'count'] = tot_ij
+        df0.reset_index(drop=True, inplace=True)
+        df0.set_index(['N1', 'N2'], inplace=True)
+        if it == 0:
+            d0 = df0
+        else:
+            d0 = d0.join(df0, rsuffix='_' + targets['pooled']['id'][it])
+
     print(d0)
-
-print(d0)
-barplot_comb(d0, lab=targets['pooled']['maf'])
+    barplot_comb(d0,
+                 ttl='Markers: (id, maf, imputation error)',
+                 lab=list(zip(targets['pooled']['id'],
+                                  targets['pooled']['maf'],
+                                  targets['pooled']['err'])))
 
 """
 Select a marker with low MAF and high error in imputation:
@@ -228,9 +245,4 @@ Select a marker with low MAF and high error in imputation:
 2) Analyze imputation error in each pool and plot it on x-axis=nbRow, y-axis=nbCol
 """
 
-# Sort by ascending MAF, descending error
-eps = err.mean(axis=1).rename('err').to_frame()
-slc = eps.sort_values(by='err', ascending=False).sort_index(axis=0,
-                                                            level='maf',
-                                                            ascending=True)
-print(slc[slc['err'] > 0.5])
+

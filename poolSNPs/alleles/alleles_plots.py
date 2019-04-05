@@ -132,7 +132,9 @@ def boxplot_densities(set_errors):
     plt.savefig('root.mean.square.error.box.density.chunk{}.png'.format(prm.CHK_SZ), dpi='figure')
 
 
-def plot_maf_evol(err_dic, path_all, bin_maf=False):
+def plot_maf_evol(err_dic, path_all):
+    bin_maf = prm.BIN_MAF
+
     plt.rcParams["figure.figsize"] = [12, 6]
     plt.rcParams["figure.autolayout"] = True
 
@@ -148,11 +150,11 @@ def plot_maf_evol(err_dic, path_all, bin_maf=False):
     df_maf.sort_values(by='maf', axis=0, inplace=True)
     if bin_maf:
         convert = np.vectorize(lambda x: alltls.convert_maf(x))
+        inter = prm.INTER
         np_bin_maf = np.digitize(convert(df_maf.values),
-                                 bins=np.arange(0, 1, 0.1))
-        np_bin_maf = np.subtract(np_bin_maf/10, 0.00)
+                                 bins=inter)
+        np_bin_maf = np.subtract(np_bin_maf/len(inter), 0.00)
         df_maf = pd.DataFrame(data=np_bin_maf, index=df_maf.index, columns=df_maf.columns)
-    print(df_maf)
 
     lin_maf, ax_lin = plt.subplots()
     a = 0
@@ -266,7 +268,7 @@ def multiplot_err_het(err):
         print(low_err.query('maf_inter == 2', inplace=False).mean(axis=1).describe())
         print(low_err.query('maf_inter == 1', inplace=False).mean(axis=1).describe())
         low_err.set_index('maf', drop=True, append=True, inplace=True)
-        file1 = 'IMP.chr20.{}.beagle2.chunk{}.corr.vcf.gz'.format(k, prm.CHK_SZ)
+        file1 = (prm.POOLED['b2'] if k == 'pooled' else prm.MISSING['b2']) + '.vcf.gz'
         axm[i,j] = plot_err_vs_het(k,
                                    low_err,
                                    file1,

@@ -132,19 +132,26 @@ def convert_maf(x):
 
 
 def get_maf(vcf_raw):
-    subprocess.run(['''bcftools query -f '%ID\t%AF\n' {0} > {1}/TMP.maf.csv'''.format(vcf_raw, os.getcwd())],
-                    shell=True,
-                    cwd='/home/camille/PycharmProjects/1000Genomes/data/tests-beagle')
-    df_maf = pd.read_csv('TMP.maf.csv',
-                      sep='\t',
-                      names=['id', 'maf'])
+    # subprocess.run(['''bcftools query -f '%ID\t%AF\n' {0} > {1}/TMP.maf.csv'''.format(vcf_raw, os.getcwd())],
+    #                 shell=True,
+    #                 cwd='/home/camille/PycharmProjects/1000Genomes/data/tests-beagle')
+    # df_maf = pd.read_csv('TMP.maf.csv',
+    #                   sep='\t',
+    #                   names=['id', 'maf'])
+    dico = {'id': list(),
+            'maf': list()}
+    for var in VCF(vcf_raw):
+        dico['id'].append(var.ID)
+        dico['maf'].append(var.aaf)
+
+    df_maf = pd.DataFrame.from_dict(dico)
     df_maf.sort_values('id', axis=0, inplace=True)
     df_maf.reset_index(drop=True, inplace=True)
     df_maf.set_index('id', drop=False, inplace=True)
     convert = np.vectorize(lambda x: convert_maf(x))
     df_maf['maf_inter'] = np.digitize(convert(df_maf['maf']),
                                       bins=np.array([0.00, 0.01, 0.05]))
-    os.remove('TMP.maf.csv')
+    # os.remove('TMP.maf.csv')
     return df_maf
 
 
@@ -255,7 +262,7 @@ def count_missing_alleles(vcf_path=None, gt_array=None):
     return mis
 
 
-def compute_maf(vcf_path, verbose=False):
+def compute_maf(vcf_path, gtgl='gt', verbose=False):
     """
 
     :param vcf_obj:
@@ -271,22 +278,29 @@ def compute_maf(vcf_path, verbose=False):
                 print(str(i) + '\t' + var.ID + '\t' + var.format('GP'))
             except:
                 print(str(i) + '\t', var.ID)
-        gt = np.array(var.genotypes)[:, :-1]
+        try:
+            gt = np.array(var.genotypes)[:, :-1]
+        except:
+            print(var)
+            frame = inspect.currentframe()
+            print(var[-1])
         dic_maf[var.ID] = np.sum(np.apply_along_axis(minor_allele, 1, gt))/(len(var.genotypes)*2)
 
     return dic_maf
 
 
-def compute_maf_evol(set):
+def compute_maf_evol(set, gtgl='gt', chk_sz=None):
     """
 
     :param set: str, short name of the data set pooled/missing...
     :param df_maf: maf from the original vcf-chunked file, with markers ID as index
     :return:
     """
+    if chk_sz is None:
+        chk_sz = prm.CHK_SZ
     print('\r\nSet --> ', set)
-    steps = {'preimp': 'IMP.chr20.{}.snps.gt.chunk{}.vcf.gz'.format(set, str(prm.CHK_SZ)),
-             'postimp': 'IMP.chr20.{}.beagle2.chunk{}.corr.vcf.gz'.format(set, str(prm.CHK_SZ))}
+    steps = {'preimp': 'IMP.chr20.{}.snps.gt.chunk{}.vcf.gz'.format(set, str(chk_sz)),
+             'postimp': 'IMP.chr20.{}.beagle2.{}.chunk{}.corr.vcf.gz'.format(set, gtgl, str(chk_sz))}
     temp = []
     for d, vcf in steps.items():
         df = pd.DataFrame.from_dict(compute_maf(vcf),
@@ -312,28 +326,29 @@ def rmse_df(df, kind='rmse', ax=None, lev=None):
         return mse
 
 
-def map_gt_gl(arr_in):
+def map_gt_gl(arr_in, unknown=[1/3, 1/3, 1/3]):
     gt = arr_in[:-1]
-    if gt.all() == np.array([0, 1]).all():
-        gl = np.array([-5.0, 0.0, -5.0])
-    elif gt.all() == np.array([1, 1]).all():
-        gl = np.array([-5.0, -5.0, 0.0])
-    elif gt.all() == np.array([0, 0]).all():
-        gl = np.array([0.0, -5.0, -5.0])
-    elif gt.all() == np.array([1, np.nan]).all():
-        gl = np.array([-5.0, math.log10(0.5), math.log10(0.5)])
-    else: # np.nan, np.nan
-        gl = np.array([math.log10(0.2), math.log10(0.4), math.log10(0.4)])
+    if 0 in gt and 1 in gt:
+        gl = np.array([0.0, 1.0, 0.0])
+    elif 1 in gt and -1 not in gt:
+        gl = np.array([0.0, 0.0, 1.0])
+    elif 0 in gt:
+        gl = np.array([1.0, 0.0, 0.0])
+    elif -1 in gt and 1 in gt:
+        gl = np.array([0.0, 0.5, 0.5])
+    else: # np.nan, np.nan OR -1, -1 ?
+        gl = np.array(unknown)
     return gl
 
 
 def repr_gl_array(arr):
-    arr_str = np.apply_along_axis(lambda x: ','.join(x),
+    formatter = np.vectorize(lambda x: "%.2f" % x)
+    arr_str = np.apply_along_axis(lambda x: ','.join(formatter(x)),
                                   axis=-1,
-                                  arr=np.asarray(arr, dtype=str))
+                                  arr=np.asarray(arr))
     strg = np.apply_along_axis(lambda x: '\t'.join(x),
-                                  axis=-1,
-                                  arr=np.asarray(arr_str, dtype=str))
+                               axis=0,
+                               arr=np.asarray(arr_str.squeeze()))
     return strg
 
 
@@ -344,24 +359,25 @@ def bin_gl_converter(v_in):
     return g_out
 
 
-def fmt_gl_variant(v_in):
+def fmt_gl_variant(v_in, func=bin_gl_converter):
     info = ';'.join([kv for kv in ['='.join([str(k), str(v)]) for k, v in v_in.INFO]])
-    gl = repr_gl_array(bin_gl_converter(v_in))
+    gl = repr_gl_array(np.array(list(map(func, [v_in]))))
     toshow = np.asarray([v_in.CHROM,
                          v_in.POS,
                          v_in.ID,
-                         v_in.REF[0],
-                         v_in.ALT[0],
-                         v_in.QUAL,
+                         ''.join(v_in.REF),
+                         ''.join(v_in.ALT),
+                         v_in.QUAL if not None else '.',
                          'PASS' if v_in.FILTER is None else v_in.FILTER,
                          info,
                          'GL',
                          gl],
                         dtype=str)
-    return '\t'.join(toshow)
+    towrite = '\t'.join(toshow) + '\n'
+    return towrite
 
 
-def file_likelihood_converter(f_in, f_out):
+def file_likelihood_converter(f_in, f_out, func=bin_gl_converter):
     str_header = '##FORMAT=<ID=GL,Number=G,Type=Float,Description="three log10-scaled likelihoods for RR,RA,AA genotypes">'
     dic_header = {'ID': 'GL',
                   'Number': 'G',
@@ -383,5 +399,5 @@ def file_likelihood_converter(f_in, f_out):
 
     with open(f_out, 'ab') as w2:
         for var_in in vcf_in:
-            w2.write(fmt_gl_variant(var_in).encode())
+            w2.write(fmt_gl_variant(var_in, func=func).encode())
 
