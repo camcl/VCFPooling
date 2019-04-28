@@ -3,6 +3,9 @@ import threading
 from queue import Queue
 import inspect
 from scripts.poolSNPs.alleles import alleles_tools as alltls
+from scripts.poolSNPs import parameters as prm
+
+chk_sz = prm.CHK_SZ
 
 def readlock_vcf(file_data):
     vcf = {}
@@ -27,8 +30,8 @@ def read_queue(s): # 2 queues: 1 for pushing input, 1 for getting results
     q_in, q_out = Queue(), Queue()
 
     out_t = []
-    output_names = [{'preimp' : 'IMP.chr20.{}.snps.gt.chunk.vcf.gz'.format(s)},
-                    {'postimp': 'IMP.chr20.{}.beagle2.corr.vcf.gz'.format(s)}]
+    output_names = [{'preimp' : 'IMP.chr20.{}.snps.gt.chunk{}.vcf.gz'.format(s, str(chk_sz))},
+                    {'postimp': 'IMP.chr20.{}.beagle2.chunk{}.corr.vcf.gz'.format(s, str(chk_sz))}]
 
     threads = []
     for i in range(1):
