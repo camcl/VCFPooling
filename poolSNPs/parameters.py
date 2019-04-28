@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 #TODO: Rename files with core + extension (.vcf.gz, .vcf, .csv, ...)
-
 """
 Parameters for running pooling + decoding on a dataset:
 - path to file to process
