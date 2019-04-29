@@ -155,6 +155,7 @@ def plot_maf_evol(err_dic, path_all):
                                  bins=inter)
         np_bin_maf = np.subtract(np_bin_maf/len(inter), 0.00)
         df_maf = pd.DataFrame(data=np_bin_maf, index=df_maf.index, columns=df_maf.columns)
+    print(df_maf)
 
     lin_maf, ax_lin = plt.subplots()
     a = 0
@@ -245,7 +246,7 @@ def plot_err_vs_miss(k, err_set, err_kind='rmse'):
     site_err.reset_index(level=['maf'], drop=False, inplace=True)
     site_err['maf'].astype(float, copy=False)
     # missing data from the preimputed dataset
-    misNp = alltls.count_missing_alleles('IMP.chr20.{}.cfgt.chunk{}.vcf.gz'.format(k, prm.CHK_SZ))
+    misNp = alltls.count_missing_alleles('IMP.chr20.{}.beagle1.chunk{}.vcf.gz'.format(k, prm.CHK_SZ))
     misSer = pd.Series(misNp[:, -1], index=misNp[:, 0]).astype(float, copy=True)
     misPct = misSer.apply(lambda h: h * 100 / nb_samples).rename('miss').to_frame()
     site_err = site_err.join(misPct, on='id')

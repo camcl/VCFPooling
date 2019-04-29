@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 #TODO: Rename files with core + extension (.vcf.gz, .vcf, .csv, ...)
+
 """
 Parameters for running pooling + decoding on a dataset:
 - path to file to process
@@ -14,10 +15,6 @@ import os
 import numpy as np
 from cyvcf2 import VCF
 
-# global DATA_PATH, PLOTS_PATH
-# global CHK_SZ, SOURCE, KIND, MSS, POOL, WD
-# global RAW, POOLED, MISSING, MISS_POOL
-# global SUBSET
 
 ### GENERAL TOOLS
 
@@ -51,56 +48,55 @@ SCRIPTS_PATH = '/home/camille/PycharmProjects/1000Genomes/scripts'
 
 ### pool.py
 WD = os.path.join(DATA_PATH, 'tests-beagle')
-CHK_SZ = 1000
+CHK_SZ = 10000
 SUBCHUNK = 1000
 PATH_IN = 'ALL.chr20.snps.gt.vcf.gz'
-PATH_OUT = ['ALL.chr20.pooled.snps.gt.chunk{}.vcf'.format(str(CHK_SZ)),
-            'ALL.chr20.missing.snps.gt.chunk{}.vcf'.format(str(CHK_SZ))]
-#'ALL.chr20.pooled.missing.snps.gt.chunk{}.vcf'.format(str(CHK_SZ)),
+PATH_OUT = ['ALL.chr20.pooled.snps.gt.chunk{}.vcf'.format(CHK_SZ),
+            'ALL.chr20.missing.snps.gt.chunk{}.vcf'.format(CHK_SZ)]
+#'ALL.chr20.pooled.missing.snps.gt.chunk{}.vcf'.format(CHK_SZ),
 
-KIND = 'gt'
 MSS = [False, True]
 POOL = [True, False]
-SOURCE = 'ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(CHK_SZ))
+SOURCE = 'ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(CHK_SZ)
 
 
 ### beagle.py
-GTGL = 'GL'
+GTGL = 'GL'  # else: GL
 BEAGLE_JAR = os.path.join(SCRIPTS_PATH, 'beagle.11Mar19.69c.jar')
 CFGT_JAR = os.path.join(SCRIPTS_PATH, 'conform-gt.jar')
 
-RAW = {'vcf':'ALL.chr20.snps.gt.chunk{}.vcf'.format(str(CHK_SZ)),
-       'gz':'ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(CHK_SZ)),
-       'ref': 'REF.chr20.snps.gt.chunk{}.vcf.gz'.format(str(CHK_SZ)),
-       'imp': 'IMP.chr20.snps.gt.chunk{}.vcf.gz'.format(str(CHK_SZ)),
-       'b1r':'REF.chr20.beagle1.chunk{}'.format(str(CHK_SZ)),
-       'b1i':'IMP.chr20.beagle1.chunk{}'.format(str(CHK_SZ))}
+RAW = {'vcf':'ALL.chr20.snps.{}.chunk{}.vcf'.format(GTGL.lower(), CHK_SZ),
+       'gz':'ALL.chr20.snps.{}.chunk{}.vcf.gz'.format(GTGL.lower(), CHK_SZ),
+       'ref': 'REF.chr20.snps.{}.chunk{}.vcf.gz'.format(GTGL.lower(), CHK_SZ),
+       'imp': 'IMP.chr20.snps.{}.chunk{}.vcf.gz'.format(GTGL.lower(), CHK_SZ),
+       'b1r':'REF.chr20.beagle1.chunk{}'.format(CHK_SZ),
+       'b1i':'IMP.chr20.beagle1.chunk{}'.format(CHK_SZ)}
 
-POOLED = {'vcf':'ALL.chr20.pooled.snps.gt.chunk{}.vcf'.format(str(CHK_SZ)),
-          'gz':'ALL.chr20.pooled.snps.gt.chunk{}.vcf.gz'.format(str(CHK_SZ)),
-          'imp': 'IMP.chr20.pooled.snps.gt.chunk{}.vcf.gz'.format(str(CHK_SZ)),
-          'b1':'IMP.chr20.pooled.beagle1.chunk{}'.format(str(CHK_SZ)),
-          'b2':'IMP.chr20.pooled.beagle2.gt.chunk{}'.format(str(CHK_SZ)),
-          'corr':'IMP.chr20.pooled.beagle2.gt.chunk{}.corr'.format(str(CHK_SZ)),
-          'cfgt': 'IMP.chr20.pooled.cfgt.chunk{}'.format(str(CHK_SZ))}
+POOLED = {'vcf':'ALL.chr20.pooled.snps.{}.chunk{}.vcf'.format(GTGL.lower(), CHK_SZ),
+          'gz':'ALL.chr20.pooled.snps.{}.chunk{}.vcf.gz'.format(GTGL.lower(), CHK_SZ),
+          'imp': 'IMP.chr20.pooled.snps.{}.chunk{}.vcf.gz'.format(GTGL.lower(), CHK_SZ),
+          'b1':'IMP.chr20.pooled.beagle1.chunk{}'.format(CHK_SZ),
+          'b2':'IMP.chr20.pooled.beagle2.{}.chunk{}'.format(GTGL.lower(), CHK_SZ),
+          'corr':'IMP.chr20.pooled.beagle2.{}.chunk{}.corr'.format(GTGL.lower(), CHK_SZ),
+          'cfgt': 'IMP.chr20.pooled.cfgt.chunk{}'.format(CHK_SZ),
+          'gtonly': 'IMP.chr20.pooled.imputed.gt.chunk{}'.format(CHK_SZ)}
 
-MISSING = {'vcf':'ALL.chr20.missing.snps.gt.chunk{}.vcf'.format(str(CHK_SZ)),
-           'gz':'ALL.chr20.missing.snps.gt.chunk{}.vcf.gz'.format(str(CHK_SZ)),
-           'imp': 'IMP.chr20.missing.snps.gt.chunk{}.vcf.gz'.format(str(CHK_SZ)),
-           'b1':'IMP.chr20.missing.beagle1.chunk{}'.format(str(CHK_SZ)),
-           'b2':'IMP.chr20.missing.beagle2.gt.chunk{}'.format(str(CHK_SZ)),
-           'corr': 'IMP.chr20.missing.beagle2.gt.chunk{}.corr'.format(str(CHK_SZ)),
-           'cfgt': 'IMP.chr20.missing.cfgt.chunk{}'.format(str(CHK_SZ))}
+MISSING = {'vcf':'ALL.chr20.missing.snps.{}.chunk{}.vcf'.format(GTGL.lower(), CHK_SZ),
+           'gz':'ALL.chr20.missing.snps.{}.chunk{}.vcf.gz'.format(GTGL.lower(), CHK_SZ),
+           'imp': 'IMP.chr20.missing.snps.{}.chunk{}.vcf.gz'.format(GTGL.lower(), CHK_SZ),
+           'b1':'IMP.chr20.missing.beagle1.chunk{}'.format(CHK_SZ),
+           'b2':'IMP.chr20.missing.beagle2.{}.chunk{}'.format(GTGL.lower(), CHK_SZ),
+           'corr': 'IMP.chr20.missing.beagle2.{}.chunk{}.corr'.format(GTGL.lower(), CHK_SZ),
+           'cfgt': 'IMP.chr20.missing.cfgt.chunk{}'.format(CHK_SZ),
+           'gtonly': 'IMP.chr20.missing.imputed.gt.chunk{}'.format(CHK_SZ)}
 
-MISS_POOL = {'vcf':'ALL.chr20.missing.snps.gt.chunk{}.vcf'.format(str(CHK_SZ)),
-             'gz':'ALL.chr20.missing.pooled.snps.gt.chunk{}.vcf.gz'.format(str(CHK_SZ)),
-             'imp': 'IMP.chr20.missing.pooled.snps.gt.chunk{}.vcf.gz'.format(str(CHK_SZ)),
-             'b1':'IMP.chr20.missing.pooled.beagle1.chunk{}'.format(str(CHK_SZ)),
-             'b2':'IMP.chr20.missing.pooled.beagle2.gt.chunk{}'.format(str(CHK_SZ)),
-             'corr': 'IMP.chr20.missing.pooled.beagle2.gt.chunk{}.corr'.format(str(CHK_SZ)),
-             'cfgt': 'IMP.chr20.missing.pooled.cfgt.chunk{}'.format(str(CHK_SZ))}
-
-nb_samples = len(VCF(os.path.join(WD, RAW['gz'])).samples)
+# To check: related individuals are removed from the file
+try:
+    nb_samples = len(VCF(os.path.join(WD,
+                                      'gt',
+                                      'ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(CHK_SZ))).samples)
+except IOError:
+    nb_samples = np.nan
 pools_size = 16
 # number of pools for the target set IMP
 pools_imp = ppcm(nb_samples, pools_size) // (10 * pools_size)
@@ -110,12 +106,12 @@ NB_REF = nb_samples - NB_IMP
 
 # unknown_gl = [1/3, 1/3, 1/3]
 # unknown_gl = [0.2, 0.4, 0.4]
-# unknown_gl = [0.02, 0.49, 0.49]
+unknown_gl = [0.02, 0.49, 0.49]
 # unknown_gl = [0.02, 0.59, 0.39]
 # unknown_gl = [0.02, 0.39, 0.59]
 # unknown_gl = [0.02, 0.501, 0.479]
 # unknown_gl = [0.02, 0.51, 0.47]
-unknown_gl = 'adaptative'
+# unknown_gl = 'adaptative'
 
 
 

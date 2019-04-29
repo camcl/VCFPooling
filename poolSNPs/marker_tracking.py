@@ -93,7 +93,7 @@ def raw_gt(groups, data, var):
     for gp in groups[0][0:prm.pools_imp]:
         sets.append(pool.SNPsPool().set_subset(gp))
     for p in sets:
-        p.get_line(data.samples, var, prm.KIND)
+        p.get_line(data.samples, var)
         pgt = p.get_call().reshape((1, p.size, 3))
         res.append(pgt)
         # print(pgt)
@@ -107,7 +107,7 @@ def pooled_gt(groups, data, var):
     for gp in groups[0][0:prm.pools_imp]:
         sets.append(pool.SNPsPool().set_subset(gp))
     for p in sets:
-        p.get_line(data.samples, var, prm.KIND)
+        p.get_line(data.samples, var)
         pgt = p.pool_genotypes()
         res.append(pgt)
         # print(pgt)
@@ -121,7 +121,7 @@ def decoded_gt(groups, data, var_in):
     for gp in groups[0][0:prm.pools_imp]:
         sets.append(pool.SNPsPool().set_subset(gp))
     for p in sets:
-        p.get_line(data.samples, var_in, prm.KIND)
+        p.get_line(data.samples, var_in)
         var_out = p.decode_genotypes(np.asarray(var_in.genotypes))
         idx = np.argwhere(np.isin(data.samples, p))
         pgt = np.asarray(var_out)[idx].reshape((1, p.size, 3))
@@ -138,7 +138,7 @@ def imputed_gt(groups, data, idn):
     for gp in groups[0][0:prm.pools_imp]:
         sets.append(pool.SNPsPool().set_subset(gp))
     for p in sets:
-        p.get_line(data.samples, var, prm.KIND)
+        p.get_line(data.samples, var)
         idx = np.argwhere(np.isin(data.samples, p.flatten()))
         pgt = np.asarray(var.genotypes)[idx].reshape((1, len(idx), 3))
         res.append(pgt)

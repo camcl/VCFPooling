@@ -25,7 +25,7 @@ Plot different analyses.
 
 
 def get_pop():
-    df_pop = pd.read_csv('20130606_sample_info.csv',
+    df_pop = pd.read_csv(os.path.join(prm.WD, '20130606_sample_info.csv'),
                       sep=',',
                       header=0,
                       usecols=[0, 1])
@@ -56,10 +56,12 @@ def sort_datasets(args, groups, df_maf):
     return out
 
 
-def make_index(raw_data):
-    src = prm.SOURCE
+def make_index(raw_data, src=None, id='id'):
+    if src is None:
+        src = prm.SOURCE
     group = get_pop()
-    df_maf = alleles_tools.get_maf(src)
+    df_maf = alleles_tools.get_maf(src, id=id)
+
     samples = pd.DataFrame(VCF(raw_data).samples, columns=['Sample'])
     df_pop = group.merge(samples, on='Sample', how='inner')
 
@@ -73,21 +75,22 @@ if __name__ == '__main__':
     ### DATA
     print('Load parameters'.ljust(80, '.'))
     sorting = True # sort data sets by MAF and population values
-    subset = prm.SUBSET
+    subsample = prm.SUBSET
     chk_sz = prm.CHK_SZ
-    os.chdir(prm.WD)
+    CD = os.path.join(prm.WD, prm.GTGL.lower())
+    os.chdir(CD)
 
     ALL = prm.SOURCE
     RAW = prm.RAW['b1i'] + '.vcf.gz'
-    MISS = 'IMP.chr20.missing.beagle2.chunk{}.corr.vcf.gz'.format(str(chk_sz))
-    POOL = 'IMP.chr20.pooled.beagle2.chunk{}.corr.vcf.gz'.format(str(chk_sz))
+    MISS = prm.MISSING['corr'] + '.vcf.gz'
+    POOL = prm.POOLED['corr'] + '.vcf.gz'
     #MISSPOOL = VCF('IMP.chr20.missing.pooled.beagle2.corr.vcf.gz')
 
     print('Raw samples and index labels'.ljust(80, '.'))
-    r_size, ms_size = len(VCF(RAW).samples), len(VCF(MISS).samples)
+    r_size, ms_size = len(VCF(RAW).samples), len(VCF(POOL).samples)
 
     # Load MAFs
-    mafs = alleles_tools.get_maf('ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(chk_sz)))
+    mafs = alleles_tools.get_maf('../gt/ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(chk_sz)))
 
     # Create line-index and column-index (multi-indexing)
     maf_idx, pop_idx = make_index(RAW)
@@ -96,11 +99,10 @@ if __name__ == '__main__':
     print('Build datasets'.ljust(80, '.'))
     raw0, raw1 = alleles_tools.vcf2dframe(VCF(RAW), r_size)
     miss0, miss1 = alleles_tools.vcf2dframe(VCF(MISS), ms_size)
-    # misspool0, misspool1 = alleles_tools.vcf2dframe(MISSPOOL, ms_size)
     pool0, pool1 = alleles_tools.vcf2dframe(VCF(POOL), ms_size)
     datasets = [raw0, raw1, miss0, miss1, pool0, pool1]
 
-    if subset:
+    if subsample:
         # Extract the first nb = SUBCHUNK markers after imputation
         datasets = list(map(lambda x: x.iloc[:prm.SUBCHUNK], datasets))
         if sorting:
@@ -108,7 +110,7 @@ if __name__ == '__main__':
                                                                    pop_idx,
                                                                    mafs.iloc[:prm.SUBCHUNK])
 
-    if sorting and not subset:
+    if sorting and not subsample:
         raw0, raw1, miss0, miss1, pool0, pool1 = sort_datasets(datasets,
                                                                pop_idx,
                                                                mafs)
@@ -149,7 +151,7 @@ if __name__ == '__main__':
                                        err)
 
     ### MAF BEHAVIOR
-    alleles_plots.plot_maf_evol(set_errors, ALL, bin_maf=False)
+    alleles_plots.plot_maf_evol(set_errors, ALL)
 
     ### HEATMAPS OF IMPUTATION ERROR PER SITE PER SAMPLE
     # for k, err in set_errors.items():

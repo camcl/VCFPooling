@@ -6,7 +6,6 @@ import subprocess
 import collections
 from scipy.stats import *
 import math
-from . import thread_wrapping as tw
 import scripts.poolSNPs.parameters as prm
 from persotools.debugging import *
 from persotools.files import *
@@ -104,7 +103,7 @@ def vcf2array(vcf_obj, size):
     return arr[1:,:,:], vars
 
 
-def vcf2dframe(vcf_obj, size):
+def vcf2dframe(vcf_obj, size, id='id'):
     """
     Throws the genotypes values of a VCF file into an array.
     :param vcf_obj: VCF file read with cyvcf2
@@ -113,7 +112,10 @@ def vcf2dframe(vcf_obj, size):
     vars = []
     arr = np.zeros((1, size, 2), dtype=int)
     for v in vcf_obj:
-        vars.append(v.ID)
+        if id == 'id':
+            vars.append(v.ID)
+        if id == 'chrom:pos':
+            vars.append(':'.join([str(v.CHROM), str(v.POS)]))
         arr = np.vstack((arr,
                          np.expand_dims(np.array(v.genotypes)[:, :-1],
                                         axis=0)))
@@ -131,7 +133,7 @@ def convert_maf(x):
         return x
 
 
-def get_maf(vcf_raw):
+def get_maf(vcf_raw, id='id'):
     # subprocess.run(['''bcftools query -f '%ID\t%AF\n' {0} > {1}/TMP.maf.csv'''.format(vcf_raw, os.getcwd())],
     #                 shell=True,
     #                 cwd='/home/camille/PycharmProjects/1000Genomes/data/tests-beagle')
@@ -140,10 +142,14 @@ def get_maf(vcf_raw):
     #                   names=['id', 'maf'])
     dico = {'id': list(),
             'maf': list()}
-    for var in VCF(vcf_raw):
-        dico['id'].append(var.ID)
-        dico['maf'].append(var.aaf)
-
+    if id == 'id':
+        for var in VCF(vcf_raw):
+            dico['id'].append(var.ID)
+            dico['maf'].append(var.aaf)
+    if id == 'chrom:pos':
+        for var in VCF(vcf_raw):
+            dico['id'].append(':'.join([str(var.CHROM), str(var.POS)]))
+            dico['maf'].append(var.aaf)
     df_maf = pd.DataFrame.from_dict(dico)
     df_maf.sort_values('id', axis=0, inplace=True)
     df_maf.reset_index(drop=True, inplace=True)
@@ -158,7 +164,7 @@ def get_maf(vcf_raw):
 def compute_imp_err(set_names, objs, raw, idx1, idx2, sorting):
     set_err = {}
     for k, dset in dict(zip(set_names, objs)).items():
-        db = para_array(raw, dset)  # shape=(1000, 1992, 2, 2) OK
+        db = para_array(raw, dset)
         print('Errors in {} dataset'.format(k).ljust(80, '.'))
         single_errors = per_element_error(db, 0)
         df = pd.DataFrame(data=single_errors, index=idx1, columns=idx2)
@@ -262,7 +268,7 @@ def count_missing_alleles(vcf_path=None, gt_array=None):
     return mis
 
 
-def compute_maf(vcf_path, gtgl='gt', verbose=False):
+def compute_maf(vcf_path, idt='id', verbose=False):
     """
 
     :param vcf_obj:
@@ -281,10 +287,12 @@ def compute_maf(vcf_path, gtgl='gt', verbose=False):
         try:
             gt = np.array(var.genotypes)[:, :-1]
         except:
-            print(var)
-            frame = inspect.currentframe()
-            print(var[-1])
-        dic_maf[var.ID] = np.sum(np.apply_along_axis(minor_allele, 1, gt))/(len(var.genotypes)*2)
+            pass
+        if idt == 'id':
+            varid = var.ID
+        if idt == 'chrom:pos':
+            varid = ':'.join([str(var.CHROM), str(var.POS)])
+        dic_maf[varid] = np.sum(np.apply_along_axis(minor_allele, 1, gt))/(len(var.genotypes)*2)
 
     return dic_maf
 
@@ -342,26 +350,30 @@ def map_gt_gl(arr_in, unknown=[1/3, 1/3, 1/3]):
 
 
 def repr_gl_array(arr):
-    formatter = np.vectorize(lambda x: "%.2f" % x)
-    arr_str = np.apply_along_axis(lambda x: ','.join(formatter(x)),
+    arr2str = np.vectorize(lambda x: "%.5f" % x)
+    arr_str = np.apply_along_axis(lambda x: ','.join(arr2str(x)),
                                   axis=-1,
-                                  arr=np.asarray(arr))
+                                  arr=arr)
     strg = np.apply_along_axis(lambda x: '\t'.join(x),
                                axis=0,
                                arr=np.asarray(arr_str.squeeze()))
     return strg
 
 
-def bin_gl_converter(v_in):
+def bin_gl_converter(v_in, log=True):
     # v_in: cyvcf2 variant
     g_in = v_in.genotypes
     g_out = np.apply_along_axis(map_gt_gl, 1, g_in)
+    logzero = np.vectorize(lambda x: -5.0 if x <= pow(10, -5) else math.log10(x))
+    if log:
+        g_out = logzero(g_out)
+        # g_out = np.apply_along_axis(logzero, axis=0, arr=g_out)
     return g_out
 
 
-def fmt_gl_variant(v_in, func=bin_gl_converter):
+def fmt_gl_variant(v_in, glfunc=bin_gl_converter):
     info = ';'.join([kv for kv in ['='.join([str(k), str(v)]) for k, v in v_in.INFO]])
-    gl = repr_gl_array(np.array(list(map(func, [v_in]))))
+    gl = repr_gl_array(np.array(list(map(glfunc, [v_in]))))
     toshow = np.asarray([v_in.CHROM,
                          v_in.POS,
                          v_in.ID,
@@ -399,5 +411,6 @@ def file_likelihood_converter(f_in, f_out, func=bin_gl_converter):
 
     with open(f_out, 'ab') as w2:
         for var_in in vcf_in:
-            w2.write(fmt_gl_variant(var_in, func=func).encode())
+            stream = fmt_gl_variant(var_in, glfunc=func).encode()
+            w2.write(stream)
 

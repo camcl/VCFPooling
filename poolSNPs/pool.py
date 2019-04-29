@@ -6,19 +6,18 @@ import numpy as np
 import time
 
 from scipy.stats import bernoulli as bn
-from cyvcf2 import VCF, Writer
-from operator import *
+from cyvcf2 import VCF, Writer, Variant
 
 from scripts.poolSNPs import parameters as prm
-from persotools.debugging import *
 from persotools.files import *
+from typing import Dict
 
 warnings.simplefilter('ignore')
 
-global source, KIND, MSS, POOL, SAMPLES, CHK_SZ, WD
+global source, POOL, SAMPLES, CHK_SZ, WD
 
 ### README
-#TODO: remove miss.pool
+
 """
 README: 
 Requirements: 
@@ -41,7 +40,7 @@ $ python3 pool.py /home/camilleclouard/PycharmProjects/1000Genomes/data/tests-be
 
 ### TOOLS FUNCTIONS
 
-def random_delete(rate=0.01, activate=False):
+def random_delete(rate: float=0.01, activate: bool=False) -> bool:
     """
 
     :param arr: variant.genotypes instance
@@ -60,7 +59,7 @@ def random_delete(rate=0.01, activate=False):
 ### CLASS AND METHODS FOR POOLING A SET OF SAMPLES
 
 
-def split_pools(idv_id, pool_size, seed=None):
+def split_pools(idv_id: int, pool_size: int, seed: object = None) -> tuple:
     """
 
     :param idv_id:
@@ -87,7 +86,11 @@ class SNPsPool(np.ndarray):
     Simulates the different steps of a pooling process and
     builds the pooling design.
     """
-    def __new__(cls, shape=(4,4), id_len=8, pools_nb=8, pools_size=4):
+    def __new__(cls,
+                shape: tuple = (4, 4),
+                id_len: int = 8,
+                pools_nb: int = 8,
+                pools_size: int = 4) -> np.ndarray:
         """
         Define the basic structure for a pool i.e.
         a squared matrix to fill with the variables IDs/GT/GL.
@@ -108,7 +111,7 @@ class SNPsPool(np.ndarray):
         return np.empty_like(super(SNPsPool, cls).__new__(cls, shape),
                              dtype=id)
 
-    def design_matrix(self, random=False):
+    def design_matrix(self, random: bool = False) -> np.ndarray:
         """
         That function is not intended to be called explicitly.
         :param random: bool for dispatching idv randomly in the matrix?
@@ -126,14 +129,14 @@ class SNPsPool(np.ndarray):
                        [j+k*pools_size for k in range(pools_size)]] = 1
         return design
 
-    def set_subset(self, subset): #subsamp from split_pools
+    def set_subset(self, subset: np.ndarray) -> np.ndarray:
         """
         Fills the pooling matrix according to the (default) design
         and the input list of samples.
         :param subset: 1D-nparray-like object with the variables IDs
         :return: pooling matrix with samples' names.
         """
-        self.subset = subset
+        self.subset = subset  # from split_pools
         sub = self.subset
         try:
             for i in range(self.shape[0]):
@@ -151,11 +154,11 @@ class SNPsPool(np.ndarray):
 
         return self
 
-    def get_subset(self):
-        ids = self.flatten()#.reshape(1, self.size)
+    def get_subset(self) -> np.ndarray:
+        ids = self.flatten()  # .reshape(1, self.size)
         return ids
 
-    def pools_list(self):
+    def pools_list(self) -> list:
         design = self.design_matrix()
         if np.where(self == '', False, True).all():
             pools_ = []
@@ -166,37 +169,17 @@ class SNPsPool(np.ndarray):
             return pools_
             # return just for being able to print list if wished
 
-    def get_line(self, samples, variant, kind):
-        self.kind = kind
+    def get_line(self, samples: list, variant: Variant) -> None:
         self.variant = variant.genotypes
         self.samples = samples
 
-    def discretize_genotypes(self):
-        """
-        Compute binary genotypes for homozygous individuals,
-        the heterozygous ones are set to NaN/unknown.
-        :param filename: vcf with subset of idv
-        :return: array of {0,1} GLs for RR|RA|AA for each sample
-        """
-        if self.kind == 'gl':
-            pass
-            #TODO: implement
-            bin_gl = self.variant
-            for var in self.variant[:,:-1]:
-                lkh = np.vectorize(lambda x: pow(10, x))
-                gl = np.around(lkh(var)).astype(float)
-                unknown = np.where(np.apply_along_axis(sum, 2, gl) == 0.0)
-                for i, j in zip(unknown[0], unknown[1]):
-                    gl[i,j,:] = np.full((3,), np.nan)
-                return self.variant
-
-    def get_call(self):
+    def get_call(self) -> np.ndarray:
         subset = self.get_subset()
         idx = np.argwhere(np.isin(self.samples, subset))
         self.call = np.asarray(self.variant)[idx]
         return self.call
 
-    def pool_genotypes(self):
+    def pool_genotypes(self) -> np.ndarray:
         """
         Computes genotypes of the different pools.
         :return: array of {0,1} GLs for RR|RA|AA for each pool
@@ -221,7 +204,7 @@ class SNPsPool(np.ndarray):
 
         return p  # list of gt for the 8 pools from design matrix
 
-    def decode_genotypes(self, samples_gt, drop=False):
+    def decode_genotypes(self, samples_gt: np.ndarray, drop: bool = False) -> np.ndarray:
         """
         Recoomputes genotypes of samples with/without pooling/missing data
         :param pooled_samples: Variant.genotypes
@@ -271,7 +254,7 @@ class SNPsPool(np.ndarray):
 
         return samples_gt
 
-    def __array_finalize__(self, obj):
+    def __array_finalize__(self, obj: object) -> None:
         """
         Constructor needed for subclassing NumPy arrays.
         See online documentation.
@@ -282,26 +265,21 @@ class SNPsPool(np.ndarray):
         self.info = getattr(obj, 'info', None)
 
 
-#TODO: specific processing for the remaining samples?
-
-
 ### PROCESS SUMMARY
 
-def get_data_chunk():
-    pass
 
-
-def process_file(data, groups, f, fileout):
+def process_file(data: VCF, groups: list, f: int, fileout: list) -> None:
     """
     Computes and rewrites genotypes of all individuals for all samples.
     :param f: integer, index of the file to process in the list
     """
-    print('Missing data: ', MSS[f])
+    print('Missing data: ', prm.MSS[f])
     print('Pooling: ', POOL[f])
+    print('file out: ', fileout[f])
     w = Writer(fileout[f], data)
     w.set_threads(4)
     tm = time.time()
-    #for n, variant in enumerate(data('20:55167111-55167111')):
+    # for n, variant in enumerate(data('20:55167111-55167111')):
     for n, variant in enumerate(data):
         process_line(groups, f, w, variant)
         if n%1000 == 0:
@@ -311,7 +289,7 @@ def process_file(data, groups, f, fileout):
     w.close()
 
 
-def process_line(groups, f, w, v, write=True):
+def process_line(groups: list, f: int, w: Writer, v: Variant, write: bool = True) -> None:
     """
     Computes and rewrites genotypes of all individual for one sample.
     :param f: integer, index of the file to process in the list
@@ -327,13 +305,13 @@ def process_line(groups, f, w, v, write=True):
         sets.append(SNPsPool().set_subset(gp))
     if POOL[f]:
         for p in sets:
-            p.get_line(SAMPLES, var, KIND)
-            dlt = random_delete(activate=MSS[f])
+            p.get_line(SAMPLES, var)
+            dlt = random_delete(activate=prm.MSS[f])
             pooled_samples = p.decode_genotypes(pooled_samples, drop=bool(dlt))
     else:
         for p in sets:
-            p.get_line(SAMPLES, var, KIND)
-            dlt = random_delete(activate=MSS[f])
+            p.get_line(SAMPLES, var)
+            dlt = random_delete(activate=prm.MSS[f])
             idx = np.argwhere(np.isin(SAMPLES, p))
             if dlt:
                 np.put(pooled_samples, idx , np.asarray([-1, -1, 0]))
@@ -341,18 +319,15 @@ def process_line(groups, f, w, v, write=True):
     var.genotypes = pooled_samples.tolist()
     if write:
         w.write_record(var)
-    else:
-        return var
 
 
-def init_chunk(path_in, chunk=True):
+def init_chunk(WD:str, path_in: str, chunk: bool = True) -> list:
     """
 
     :param chunk: boolean. If True, a new subfile from parameters.CHK_SZ
     randomly drawm markers is created i.e. a new set of SNPs.
     :return: list of 16-sized groups of samples i.e. pools
     """
-    os.chdir(WD)
     raw = VCF(path_in, threads=4)  # VCF iterator object
     splits = split_pools(raw.samples, 16, seed=123)  # list of lists
     with open('ALL.chr20.snps.allID.txt', 'w') as f:
@@ -385,6 +360,7 @@ def init_chunk(path_in, chunk=True):
                        cwd=WD)
         delete_file('chunk_{}.vcf'.format(str(CHK_SZ)))
         delete_file('TMP.chr20.snps.gt.chunk.vcf')
+        delete_file('headers.ALL.chr20.snps.gt.vcf'.format(str(CHK_SZ)))
 
         # Eliminate the remaining samples (not involved in any pool)
         subprocess.run(' '.join(['bcftools view -Ov -o ALL.chr20.snps.gt.chunk{}.vcf'.format(str(CHK_SZ)),
@@ -397,9 +373,6 @@ def init_chunk(path_in, chunk=True):
                        + 'ALL.chr20.snps.gt.chunk{}.vcf'.format(str(CHK_SZ)),
                        shell=True,
                        cwd=WD)
-        subprocess.run('bcftools index -f ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(CHK_SZ)),
-                       shell=True,
-                       cwd=WD)
         subprocess.run('bcftools sort -Oz -o ALL.chr20.snps.gt.chunk{}.vcf.gz '.format(str(CHK_SZ))
                        + 'ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(CHK_SZ)),
                        shell=True,
@@ -407,13 +380,35 @@ def init_chunk(path_in, chunk=True):
         subprocess.run('bcftools index -f ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(CHK_SZ)),
                        shell=True,
                        cwd=WD)
+        delete_file('ALL.chr20.snps.gt.chunk{}.vcf'.format(str(CHK_SZ)))
+
+    subprocess.run('bcftools view '
+                   + '-Oz -o ALL.chr20.snps.gt.chunk{}.unordered.samples.vcf.gz'.format(str(CHK_SZ))
+                   + ' '
+                   + 'ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(CHK_SZ)),
+                   shell=True,
+                   cwd=WD)
+
+    subprocess.run('bcftools index -f ALL.chr20.snps.gt.chunk{}.unordered.samples.vcf.gz'.format(str(CHK_SZ)),
+                   shell=True,
+                   cwd=WD)
+
+    subprocess.run('bcftools view -S ALL.chr20.snps.allID.txt '
+                   + '-Oz -o ALL.chr20.snps.gt.chunk{}.vcf.gz '.format(str(CHK_SZ))
+                   + 'ALL.chr20.snps.gt.chunk{}.unordered.samples.vcf.gz'.format(str(CHK_SZ)),
+                   shell=True,
+                   cwd=WD)
+
+    subprocess.run('bcftools index -f ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(CHK_SZ)),
+                   shell=True,
+                   cwd=WD)
+
+    delete_file('ALL.chr20.snps.gt.chunk{}.unordered.samples.vcf.gz'.format(str(CHK_SZ)))
 
     return splits
 
 
-def run(splits, iteration):
-    os.chdir(WD)
-
+def run(splits: list, iteration: int) -> None:
     for it in iteration:
         vcf = VCF(source, threads=4)
         print('Iteration --> ', it)
@@ -423,7 +418,7 @@ def run(splits, iteration):
         print('Elapsed time for pooling the VCF files: {:06.2f} sec'.format(stop - start))
 
 
-def write_truncate_vcf(path_in, path_out, trunc):
+def write_truncate_vcf(path_in: str, path_out: str, trunc: int) -> int:
     w = Writer(path_out, VCF(path_in))
     for i, v in enumerate(VCF(path_in)):
         if i == trunc:
@@ -433,7 +428,7 @@ def write_truncate_vcf(path_in, path_out, trunc):
     return i
 
 
-def subset_chunked_vcf(wd, src, path_out, chz_sz, trc):
+def subset_chunked_vcf(wd: str, src: str, path_out: str, chz_sz: int, trc: int) -> None:
     for fi in path_out:
         delete_file(fi.replace('chunk' + str(chz_sz), 'chunk' + str(trc)) + '.gz.csi')
         print('Creating subchunk file for {}'.format(fi).ljust(80, '.'))
@@ -463,26 +458,24 @@ def subset_chunked_vcf(wd, src, path_out, chz_sz, trc):
 
 
 if __name__ == '__main__':
-    WD = prm.WD
-    os.chdir(WD)
+    CD = os.path.join(prm.WD, 'gt')
+    os.chdir(CD)
     CHK_SZ = prm.CHK_SZ
     PATH_IN = prm.PATH_IN
     PATH_OUT = prm.PATH_OUT
-    KIND = prm.KIND
-    MSS = prm.MSS
     POOL = prm.POOL
     source = prm.SOURCE
     subset = prm.SUBSET
 
-    items = init_chunk(PATH_IN, chunk=False)
+    items = init_chunk(CD, PATH_IN, chunk=False)
 
     data = VCF(source)
     SAMPLES = data.samples
 
-    #run(items, range(2))
+    run(items, range(2))
 
     if subset:
-        subset_chunked_vcf(WD, source, PATH_OUT, CHK_SZ, prm.SUBCHUNK)
+        subset_chunked_vcf(CD, source, PATH_OUT, CHK_SZ, prm.SUBCHUNK)
 
 ### ARGUMENTS PARSING AND EXECUTION
 """

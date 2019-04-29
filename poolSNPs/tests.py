@@ -134,7 +134,7 @@ def _pool_decode(M):
 
     return Z.reshape((4, 4, 3))
 
-  
+
 def pool_genotypes(d, call):
     """
     Computes genotypes of the different pools.
@@ -157,19 +157,6 @@ def pool_genotypes(d, call):
 
 
 def decode_genotypes(d, call, drop=False):
-    pools_size = 8
-    scores = np.apply_along_axis(np.sum(call[:-1], axis=1))
-
-    if np.any(call, -1):
-        p = np.asarray([-1, -1, 0]*(len(call)//2))
-    else:
-        pooled_gt = np.dot(d, np.transpose(scores))
-        bin_gt = np.vectorize(lambda x: 0 if x == 0 else (2 if x == 2*pools_size else 1))
-        p = bin_gt(pooled_gt)
-    return p # list of gt for the 8 pools from design matrix
-
-
-def decoded_genotypes(pooled_samples, pools_list, pooled, subset, drop=False):
     """
     Recoomputes genotypes of samples with/without pooling/missing data
     :param pooled_samples: Variant.genotypes
@@ -281,67 +268,20 @@ def test_het_computing():
         print(str(i) + ' --> ', h)
 
 
+def test_gtgl_converter():
+    for i, m in enumerate([M0, M1, M2, M3, M4, M5, M6, M7, M8, M9]):
+        print(str(i))
+        g_out = np.apply_along_axis(alltls.map_gt_gl,
+                                    -1,
+                                    m['out'].reshape(16, 1, 3))
+        print(g_out)
+
+
 if __name__ == '__main__':
     os.chdir(prm.WD)
     # test_pool_decode()
     # test_design_based()
     # idx_subsampling()
     # cyvcf_threads()
-    test_het_computing()
-     # = self.pools_list()
-     # = self.pool_genotypes()
-    nb_alt = np.sum(
-        np.apply_along_axis(
-            np.isin(pooled, 1)
-        )
-    )
-    for s in subset: #16
-        p = np.where(np.isin(np.asarray(pools_list), s))[0]
-        out = pool.decoding_rules(pooled[:, p], nb_alt)
-        pooled_samples[s] = out
-        if drop == True:
-            # missing data simulation
-            np.put(pooled_samples[s],
-                   [0, 1],
-                   [-1, -1]
-                   )
-
-    return pooled_samples
-
-
-def _pool_decode(M):
-    Z = np.zeros_like(M['in']).reshape((1, 16, 3))
-    oo = pool.SNPsPool()
-    d = oo.design_matrix()
-    f = M['in'].reshape((1, 16, 3))
-
-    pools = np.zeros((1, 8, 3), dtype=int)
-    for i in range(d.shape[0]):
-        cache = d[i,:]
-        poolval = f[:, np.argwhere(cache == 1)].squeeze()
-        pools[:, i, :] = oo.pooling_rules(poolval)
-
-    nb_alt = np.sum(
-        np.apply_along_axis(
-            lambda x: 1 in x,
-            -1,
-            pools[:, :, :-1]
-        )
-    )
-    for i,s in enumerate(f[0]):  # 16
-        p_p = np.argwhere(d[:,i] == 1).flatten()
-        Z[:, i, :] = oo.decoding_rules(pools[:, p_p], nb_alt)
-
-    return Z.reshape((4, 4, 3))
-
-def test_pool_decode():
-    # for i, m in enumerate([M0, M1, M2, M3, M4, M5, M6, M7, M8, M9]):
-    for i, m in enumerate([M1]):
-        z = _pool_decode(m)
-        t = np.all(m['out'] == z)
-        print(str(i) + ' --> ', t)
-        if t == False:
-            print(z)
-        print('')
-
-test_pool_decode()
+    # test_het_computing()
+    test_gtgl_converter()
