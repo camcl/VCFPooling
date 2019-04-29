@@ -43,35 +43,17 @@ if GTGL == 'GT':
     for dic in [pooled, missing]:
         print('{} compressed to {}'.format(dic['vcf'], dic['gz']))
         delete_file(dic['gz'] + '.csi')
-
-        bgzip = ' '.join(['bcftools',
-                          'view',
-                          '-Oz -o',
-                          dic['gz'],
-                          dic['vcf']
-                          ])
-
-        sort = ' '.join(['bcftools',
-                         'sort',
-                         '-Oz -o',
-                         dic['gz'],
-                         dic['gz']
-                         ])
-
-        idxgz = ' '.join(['bcftools',
-                          'index -f',
-                          dic['gz']
-                          ])
-
-        subprocess.run(bgzip, shell=True, cwd=cd)
-        subprocess.run(sort, shell=True, cwd=cd)
-        subprocess.run(idxgz, shell=True, cwd=cd)
+        bcftools.bgzip(dic['vcf'], dic['gz'], cd)
+        bcftools.sort(dic['gz'], cd)
+        bcftools.index(dic['gz'], cd)
         delete_file(dic['vcf'])
 
     print('Set size for REF: ', prm.NB_REF)
     print('Set size for IMP: ', prm.NB_IMP)
-    samples_files = ['cat ALL.chr20.snps.allID.txt | head -{} > ALL.chr20.snps.impID.txt'.format(prm.NB_IMP),
-                     'cat ALL.chr20.snps.allID.txt | tail -{} > ALL.chr20.snps.refID.txt'.format(prm.NB_REF),
+    samples_files = ['cat ALL.chr20.snps.allID.txt '
+                     + '| head -{} > ALL.chr20.snps.impID.txt'.format(prm.NB_IMP),
+                     'cat ALL.chr20.snps.allID.txt '
+                     + '| tail -{} > ALL.chr20.snps.refID.txt'.format(prm.NB_REF),
                      'dos2unix ALL.chr20.snps.refID.txt',
                      'dos2unix ALL.chr20.snps.impID.txt']
     for f in samples_files:
@@ -83,42 +65,21 @@ if GTGL == 'GT':
     for dic in [pooled, missing, raw]:
         delete_file(dic['imp'])
         delete_file(dic['imp'] + '.csi')
-
-        samp = ' '.join(['bcftools',
-                         'view',
-                         '-Oz -o',
-                         dic['imp'],
-                         '-S {}/ALL.chr20.snps.impID.txt'.format(prm.WD + '/gt'),
-                         dic['gz']
-                         ])
-
-        idxsp = ' '.join(['bcftools',
-                          'index -f',
-                          dic['imp']
-                          ])
-
-        subprocess.run(samp, shell=True, cwd=cd)
-        subprocess.run(idxsp, shell=True, cwd=cd)
-
-    samp = ' '.join(['bcftools',
-                     'view',
-                     '-Oz -o',
-                     raw['ref'],
-                     '-S {}/ALL.chr20.snps.refID.txt'.format(prm.WD + '/gt'),
-                     raw['gz']
-                     ])
-
-    idxsp = ' '.join(['bcftools',
-                      '-f index',
-                      raw['ref']
-                      ])
+        bcftools.sampling(dic['gz'],
+                          dic['imp'],
+                          '{}/ALL.chr20.snps.impID.txt'.format(prm.WD + '/gt'),
+                          cd)
+        bcftools.index(dic['imp'], cd)
 
     delete_file(raw['ref'] + '.csi')
-    subprocess.run(samp, shell=True, cwd=cd)
-    subprocess.run(idxsp, shell=True, cwd=cd)
+    bcftools.sampling(raw['gz'],
+                      raw['ref'],
+                      '{}/ALL.chr20.snps.refID.txt'.format(prm.WD + '/gt'),
+                      cd)
+    bcftools.index(raw['ref'], cd)
 
-    for f in [raw['imp'], raw['ref'], pooled['imp'], missing['imp']]:
-        subprocess.run('bcftools sort {} {}'.format(f, f), shell=True, cwd=cd)
+for f in [raw['imp'], raw['ref'], pooled['imp'], missing['imp']]:
+    bcftools.sort(f, cd)
 
 ### GL CONVERSION FOR IMP/REF: should be done from the GT files, not possible by splitting the converted ALL.gl file
 if GTGL == 'GL':
@@ -133,30 +94,13 @@ if GTGL == 'GL':
                                                       'gt',
                                                       raw['ref'].replace('.gl', '.gt')),
                                          raw['ref'][:-3])
+    # delete_file(raw['ref'])
+    # delete_file(raw['ref'] + '.csi')
+    # bcftools.bgzip(raw['ref'][:-3], raw['ref'], cd)
+    # bcftools.sort(raw['ref'], cd)
+    # bcftools.index(raw['ref'], cd)
+    # delete_file(raw['ref'][:-3])
 
-    # bgzip = ' '.join(['bcftools',
-    #                   'view',
-    #                   '-Oz -o',
-    #                   raw['ref'],
-    #                   raw['ref'][:-3]
-    #                   ])
-    #
-    # sort = ' '.join(['bcftools',
-    #                  'sort',
-    #                  '-Oz -o',
-    #                  raw['ref'],
-    #                  raw['ref']
-    #                  ])
-    #
-    # idxgz = ' '.join(['bcftools',
-    #                   'index -f',
-    #                   raw['ref']
-    #                   ])
-    #
-    # subprocess.run(bgzip, shell=True, cwd=cd)
-    # subprocess.run(sort, shell=True, cwd=cd)
-    # subprocess.run(idxgz, shell=True, cwd=cd)
-        
     for dic in [pooled, missing]: # raw
         if prm.unknown_gl == 'adaptative':
             pat.adaptative_likelihood_converter(os.path.join(prm.WD,
@@ -171,31 +115,12 @@ if GTGL == 'GL':
 
         delete_file(dic['imp'])
         delete_file(dic['imp'] + '.csi')
+        bcftools.bgzip(dic['imp'][:-3], dic['imp'], cd)
+        bcftools.sort(dic['imp'], cd)
+        bcftools.index(dic['imp'], cd)
+        delete_file(dic['imp'][:-3])
 
-        bgzip = ' '.join(['bcftools',
-                          'view',
-                          '-Oz -o',
-                          dic['imp'],
-                          dic['imp'][:-3]
-                          ])
-
-        sort = ' '.join(['bcftools',
-                         'sort',
-                         '-Oz -o',
-                         dic['imp'],
-                         dic['imp']
-                         ])
-
-        idxgz = ' '.join(['bcftools',
-                          'index -f',
-                          dic['imp']
-                          ])
-
-        subprocess.run(bgzip, shell=True, cwd=cd)
-        subprocess.run(sort, shell=True, cwd=cd)
-        subprocess.run(idxgz, shell=True, cwd=cd)
-
- ### BEAGLE ROUND#1: PHASING
+### BEAGLE ROUND#1: PHASING
 print('\n\nBEAGLE ROUND#1'.ljust(80, '.'))
 # REF dataset is GT formatted (if directly available)
 delete_file(raw['b1r'] + '.vcf.gz')
@@ -257,7 +182,8 @@ idxb1 = ' '.join(['bcftools',
 # if GTGL == 'GL':
 #     subprocess.run(bgl1gtgl, shell=True, cwd=cd)
 subprocess.run(bgl1gt, shell=True, cwd=cd)
-subprocess.run(idxb1, shell=True, cwd=cd)
+bcftools.index(raw['b1r'] + '.vcf.gz', cd)
+bcftools.index(raw['b1i'] + '.vcf.gz', cd)
 delete_file('temp.' + raw['imp'])
 delete_file('temp.' + raw['ref'])
 
@@ -279,15 +205,10 @@ for dic in [pooled, missing]:
                        'out=' + dic['b1']
                        ])
 
-    idxb1 = ' '.join(['bcftools',
-                      'index -f',
-                      dic['b1'] + '.vcf.gz'
-                      ])
-
     if GTGL == 'GL':
         subprocess.run(bgl1gtgl, shell=True, cwd=cd)
     subprocess.run(bgl1gt, shell=True, cwd=cd)
-    subprocess.run(idxb1, shell=True, cwd=cd)
+    bcftools.index(dic['b1'] + '.vcf.gz', cd)
     delete_file('temp.b1' + '.vcf.gz')
 
 ### CONFORM-GT
@@ -305,15 +226,8 @@ for dic in [pooled, missing]:
                      'out=' + dic['cfgt']
                      ])
 
-    idxcf = ' '.join(['bcftools',
-                      'index -f',
-                      dic['cfgt'] + '.vcf.gz'
-                      ])
-
-    print(cfgt)
-
     subprocess.run(cfgt, shell=True, cwd=cd)
-    subprocess.run(idxcf, shell=True, cwd=cd)
+    bcftools.index(dic['cfgt'] + '.vcf.gz', cd)
 
 
 ### BEAGLE (ROUND#2): IMPUTING
@@ -329,13 +243,8 @@ for dic in [pooled, missing]:
                      'out=' + dic['b2']
                      ])
 
-    idxb2 = ' '.join(['bcftools',
-                      'index -f',
-                      dic['b2'] + '.vcf.gz'
-                      ])
-
     subprocess.run(bgl2, shell=True, cwd=cd)
-    subprocess.run(idxb2, shell=True, cwd=cd)
+    bcftools.index(dic['b2'] + '.vcf.gz', cd)
 
 
 ### FIX DS AND GP FORMAT FIELDS, SORT OUT GT
@@ -349,26 +258,16 @@ for dic in [pooled, missing]:
                       "| bcftools view -Oz -o {}.vcf.gz".format(dic['corr'])
                       ])
 
-    idxfm = ' '.join(['bcftools',
-                      'index -f',
-                      dic['corr'] + '.vcf.gz'
-                      ])
-
     subprocess.run(refmt, shell=True, cwd=cd)
-    subprocess.run(idxfm, shell=True, cwd=cd)
+    bcftools.index(dic['corr'] + '.vcf.gz', cd)
 
     gtonly = ' '.join(["bcftools annotate -x 'FORMAT'",
                        dic['corr'] + '.vcf.gz',
                        "| bgzip >",
                        dic['gtonly'] + '.vcf.gz'])
 
-    idxgt = ' '.join(['bcftools',
-                      'index -f',
-                      dic['gtonly'] + '.vcf.gz'
-                      ])
-
     subprocess.run(gtonly, shell=True, cwd=cd)
-    subprocess.run(idxgt, shell=True, cwd=cd)
+    bcftools.index(dic['gtonly'] + '.vcf.gz', cd)
 
 
 ### REMOVE .log FILES and cfgt created
