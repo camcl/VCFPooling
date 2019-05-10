@@ -1,4 +1,4 @@
-from cyvcf2 import VCF, Writer, Variant, Genotypes
+from cyvcf2 import VCF, Writer, Variant
 import os
 import numpy as np
 import pandas as pd
@@ -141,15 +141,18 @@ def get_maf(vcf_raw, id='id'):
     #                   sep='\t',
     #                   names=['id', 'maf'])
     dico = {'id': list(),
-            'maf': list()}
+            'maf': list(), # alternate allele frequency estimated on the populations
+            'aaf': list()} # alternate allele frequency estimated on the file
     if id == 'id':
         for var in VCF(vcf_raw):
             dico['id'].append(var.ID)
-            dico['maf'].append(var.aaf)
+            dico['maf'].append(var.INFO['AF'])
+            dico['aaf'].append(var.aaf)
     if id == 'chrom:pos':
         for var in VCF(vcf_raw):
             dico['id'].append(':'.join([str(var.CHROM), str(var.POS)]))
-            dico['maf'].append(var.aaf)
+            dico['maf'].append(var.INFO['AF'])
+            dico['aaf'].append(var.aaf)
     df_maf = pd.DataFrame.from_dict(dico)
     df_maf.sort_values('id', axis=0, inplace=True)
     df_maf.reset_index(drop=True, inplace=True)
@@ -183,7 +186,7 @@ def tag_heteroz(arr):
 
 
 def tag_missing(arr):
-    if np.sum(arr) == 2:
+    if np.all(arr) == -1:
         return 2
     elif np.isin(arr, -1).any():
         return 1
@@ -235,7 +238,7 @@ def per_site_heteroz(vcf_path=None, gt_array=None):
     return het
 
 
-def count_missing_alleles(vcf_path=None, gt_array=None):
+def count_missing_alleles(vcf_path=None, gt_array=None, id='id'):
     """
 
     :param vcf_obj:
@@ -253,10 +256,16 @@ def count_missing_alleles(vcf_path=None, gt_array=None):
         vcf_obj = VCF(vcf_path)
         for var in vcf_obj:
             gt = np.array(var.genotypes)[:, :-1]
-            dic_mis[var.ID] = np.sum(
-                np.apply_along_axis(
-                    tag_missing, 1, gt)
-            )/(len(var.genotypes)*2)
+            if id == 'id':
+                dic_mis[var.ID] = np.sum(
+                    np.apply_along_axis(
+                        tag_missing, -1, gt)
+                )/(len(var.genotypes)*2)
+            if id == 'chrom:pos':
+                dic_mis['{}:{}'.format(var.CHROM, var.POS)] = np.sum(
+                    np.apply_along_axis(
+                        tag_missing, -1, gt)
+                )/(len(var.genotypes)*2)
         mis = np.asarray([[k, v] for k, v in dic_mis.items()])
 
     else:
@@ -278,6 +287,10 @@ def compute_maf(vcf_path, idt='id', verbose=False):
     vcf_obj = VCF(vcf_path)
     dic_maf = {}
     for i, var in enumerate(vcf_obj):
+        if idt == 'id':
+            varid = var.ID
+        if idt == 'chrom:pos':
+            varid = ':'.join([str(var.CHROM), str(var.POS)])
         # GT:DS:GP
         if verbose:
             try:
@@ -286,13 +299,13 @@ def compute_maf(vcf_path, idt='id', verbose=False):
                 print(str(i) + '\t', var.ID)
         try:
             gt = np.array(var.genotypes)[:, :-1]
-        except:
+            # minors = np.sum(np.apply_along_axis(minor_allele, 1, gt))
+            # notmis = np.sum(~np.where(np.apply_along_axis(tag_missing, 1, gt) == 2))
+            # dic_maf[varid] = minors / notmis
+            # dic_maf[varid] = np.sum(np.apply_along_axis(minor_allele, 1, gt)) / (len(var.genotypes) * 2) # my version
+            dic_maf[varid] = var.aaf
+        except TypeError:
             pass
-        if idt == 'id':
-            varid = var.ID
-        if idt == 'chrom:pos':
-            varid = ':'.join([str(var.CHROM), str(var.POS)])
-        dic_maf[varid] = np.sum(np.apply_along_axis(minor_allele, 1, gt))/(len(var.genotypes)*2)
 
     return dic_maf
 
@@ -307,8 +320,9 @@ def compute_maf_evol(set, gtgl='gt', chk_sz=None):
     if chk_sz is None:
         chk_sz = prm.CHK_SZ
     print('\r\nSet --> ', set)
+    # TODO: set preimp postimp path as input params
     steps = {'preimp': 'IMP.chr20.{}.snps.gt.chunk{}.vcf.gz'.format(set, str(chk_sz)),
-             'postimp': 'IMP.chr20.{}.beagle2.{}.chunk{}.corr.vcf.gz'.format(set, gtgl, str(chk_sz))}
+             'postimp': 'IMP.chr20.{}.imputed.{}.chunk{}.vcf.gz'.format(set, gtgl, str(chk_sz))}
     temp = []
     for d, vcf in steps.items():
         df = pd.DataFrame.from_dict(compute_maf(vcf),
@@ -414,3 +428,25 @@ def file_likelihood_converter(f_in, f_out, func=bin_gl_converter):
             stream = fmt_gl_variant(var_in, glfunc=func).encode()
             w2.write(stream)
 
+
+def plot_maf_gl():
+    """
+    Shows how MAF = f impacts GL values for GT RR|RA|AA.
+    :return:
+    """
+    import matplotlib.pyplot as plt
+
+    f = np.arange(0.0, 1.0, 0.01)
+    rr = np.vectorize(lambda x: (1 - x)**2)
+    ra = np.vectorize(lambda x: 2 * (1 - x) * x)
+    aa = np.vectorize(lambda x: x ** 2)
+
+    plt.plot(f, rr(f), 'b-', label='RR')
+    plt.plot(f, ra(f), 'g-', label='RA')
+    plt.plot(f, aa(f), 'r-', label='AA')
+    plt.legend()
+    plt.show()
+
+
+if __name__ == '__main__':
+    plot_maf_gl()

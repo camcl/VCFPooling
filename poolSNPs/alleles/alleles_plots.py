@@ -6,7 +6,7 @@ import math
 import numpy as np
 import pandas as pd
 from cyvcf2 import VCF
-from . import alleles_tools as alltls
+from scripts.poolSNPs.alleles import alleles_tools as alltls
 from scripts.poolSNPs import parameters as prm
 from persotools.debugging import *
 from persotools.files import *
@@ -39,7 +39,7 @@ def plot_heat_map(dtfr, figname, figsize, sorting, title='{}', rightYaxis=False)
         idx = dtfr.index
         col = dtfr.columns
 
-    plt.rcParams["figure.autolayout"] =  True
+    plt.rcParams["figure.autolayout"] = True
     fig, ax = plt.subplots()
     im = ax.imshow(dtfr.transpose().values)
 
@@ -132,7 +132,7 @@ def boxplot_densities(set_errors):
     plt.savefig('root.mean.square.error.box.density.chunk{}.png'.format(prm.CHK_SZ), dpi='figure')
 
 
-def plot_maf_evol(err_dic, path_all):
+def plot_maf_evol(err_dic, path_all, typ='line'):
     bin_maf = prm.BIN_MAF
 
     plt.rcParams["figure.figsize"] = [12, 6]
@@ -161,16 +161,28 @@ def plot_maf_evol(err_dic, path_all):
     a = 0
     colors = ['b', 'g', 'r']
     for k_set in err_dic.keys():
-        df_maf.plot.line(x='maf',
-                         y='preimp_' + k_set,
-                         ax = ax_lin,
-                         linestyle='--',
-                         color=colors[a])
-        df_maf.plot.line(x='maf',
-                         y='postimp_' + k_set,
-                         ax=ax_lin,
-                         linestyle='-',
-                         color=colors[a])
+        if typ == 'line':
+            df_maf.plot.line(x='maf',
+                             y='preimp_' + k_set,
+                             ax = ax_lin,
+                             linestyle='--',
+                             color=colors[a])
+            df_maf.plot.line(x='maf',
+                             y='postimp_' + k_set,
+                             ax=ax_lin,
+                             linestyle='-',
+                             color=colors[a])
+        if typ == 'scatter':
+            df_maf.plot.line(x='maf',
+                             y='preimp_' + k_set,
+                             ax=ax_lin,
+                             marker='v',
+                             color=colors[a])
+            df_maf.plot.line(x='maf',
+                             y='postimp_' + k_set,
+                             ax=ax_lin,
+                             marker='o',
+                             color=colors[a])
         plt.xlabel('Theoretical MAF')
         plt.ylabel('Dataset MAF')
         plt.plot(range(2), linestyle='-', color='k')
@@ -182,7 +194,7 @@ def plot_maf_evol(err_dic, path_all):
 
     plt.title('MAF evolution through processing of data sets', loc='center')
     plt.suptitle("")
-    plt.savefig('maf_evol.chunk{}.png'.format(prm.CHK_SZ),
+    plt.savefig('maf_evol.{}.chunk{}.png'.format(typ, prm.CHK_SZ),
                 orientation='landscape',
                 dpi='figure')
 
@@ -238,24 +250,6 @@ def plot_err_vs_het(dset, err_set, file_in, err_kind='rmse', low_maf=False, save
     return ax
 
 
-def plot_err_vs_miss(k, err_set, err_kind='rmse'):
-
-    nb_samples = err_set.shape[1]
-    site_err = alltls.rmse_df(err_set, kind=err_kind, ax=1).rename(err_kind).to_frame()
-    site_err.reindex(index=err_set.index, copy=False)
-    site_err.reset_index(level=['maf'], drop=False, inplace=True)
-    site_err['maf'].astype(float, copy=False)
-    # missing data from the preimputed dataset
-    misNp = alltls.count_missing_alleles('IMP.chr20.{}.beagle1.chunk{}.vcf.gz'.format(k, prm.CHK_SZ))
-    misSer = pd.Series(misNp[:, -1], index=misNp[:, 0]).astype(float, copy=True)
-    misPct = misSer.apply(lambda h: h * 100 / nb_samples).rename('miss').to_frame()
-    site_err = site_err.join(misPct, on='id')
-    site_err.plot.scatter('miss', err_kind, c='maf', cmap=plt.cm.viridis)
-    plt.title('Imputation error vs. missing data rate in {} data set'.format(k))
-    plt.savefig('rmse.missing.data.{}.chunk{}.png'.format(k, prm.CHK_SZ),
-                dpi='figure')
-
-
 def multiplot_err_het(err):
 
     plt.rcParams["figure.figsize"] = [12, 6]
@@ -297,3 +291,74 @@ def multiplot_err_het(err):
         j += 1
     #plt.show()
     plt.savefig('root.mean.square.error.maf.low.chunk{}.png'.format(prm.CHK_SZ), dpi='figure')
+
+
+def plot_err_vs_miss(k, err_set, err_kind='rmse'):
+
+    nb_samples = err_set.shape[1]
+    site_err = alltls.rmse_df(err_set, kind=err_kind, ax=1).rename(err_kind).to_frame()
+    site_err.reindex(index=err_set.index, copy=False)
+    site_err.reset_index(level=['maf'], drop=False, inplace=True)
+    site_err['maf'].astype(float, copy=False)
+
+    # missing data from the preimputed dataset
+    misNp = alltls.count_missing_alleles('IMP.chr20.{}.snps.chunk{}.vcf.gz'.format(k, prm.CHK_SZ))
+    misSer = pd.Series(misNp[:, -1], index=misNp[:, 0]).astype(float, copy=True)
+    misPct = misSer.apply(lambda h: h * 100 / nb_samples).rename('miss').to_frame()
+
+    site_err = site_err.join(misPct, on='id')
+    site_err.plot.scatter('miss', err_kind, c='maf', cmap=plt.cm.viridis)
+    plt.title('Imputation error vs. missing data rate in {} data set'.format(k))
+    plt.savefig('rmse.missing.data.{}.chunk{}.png'.format(k, prm.CHK_SZ),
+                dpi='figure')
+
+
+def plot_aaf_vs_miss():
+    """
+    Relevant for GT only
+    :param k:
+    :param err_set:
+    :return:
+    """
+    try:
+        prm.GTGL == 'GT'
+        os.chdir(prm.WD + '/gt/')
+        # missing data from the preimputed dataset
+        mafs = alltls.get_maf('ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(prm.CHK_SZ),
+                              id='chrom:pos')
+        df_plot = mafs.loc[:, 'maf'].astype(float, copy=True).to_frame()
+        for (dic, name) in [(prm.POOLED, 'pooled'), (prm.MISSING, 'missing')]:
+            misNp = alltls.count_missing_alleles(dic['imp'], id='chrom:pos')
+            misSer = pd.Series(misNp[:, -1], index=misNp[:, 0]).astype(float, copy=True)
+            misPct = misSer.apply(lambda h: h * 100 / prm.NB_IMP).rename('miss_' + name).to_frame()
+            df_plot = df_plot.join(misPct, how='inner')
+        print(df_plot)
+
+        fig, axis = plt.subplots()
+        df_plot.plot.scatter(x='maf',
+                             y='miss_pooled',
+                             s=2,
+                             ax=axis,
+                             label='pooled dataset',
+                             marker='o',
+                             color='tab:olive')
+        df_plot.plot.scatter(x='maf',
+                             y='miss_missing',
+                             s=2,
+                             ax=axis,
+                             label='random-deleted dataset',
+                             marker='o',
+                             color='tab:brown')
+        axis.legend(loc='center', fontsize=6, bbox_to_anchor=(0.5, -0.3))
+        plt.xlabel('MAF from VCF AF INFO-field')
+        plt.ylabel('Data missing rate')
+        fig.tight_layout()
+        plt .savefig(prm.PLOTS_PATH + '/plot_aaf_vs_miss.chunk{}.jpg'.format(prm.CHK_SZ),
+                     dpi=500)
+
+    except AssertionError:
+        print('Function should be run with prm.GTGL = GT')
+
+
+if __name__ == '__main__':
+    plot_aaf_vs_miss()

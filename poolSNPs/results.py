@@ -36,10 +36,7 @@ def get_pop():
 def sort_datasets(args, groups, df_maf):
     out = []
     df_maf.reset_index(drop=True, inplace=True)
-    dbg.myprint(df_maf.shape)
-    dbg.myprint(df_maf.index)
     for dfset in args:
-        dbg.myprint(dfset.shape)
         # Sort samples by population
         dfset.sort_index(axis=1, inplace=True)
         dfset.columns = groups
@@ -60,7 +57,7 @@ def make_index(raw_data, src=None, id='id'):
     if src is None:
         src = prm.SOURCE
     group = get_pop()
-    df_maf = alleles_tools.get_maf(src, id=id)
+    df_maf = alleles_tools.get_maf(src, id=id).loc[:, ['id', 'maf', 'maf_inter']]
 
     samples = pd.DataFrame(VCF(raw_data).samples, columns=['Sample'])
     df_pop = group.merge(samples, on='Sample', how='inner')
@@ -77,20 +74,27 @@ if __name__ == '__main__':
     sorting = True # sort data sets by MAF and population values
     subsample = prm.SUBSET
     chk_sz = prm.CHK_SZ
-    CD = os.path.join(prm.WD, prm.GTGL.lower())
-    os.chdir(CD)
+
+    if prm.GTGL == 'GT':
+        cd = os.path.join(prm.WD, 'gt', 'stratified')
+    if prm.GTGL == 'GL':
+        if prm.unknown_gl != 'adaptative':
+            cd = os.path.join(prm.WD, 'gl', 'gl_' + '_'.join(np.around(prm.unknown_gl, decimals=2).astype(str)))
+        else:
+            # cd = os.path.join(prm.WD, 'gl')
+            cd = os.path.join(prm.WD, 'gl', 'gl_adaptative')
+    os.chdir(cd)
 
     ALL = prm.SOURCE
     RAW = prm.RAW['b1i'] + '.vcf.gz'
-    MISS = prm.MISSING['corr'] + '.vcf.gz'
-    POOL = prm.POOLED['corr'] + '.vcf.gz'
-    #MISSPOOL = VCF('IMP.chr20.missing.pooled.beagle2.corr.vcf.gz')
+    MISS = prm.MISSING['gtonly'] + '.vcf.gz'
+    POOL = prm.POOLED['gtonly'] + '.vcf.gz'
 
     print('Raw samples and index labels'.ljust(80, '.'))
     r_size, ms_size = len(VCF(RAW).samples), len(VCF(POOL).samples)
 
     # Load MAFs
-    mafs = alleles_tools.get_maf('../gt/ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(chk_sz)))
+    mafs = alleles_tools.get_maf(prm.WD + '/gt/stratified/ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(chk_sz)))
 
     # Create line-index and column-index (multi-indexing)
     maf_idx, pop_idx = make_index(RAW)

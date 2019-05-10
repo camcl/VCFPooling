@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -64,7 +65,7 @@ def plot_test(df_maf, col_set, typ='scatter'):
 
     lin_maf, ax_lin = plt.subplots()
     for a, k_set in enumerate(col_set):
-        colors = tuple(np.random.rand(4))
+        colors = tuple(np.random.rand(3)) # RGBA --> 3
         if typ == 'scatter':
             df_maf.plot.scatter(x='maf',
                                 y='preimp_' + k_set,
@@ -107,32 +108,37 @@ def plot_test(df_maf, col_set, typ='scatter'):
 if __name__ == '__main__':
     ### DATA
     if prm.GTGL == 'GT':
-        cd = os.path.join(prm.WD, 'gt')
+        cd = os.path.join(prm.WD, 'gt/stratified')
     if prm.GTGL == 'GL':
         if prm.unknown_gl != 'adaptative':
             cd = os.path.join(prm.WD, 'gl', 'gl_' + '_'.join(np.around(prm.unknown_gl, decimals=2).astype(str)))
         else:
-            cd = os.path.join(prm.WD, 'gl', 'gl_adaptative')
+            # cd = os.path.join(prm.WD, 'gl')
+            cd = os.path.join(prm.WD, 'gl', 'gl_adaptative') # , 'kristiina')
     print('Load parameters'.ljust(80, '.'))
     sorting = True # sort data sets by MAF and population values
     os.chdir(cd)
-    params = [('gt', 10000, 'chrom:pos'), ('gl', 10000, 'chrom:pos')]
+    params = [('gt', prm.CHK_SZ, 'chrom:pos')]#, ('gl', prm.CHK_SZ, 'chrom:pos')]
     devol = []
 
     # Load MAFs
-    mafs = alltls.get_maf(prm.WD + '/gt/IMP.chr20.pooled.snps.gt.chunk{}.vcf.gz'.format(prm.CHK_SZ),
-                          id='chrom:pos')
-    mafs = mafs.loc[:, 'maf'].to_frame()
+    allmafs = alltls.get_maf(prm.WD + '/gt/stratified/ALL.chr20.pooled.snps.gt.chunk{}.vcf.gz'.format(prm.CHK_SZ),
+                             id='chrom:pos')
+    mafs = allmafs.loc[:, 'maf'].to_frame()
+    aafs = allmafs.loc[:, 'aaf'].to_frame()
+    impmafs = alltls.get_maf(prm.WD + '/gt/stratified/IMP.chr20.pooled.snps.gt.chunk{}.vcf.gz'.format(prm.CHK_SZ),
+                             id='chrom:pos')
+    compmafs = allmafs.loc[:, ['maf', 'aaf']].join(impmafs.loc[:, ['maf', 'aaf']], how='inner', rsuffix='_imp')
 
     for p_set in params:
         print('\nSet params:', p_set)
         gtgl, sz, idt = p_set
-        ALL = prm.WD + '/gt/ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(sz)
-        B1 = prm.WD + '/gt/IMP.chr20.pooled.snps.gt.chunk{}.vcf.gz'.format(sz)
+        ALL = prm.WD + '/gt/stratified/ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(sz)
+        B1 = prm.WD + '/gt/stratified/IMP.chr20.pooled.snps.gt.chunk{}.vcf.gz'.format(sz)
         if gtgl == 'gl':
             POOL = 'IMP.chr20.pooled.imputed.gt.chunk{}.vcf.gz'.format(sz)
         if gtgl == 'gt':
-            POOL = prm.WD + '/gt/IMP.chr20.pooled.imputed.gt.chunk{}.vcf.gz'.format(sz)
+            POOL = prm.WD + '/gt/stratified/IMP.chr20.pooled.imputed.gt.chunk{}.vcf.gz'.format(sz)
 
         print('Raw samples and index labels'.ljust(80, '.'))
         # Create line-index and column-index (multi-indexing)
@@ -181,3 +187,5 @@ if __name__ == '__main__':
     df_plot.sort_values(by='maf', inplace=True)
     print('dfplot\n', df_plot)
     plot_test(df_plot, col_set=list(zip(*params))[0], typ='line')
+    plot_test(df_plot, col_set=list(zip(*params))[0], typ='scatter')
+

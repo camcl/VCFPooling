@@ -13,13 +13,16 @@ Run bcftools manipulations for preprocessing the files which are used for Beagle
 Run Beagle.
 '''
 chk_sz = prm.CHK_SZ
-cd = os.path.join(prm.WD, prm.GTGL.lower())
+pardir = os.path.join(prm.WD, prm.GTGL.lower())
+if prm.GTGL == 'GT':
+    #cd = pardir
+    cd = os.path.join(pardir, 'stratified')
 if prm.GTGL == 'GL':
     if prm.unknown_gl != 'adaptative':
-        cd = os.path.join(cd, 'gl_' + '_'.join(np.around(prm.unknown_gl, decimals=2).astype(str)))
+        cd = os.path.join(pardir, 'gl_' + '_'.join(np.around(prm.unknown_gl, decimals=2).astype(str)))
     else:
-        cd = os.path.join(cd, 'gl_adaptative')
-mkdir(cd)
+        cd = os.path.join(pardir, 'gl_adaptative')
+    mkdir(cd)
 os.chdir(cd)
 
 raw = prm.RAW
@@ -38,87 +41,103 @@ if subset:
             dic[k] = v.replace('chunk' + str(chk_sz), 'chunk' + str(trc))
 
 ### BGZIP ALL
-if GTGL == 'GT':
-    print('\n\nBGZIP in {}'.format(os.getcwd()).ljust(80, '.'))
-    for dic in [pooled, missing]:
-        print('{} compressed to {}'.format(dic['vcf'], dic['gz']))
-        delete_file(dic['gz'] + '.csi')
-        bcftools.bgzip(dic['vcf'], dic['gz'], cd)
+print('\n\nBGZIP in {}'.format(os.getcwd()).ljust(80, '.'))
+for dic in [pooled, missing]:
+    print('{} compressed to {}'.format(os.path.join(pardir, dic['vcf']),
+                                       dic['gz']))
+    if os.path.exists(os.path.join(pardir, dic['vcf'])):
+        bcftools.bgzip(os.path.join(pardir, dic['vcf']),
+                       dic['gz'],
+                       cd) # bgzip the file in the corresponding GL (GT) folder for missing values
         bcftools.sort(dic['gz'], cd)
         bcftools.index(dic['gz'], cd)
-        delete_file(dic['vcf'])
+        #delete_file(pardir + dic['vcf'])
+    if os.path.exists(os.path.join(cd, dic['vcf'])):
+        bcftools.bgzip(os.path.join(cd, dic['vcf']),
+                       dic['gz'],
+                       cd) # bgzip the file in the corresponding GL (GT) folder for missing values
+        bcftools.sort(dic['gz'], cd)
+        bcftools.index(dic['gz'], cd)
+        #delete_file(pardir + dic['vcf'])
 
-    print('Set size for REF: ', prm.NB_REF)
-    print('Set size for IMP: ', prm.NB_IMP)
-    samples_files = ['cat ALL.chr20.snps.allID.txt '
-                     + '| head -{} > ALL.chr20.snps.impID.txt'.format(prm.NB_IMP),
-                     'cat ALL.chr20.snps.allID.txt '
-                     + '| tail -{} > ALL.chr20.snps.refID.txt'.format(prm.NB_REF),
-                     'dos2unix ALL.chr20.snps.refID.txt',
-                     'dos2unix ALL.chr20.snps.impID.txt']
-    for f in samples_files:
-        subprocess.run(f, shell=True, cwd=cd)
+print('Set size for REF: ', prm.NB_REF)
+print('Set size for IMP: ', prm.NB_IMP)
+samples_files = ['cat {}/ALL.chr20.snps.allID.txt '.format(pardir)
+                 + '| head -{} > {}/ALL.chr20.snps.impID.txt'.format(prm.NB_IMP, pardir),
+                 'cat {}/ALL.chr20.snps.allID.txt '.format(pardir)
+                 + '| tail -{} > {}/ALL.chr20.snps.refID.txt'.format(prm.NB_REF, pardir),
+                 'dos2unix {}/ALL.chr20.snps.refID.txt'.format(pardir),
+                 'dos2unix {}/ALL.chr20.snps.impID.txt'.format(pardir)]
+for f in samples_files:
+    subprocess.run(f, shell=True, cwd=cd)
 
 ### REF/IMP SAMPLING
+print('\n\nREF/IMP SAMPLING'.ljust(80, '.'))
+for (folder, dic) in tuple([(cd, pooled),
+                            (cd, missing),
+                            (prm.WD + '/gt/stratified/', raw)]): # cd if gt stratified
+    delete_file(os.path.join(folder, dic['imp']))
+    delete_file(os.path.join(folder, dic['imp'] + '.csi'))
+    bcftools.sampling(dic['gz'],
+                      dic['imp'],
+                      '{}/ALL.chr20.snps.impID.txt'.format(pardir),
+                      folder)
+    bcftools.index(dic['imp'], folder)
+
+bcftools.sampling(raw['gz'],
+                  raw['ref'],
+                  '{}/ALL.chr20.snps.refID.txt'.format(pardir),
+                  prm.WD + '/gt/stratified')
+bcftools.index(raw['ref'], cd) # prm.WD + '/gt/'
+
+for (folder, f) in tuple([(prm.WD + '/gt/stratified', raw['imp']),
+                          (prm.WD + '/gt/stratified', raw['ref']),
+                          (cd, pooled['imp']),
+                          (cd, missing['imp'])]):
+    bcftools.sort(f, folder)
+    bcftools.index(f, folder)
+
 if GTGL == 'GT':
-    print('\n\nREF/IMP SAMPLING'.ljust(80, '.'))
-    for dic in [pooled, missing, raw]:
-        delete_file(dic['imp'])
-        delete_file(dic['imp'] + '.csi')
-        bcftools.sampling(dic['gz'],
-                          dic['imp'],
-                          '{}/ALL.chr20.snps.impID.txt'.format(prm.WD + '/gt'),
-                          cd)
-        bcftools.index(dic['imp'], cd)
-
-    delete_file(raw['ref'] + '.csi')
-    bcftools.sampling(raw['gz'],
-                      raw['ref'],
-                      '{}/ALL.chr20.snps.refID.txt'.format(prm.WD + '/gt'),
-                      cd)
-    bcftools.index(raw['ref'], cd)
-
-for f in [raw['imp'], raw['ref'], pooled['imp'], missing['imp']]:
-    bcftools.sort(f, cd)
+    # TODO: test that piece of code
+    folder = prm.WD + '/gt/stratified'
+    bcftools.sampling(pooled['gz'],
+                      pooled['ref'],
+                      '{}/ALL.chr20.snps.refID.txt'.format(pardir),
+                      folder)
+    bcftools.index(pooled['ref'], folder)
 
 ### GL CONVERSION FOR IMP/REF: should be done from the GT files, not possible by splitting the converted ALL.gl file
 if GTGL == 'GL':
     print('GT to GL in {}'.format(os.getcwd()).ljust(80, '.'))
-    if prm.unknown_gl == 'adaptative':
-        pat.adaptative_likelihood_converter(os.path.join(prm.WD,
-                                                         'gt',
-                                                         raw['ref'].replace('.gl', '.gt')),
-                                            raw['ref'][:-3])
-    else:
-        alltls.file_likelihood_converter(os.path.join(prm.WD,
-                                                      'gt',
-                                                      raw['ref'].replace('.gl', '.gt')),
-                                         raw['ref'][:-3])
-    # delete_file(raw['ref'])
-    # delete_file(raw['ref'] + '.csi')
-    # bcftools.bgzip(raw['ref'][:-3], raw['ref'], cd)
-    # bcftools.sort(raw['ref'], cd)
-    # bcftools.index(raw['ref'], cd)
-    # delete_file(raw['ref'][:-3])
+    alltls.file_likelihood_converter(os.path.join(prm.WD,
+                                                  'gt',
+                                                  raw['ref'].replace('.gl', '.gt')),
+                                     raw['ref'][:-3])
+    delete_file(raw['ref'])
+    delete_file(raw['ref'] + '.csi')
+    bcftools.bgzip(raw['ref'][:-3], raw['ref'], cd)
+    bcftools.sort(raw['ref'], cd)
+    bcftools.index(raw['ref'], cd)
+    delete_file(raw['ref'][:-3])
 
-    for dic in [pooled, missing]: # raw
-        if prm.unknown_gl == 'adaptative':
-            pat.adaptative_likelihood_converter(os.path.join(prm.WD,
-                                                             'gt',
-                                                             dic['imp'].replace('.gl', '.gt')),
-                                                dic['imp'][:-3])
-        else:
-            alltls.file_likelihood_converter(os.path.join(prm.WD,
-                                                          'gt',
-                                                          dic['imp'].replace('.gl', '.gt')),
-                                             dic['imp'][:-3])
-
-        delete_file(dic['imp'])
-        delete_file(dic['imp'] + '.csi')
-        bcftools.bgzip(dic['imp'][:-3], dic['imp'], cd)
-        bcftools.sort(dic['imp'], cd)
-        bcftools.index(dic['imp'], cd)
-        delete_file(dic['imp'][:-3])
+    # for dic in [pooled, missing]: # raw
+    #     if prm.unknown_gl == 'adaptative':
+    #         pat.adaptative_likelihood_converter(os.path.join(prm.WD,
+    #                                                          'gt',
+    #                                                          dic['imp'].replace('.gl', '.gt')),
+    #                                             dic['imp'][:-3])
+    #     else:
+    #         alltls.file_likelihood_converter(os.path.join(prm.WD,
+    #                                                       'gt',
+    #                                                       dic['imp'].replace('.gl', '.gt')),
+    #                                          dic['imp'][:-3])
+    #
+    #     delete_file(dic['imp'])
+    #     delete_file(dic['imp'] + '.csi')
+    #     bcftools.bgzip(dic['imp'][:-3], dic['imp'], cd)
+    #     bcftools.sort(dic['imp'], cd)
+    #     bcftools.index(dic['imp'], cd)
+    #     delete_file(dic['imp'][:-3])
 
 ### BEAGLE ROUND#1: PHASING
 print('\n\nBEAGLE ROUND#1'.ljust(80, '.'))
@@ -158,14 +177,14 @@ delete_file(raw['b1i'] + '.vcf.gz')
 
 bgl1gt = ' '.join(['java -Xmx4000m -jar {}'.format(prm.BEAGLE_JAR),
                    '{}='.format('gt')
-                   + os.path.join(prm.WD, 'gt', raw['imp'].replace('.gl', '.gt')),
+                   + os.path.join(prm.WD, 'gt/stratified', raw['imp'].replace('.gl', '.gt')),
                    'impute=false',
                    'gprobs=true',
                    'out=' + raw['b1i'],
                    '&',
                    'java -Xmx4000m -jar {}'.format(prm.BEAGLE_JAR),
                    '{}='.format('gt')
-                   + os.path.join(prm.WD, 'gt', raw['ref'].replace('.gl', '.gt')),
+                   + os.path.join(prm.WD, 'gt/stratified', raw['ref'].replace('.gl', '.gt')),
                    'impute=false',
                    'gprobs=true',
                    'out=' + raw['b1r']

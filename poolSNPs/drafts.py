@@ -35,12 +35,6 @@ def grouper_it(n, iterable):
 os.chdir('./data/tests-beagle')
 print(os.getcwd())
 
-
-gt1000 = 'IMP.chr20.snps.gt.chunk1000.vcf.gz'
-df_maf = alltls.get_maf(gt1000)
-dcount = df_maf['maf'].apply(lambda x: np.digitize(x,
-                                                   np.arange(0, 1, 0.1))
-                                       /10).to_frame(name='bin_maf')
 #print(dcount.groupby(by='bin_maf', axis=0)['bin_maf'].count())
 # dcount.plot.hist(by='maf_bin')
 # plt.show()
@@ -49,20 +43,9 @@ dcount = df_maf['maf'].apply(lambda x: np.digitize(x,
 gl1000 = 'IMP.chr20.pooled.snps.gl.chunk1000.vcf.gz'
 gt1000 = 'IMP.chr20.pooled.snps.gt.chunk1000.vcf.gz'
 
-
-# 4 slots, 2 idv
-nbSlots = 4
-nbIdv = 2
-gtpos = ['RA', 'AA']
-prd = itertools.combinations_with_replacement(gtpos, r=nbIdv)
-patterns = list()
-for p in prd:
-    tpl = p + tuple(['RR'] * (nbSlots - nbIdv))
-    patterns.append(tpl)
-pot = np.array(patterns).flatten()
-# weighted GLs
-wgl = np.array([np.count_nonzero(np.where(pot == let, 1, 0)) for let in ['RR', 'RA', 'AA']]) / len(pot)
-print(wgl)
+for v in VCF(os.path.join('/home/camille/PycharmProjects/1000Genomes/data/tests-beagle/gl/gl_adaptative',
+                          gl1000)):
+    print(v)
 
 
 """
