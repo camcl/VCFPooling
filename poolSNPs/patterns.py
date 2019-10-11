@@ -1,10 +1,10 @@
-import numpy as np
 import pandas as pd
 from scipy.stats import *
 import itertools
 import multiprocessing as mp
 from collections import Counter
-import functools, operator
+import functools
+import operator
 import math
 
 from cyvcf2 import VCF
@@ -157,7 +157,7 @@ def enumerate_comb():
     df.to_csv(os.path.join(prm.WD, 'adaptative_gl.csv'), header=False, index=False)
 
 
-def decoding_power(mtx=pool.SNPsPool().design_matrix()):
+def decoding_power():
     """
     Weight w = number of pools in which a specimen is participating.
     Intersection lbd = dot-product of 2 column vectors.
@@ -166,6 +166,7 @@ def decoding_power(mtx=pool.SNPsPool().design_matrix()):
     :param mtx: design matrix. Describes the pooling pattern used.
     :return: d = decoding power
     """
+    mtx = pool.SNPsPool().design_matrix()
     w = np.sum(mtx, axis=1)
     cicj = itertools.combinations(range(mtx.shape[1]), 2)
     lbd = np.array([np.transpose(mtx[:,i]).dot(mtx[:,j]) for i,j in cicj])

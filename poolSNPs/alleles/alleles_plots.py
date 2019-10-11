@@ -1,14 +1,11 @@
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
-import seaborn as sns
 from scipy.stats import *
-import math
 import numpy as np
 import pandas as pd
 from cyvcf2 import VCF
 from scripts.poolSNPs.alleles import alleles_tools as alltls
 from scripts.poolSNPs import parameters as prm
-from persotools.debugging import *
 from persotools.files import *
 
 
@@ -104,8 +101,8 @@ def boxplot_densities(set_errors):
         df = set_errors[k]['grid']
         pop_err = df.groupby(axis=1, level='Population').mean()
         lev_err = alltls.rmse_df(df)
-        lev_err.drop(['id', 'maf'], axis=1, inplace=True)
-        lev_err.boxplot(by='maf_inter',
+        lev_err.drop(['id', 'af_info'], axis=1, inplace=True)
+        lev_err.boxplot(by='aaf_bin',
                         ax=axs[pos, 0],
                         showmeans=True,
                         showfliers=False)
@@ -132,87 +129,144 @@ def boxplot_densities(set_errors):
     plt.savefig('root.mean.square.error.box.density.chunk{}.png'.format(prm.CHK_SZ), dpi='figure')
 
 
-def plot_maf_evol(err_dic, path_all, typ='line'):
-    bin_maf = prm.BIN_MAF
+def plot_aaf_evol(err_dic, path_all, typ='line'):
+    bin_aaf = prm.BIN_AAF
 
     plt.rcParams["figure.figsize"] = [12, 6]
     plt.rcParams["figure.autolayout"] = True
 
-    df_maf = alltls.get_maf(path_all)
-    df_maf.drop('id', axis=1, inplace=True)
+    df_aaf = alltls.get_aaf(path_all)
+    df_aaf.drop('id', axis=1, inplace=True)
 
     if prm.SUBSET:
-        df_maf = df_maf.iloc[:prm.SUBCHUNK]
+        df_aaf = df_aaf.iloc[:prm.SUBCHUNK]
 
     for k_set in err_dic.keys():
-        list_maf = alltls.compute_maf_evol(k_set)
-        df_maf = df_maf.join(list_maf)
-    df_maf.sort_values(by='maf', axis=0, inplace=True)
-    if bin_maf:
-        convert = np.vectorize(lambda x: alltls.convert_maf(x))
+        list_aaf = alltls.compute_aaf_evol(k_set)
+        df_aaf = df_aaf.join(list_aaf)
+    df_aaf.sort_values(by='af_info', axis=0, inplace=True)
+    if bin_aaf:
+        convert = np.vectorize(lambda x: alltls.convert_aaf(x))
         inter = prm.INTER
-        np_bin_maf = np.digitize(convert(df_maf.values),
+        np_bin_aaf = np.digitize(convert(df_aaf.values),
                                  bins=inter)
-        np_bin_maf = np.subtract(np_bin_maf/len(inter), 0.00)
-        df_maf = pd.DataFrame(data=np_bin_maf, index=df_maf.index, columns=df_maf.columns)
-    print(df_maf)
+        np_bin_aaf = np.subtract(np_bin_aaf/len(inter), 0.00)
+        df_aaf = pd.DataFrame(data=np_bin_aaf, index=df_aaf.index, columns=df_aaf.columns)
 
-    lin_maf, ax_lin = plt.subplots()
+    lin_aaf, ax_lin = plt.subplots()
     a = 0
     colors = ['b', 'g', 'r']
     for k_set in err_dic.keys():
         if typ == 'line':
-            df_maf.plot.line(x='maf',
+            df_aaf.plot.line(x='af_info',
                              y='preimp_' + k_set,
                              ax = ax_lin,
                              linestyle='--',
                              color=colors[a])
-            df_maf.plot.line(x='maf',
+            df_aaf.plot.line(x='af_info',
                              y='postimp_' + k_set,
                              ax=ax_lin,
                              linestyle='-',
                              color=colors[a])
         if typ == 'scatter':
-            df_maf.plot.line(x='maf',
+            df_aaf.plot.line(x='af_info',
                              y='preimp_' + k_set,
                              ax=ax_lin,
                              marker='v',
                              color=colors[a])
-            df_maf.plot.line(x='maf',
+            df_aaf.plot.line(x='af_info',
                              y='postimp_' + k_set,
                              ax=ax_lin,
                              marker='o',
                              color=colors[a])
-        plt.xlabel('Theoretical MAF')
-        plt.ylabel('Dataset MAF')
+        plt.xlabel('Theoretical AAF')
+        plt.ylabel('Dataset AAF')
         plt.plot(range(2), linestyle='-', color='k')
-        delta_post = df_maf['postimp_' + k_set].sub(df_maf['maf'])
+        delta_post = df_aaf['postimp_' + k_set].sub(df_aaf['af_info'])
         err_post = alltls.rmse_df(delta_post.to_frame(), kind='mse')
         plt.text(0.65, 0.25-0.1*a, 'MSE postimp_' + k_set + ' = ' + str(err_post))
         plt.legend()
         a += 1
 
-    plt.title('MAF evolution through processing of data sets', loc='center')
+    plt.title('AAF evolution through processing of data sets', loc='center')
     plt.suptitle("")
-    plt.savefig('maf_evol.{}.chunk{}.png'.format(typ, prm.CHK_SZ),
+    plt.savefig('af_info_evol.{}.chunk{}.png'.format(typ, prm.CHK_SZ),
                 orientation='landscape',
                 dpi='figure')
 
 
-def plot_box_low_maf(df_err, name,  ax):
-    # cast maf_inter as a column
-    cols = df_err.columns.droplevel(level='Population')
-    df = pd.DataFrame(data=df_err.values, index=df_err.index, columns=cols)
-    df.drop('maf', axis=1, inplace=True)
-    rmse = alltls.rmse_df(df, ax=1).to_frame()
-    rmse.reset_index(level='maf_inter', drop=False, inplace=True)
+def plot_aaf_twist(setname: str, setdf: pd.DataFrame, vcfpath: str):
+    """
+    Plot aaf before/after pooling.
+    Plot error after pooling vs. aaf
+    :param setname: pooled/missing
+    :param setdf: dataframe with discordance after imputation
+    :param vcfpath: path to vcf for aaf
+    :param path_all:
+    :return:
+    """
+    plt.rcParams["figure.figsize"] = [10, 6]
+    plt.rcParams["figure.autolayout"] = True
 
-    ax = rmse.boxplot(by='maf_inter', ax=ax, showmeans=True, showfliers=False)
-    plt.suptitle('RMSE for the {} data set'.format(name))
-    return ax
+    chkfile = os.path.join(prm.PATH_GT_FILES, prm.CHKFILE)
+
+    df_aaf = alltls.get_aaf(chkfile, idt='id')
+    df_aaf.drop(['aaf_bin'], axis=1, inplace=True)
+    df_aaf.drop(['aaf'], axis=1, inplace=True)
+
+    aafs = pd.DataFrame.from_dict(alltls.compute_aaf(vcfpath, idt='id'),
+                                  orient='index',
+                                  columns=['aaf'])
+    print(aafs)
+    df_aaf = df_aaf.join(aafs)
+
+    imperrors = pd.DataFrame(setdf.mean(axis=1), columns=['error_' + setname])
+    print('\r\nMean squared imputation error from {} data set = {}'.format(setname, imperrors.mean()))
+    df_aaf = df_aaf.join(imperrors)
+    # print(df_aaf)
+
+    df_aaf.sort_values(by='af_info', axis=0, inplace=True)
+    bins = np.linspace(0.0, 1.0, 10)
+    x_pos = np.add(bins, 0.05).round(2)
+    groups = pd.Series(np.digitize(df_aaf['af_info'].astype(float), bins=bins))
+    df_aaf = df_aaf.assign(aaf_10bins=lambda x: np.digitize(df_aaf['af_info'].astype(float), bins=bins))
+    df_aaf = df_aaf.assign(af_info10=lambda x: np.multiply(df_aaf['af_info'].astype(float), 10))
+
+    a = 0
+    colors = [['b', 'tab:blue'], ['g', 'tab:green'], ['r', 'tab:red']]
+    print('Plotting for the {} data set'.format(setname).ljust(80, '.'))
+    fig, ax1 = plt.subplots()
+    ax2 = ax1.twinx()
+    df_aaf.plot.scatter(x='af_info',
+                        y='aaf',
+                        ax=ax1,
+                        marker='o',
+                        s=0.7,
+                        color=colors[a][0],
+                        label='aaf_{}_imputed'.format(setname))
+    df_aaf.boxplot(column='error_' + setname,
+                   by='aaf_10bins',
+                   ax=ax2,
+                   widths=0.05,
+                   positions=x_pos,
+                   showfliers=False,
+                   grid=False
+                   )
+    ax1.plot([0.0, 1.0], [0.0, 1.0], linestyle='--', color='k', label='identity function')
+
+    ax1.set_xlabel('Theoretical AAF')
+    ax1.set_ylabel('Dataset AAF')
+    ax1.set_xbound(lower=0.0, upper=1.0)
+    ax2.set_ylabel('Mean imputation error (discordance rate)')
+    ax2.set_title('')
+    ax2.set_xbound(lower=0.0, upper=1.0)
+    ax2.get_xaxis().set_ticklabels(x_pos)
+    fig.suptitle('')
+    plt.savefig('aaf_twist_imputation_error.{}.chunk{}.png'.format(setname, prm.CHK_SZ))
+    plt.show()
 
 
-def plot_err_vs_het(dset, err_set, file_in, err_kind='rmse', low_maf=False, save=True, ax=None):
+def plot_err_vs_het(dset, err_set, file_in, err_kind='rmse', low_aaf=False, save=True, ax=None):
 
     het = alltls.per_site_heteroz(file_in)
     ogn = 'imputed' if file_in.find('beagle') is not -1 else 'true'
@@ -224,18 +278,18 @@ def plot_err_vs_het(dset, err_set, file_in, err_kind='rmse', low_maf=False, save
     # Create rmse DataFrame with MultiIndex
     s = alltls.rmse_df(err_set, kind=err_kind, ax=1) # ax=1: apply along columns
     df = pd.DataFrame(data=s.values, index=err_set.index, columns=[err_kind])
-    df.reset_index(level=['maf', 'maf_inter'], drop=False, inplace=True)
+    df.reset_index(level=['af_info', 'aaf_bin'], drop=False, inplace=True)
 
     # heterozygosity in the final input file
     htzSer = pd.Series(het[:,-1].astype(float), index=het[:, 0])
     htzPct = htzSer.apply(lambda h: h * 100 / nb_samples).rename('het')
     df['het'] = htzPct
 
-    if not low_maf:
-        ax = df.plot.scatter('het', err_kind, c='maf', cmap=plt.cm.viridis, ax=ax)
+    if not low_aaf:
+        ax = df.plot.scatter('het', err_kind, c='af_info', cmap=matplotlib.cm.viridis, ax=ax)
     else:
-        df_low = df.query('maf_inter <= 2')
-        ax = df_low.plot.scatter('het', err_kind, c='maf', cmap=plt.cm.PuBu, ax=ax)
+        df_low = df.query('aaf_bin <= 2')
+        ax = df_low.plot.scatter('het', err_kind, c='af_info', cmap=matplotlib.cm.PuBu, ax=ax)
     ax.set_title('{} vs. {} heterozygosity in {} dataset'.format(err_kind.upper(), ogn, dset))
 
     if save:
@@ -253,22 +307,22 @@ def plot_err_vs_het(dset, err_set, file_in, err_kind='rmse', low_maf=False, save
 def multiplot_err_het(err):
 
     plt.rcParams["figure.figsize"] = [12, 6]
-    low_maf, axm = plt.subplots(3, 2)
+    low_aaf, axm = plt.subplots(3, 2)
     j = 0
     for k in ['missing', 'pooled']:
         i = 0
-        ek = err[k].reset_index(level=['maf'], drop=False, inplace=False)
-        low_err = ek.query('maf_inter < 3', inplace=False)
-        print('Marker with maximum error: ', low_err.mean(axis=1).idxmax(axis=0))
-        print(low_err.query('maf_inter == 2', inplace=False).mean(axis=1).describe())
-        print(low_err.query('maf_inter == 1', inplace=False).mean(axis=1).describe())
-        low_err.set_index('maf', drop=True, append=True, inplace=True)
+        ek = err[k].reset_index(level=['af_info'], drop=False, inplace=False)
+        low_err = ek.query('aaf_bin < 3', inplace=False)
+        # print('Marker with maximum error: ', low_err.mean(axis=1).idxmax(axis=0))
+        # print(low_err.query('aaf_bin == 2', inplace=False).mean(axis=1).describe())
+        # print(low_err.query('aaf_bin == 1', inplace=False).mean(axis=1).describe())
+        low_err.set_index('af_info', drop=True, append=True, inplace=True)
         file1 = (prm.POOLED['b2'] if k == 'pooled' else prm.MISSING['b2']) + '.vcf.gz'
         axm[i,j] = plot_err_vs_het(k,
                                    low_err,
                                    file1,
                                    err_kind='mse',
-                                   low_maf=True,
+                                   low_aaf=True,
                                    save=False,
                                    ax=axm[i,j])
         i += 1
@@ -277,7 +331,7 @@ def multiplot_err_het(err):
                                     low_err,
                                     file2,
                                     err_kind='rmse',
-                                    low_maf=True,
+                                    low_aaf=True,
                                     save=False,
                                     ax=axm[i,j])
         i += 1
@@ -285,12 +339,11 @@ def multiplot_err_het(err):
                                     low_err,
                                     file2,
                                     err_kind='mse',
-                                    low_maf=True,
+                                    low_aaf=True,
                                     save=False,
                                     ax=axm[i,j])
         j += 1
-    #plt.show()
-    plt.savefig('root.mean.square.error.maf.low.chunk{}.png'.format(prm.CHK_SZ), dpi='figure')
+    plt.savefig('root.mean.square.error.aaf.low.chunk{}.png'.format(prm.CHK_SZ), dpi='figure')
 
 
 def plot_err_vs_miss(k, err_set, err_kind='rmse'):
@@ -298,8 +351,8 @@ def plot_err_vs_miss(k, err_set, err_kind='rmse'):
     nb_samples = err_set.shape[1]
     site_err = alltls.rmse_df(err_set, kind=err_kind, ax=1).rename(err_kind).to_frame()
     site_err.reindex(index=err_set.index, copy=False)
-    site_err.reset_index(level=['maf'], drop=False, inplace=True)
-    site_err['maf'].astype(float, copy=False)
+    site_err.reset_index(level=['af_info'], drop=False, inplace=True)
+    site_err['af_info'].astype(float, copy=False)
 
     # missing data from the preimputed dataset
     misNp = alltls.count_missing_alleles('IMP.chr20.{}.snps.chunk{}.vcf.gz'.format(k, prm.CHK_SZ))
@@ -307,7 +360,7 @@ def plot_err_vs_miss(k, err_set, err_kind='rmse'):
     misPct = misSer.apply(lambda h: h * 100 / nb_samples).rename('miss').to_frame()
 
     site_err = site_err.join(misPct, on='id')
-    site_err.plot.scatter('miss', err_kind, c='maf', cmap=plt.cm.viridis)
+    site_err.plot.scatter('miss', err_kind, c='af_info', cmap=matplotlib.cm.viridis)
     plt.title('Imputation error vs. missing data rate in {} data set'.format(k))
     plt.savefig('rmse.missing.data.{}.chunk{}.png'.format(k, prm.CHK_SZ),
                 dpi='figure')
@@ -324,25 +377,25 @@ def plot_aaf_vs_miss():
         prm.GTGL == 'GT'
         os.chdir(prm.WD + '/gt/')
         # missing data from the preimputed dataset
-        mafs = alltls.get_maf('ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(prm.CHK_SZ),
-                              id='chrom:pos')
-        df_plot = mafs.loc[:, 'maf'].astype(float, copy=True).to_frame()
+        aafs = alltls.get_aaf('ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(prm.CHK_SZ),
+                              id='id')
+        df_plot = aafs.loc[:, 'af_info'].astype(float, copy=True).to_frame()
         for (dic, name) in [(prm.POOLED, 'pooled'), (prm.MISSING, 'missing')]:
-            misNp = alltls.count_missing_alleles(dic['imp'], id='chrom:pos')
+            misNp = alltls.count_missing_alleles(dic['imp'], id='id')
             misSer = pd.Series(misNp[:, -1], index=misNp[:, 0]).astype(float, copy=True)
             misPct = misSer.apply(lambda h: h * 100 / prm.NB_IMP).rename('miss_' + name).to_frame()
             df_plot = df_plot.join(misPct, how='inner')
         print(df_plot)
 
         fig, axis = plt.subplots()
-        df_plot.plot.scatter(x='maf',
+        df_plot.plot.scatter(x='af_info',
                              y='miss_pooled',
                              s=2,
                              ax=axis,
                              label='pooled dataset',
                              marker='o',
                              color='tab:olive')
-        df_plot.plot.scatter(x='maf',
+        df_plot.plot.scatter(x='af_info',
                              y='miss_missing',
                              s=2,
                              ax=axis,
@@ -350,7 +403,7 @@ def plot_aaf_vs_miss():
                              marker='o',
                              color='tab:brown')
         axis.legend(loc='center', fontsize=6, bbox_to_anchor=(0.5, -0.3))
-        plt.xlabel('MAF from VCF AF INFO-field')
+        plt.xlabel('AAF from VCF AF INFO-field')
         plt.ylabel('Data missing rate')
         fig.tight_layout()
         plt .savefig(prm.PLOTS_PATH + '/plot_aaf_vs_miss.chunk{}.jpg'.format(prm.CHK_SZ),
@@ -358,6 +411,25 @@ def plot_aaf_vs_miss():
 
     except AssertionError:
         print('Function should be run with prm.GTGL = GT')
+
+
+def plot_aaf_gl():
+    """
+    Shows how AAF = f impacts GL values for GT RR|RA|AA.
+    :return:
+    """
+    import matplotlib.pyplot as plt
+
+    f = np.arange(0.0, 1.0, 0.01)
+    rr = np.vectorize(lambda x: (1 - x)**2)
+    ra = np.vectorize(lambda x: 2 * (1 - x) * x)
+    aa = np.vectorize(lambda x: x ** 2)
+
+    plt.plot(f, rr(f), 'b-', label='RR')
+    plt.plot(f, ra(f), 'g-', label='RA')
+    plt.plot(f, aa(f), 'r-', label='AA')
+    plt.legend()
+    plt.show()
 
 
 if __name__ == '__main__':
