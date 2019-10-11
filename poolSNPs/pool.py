@@ -15,11 +15,15 @@ from scripts.poolSNPs import pybcf as bcftls
 from persotools.files import *
 from typing import *
 
+global SAMPLES
+
 warnings.simplefilter('ignore')
 
-global source, POOL, SAMPLES, CHK_SZ, WD
-
 nb_cores = os.cpu_count()
+
+data = VCF(os.path.join(prm.WD, 'gt', prm.CHKFILE), threads=nb_cores)
+
+SAMPLES = data.samples
 
 ### README
 
@@ -467,7 +471,7 @@ def process_file(data: VCF, groups: list, f: int, fileout: list) -> None:
     :param fileout:
     """
     print('Missing data: ', prm.MSS[f])
-    print('Pooling: ', POOL[f])
+    print('Pooling: ', prm.POOL[f])
     print('file out: ', os.path.join(os.getcwd(), fileout[f]))
     if prm.GTGL == 'GL' and prm.unknown_gl == 'adaptative':
         dic_header = {'ID': 'GL',
@@ -479,6 +483,7 @@ def process_file(data: VCF, groups: list, f: int, fileout: list) -> None:
         whead.write_header()
         whead.close()
         w = open(fileout[f], 'ab')
+        # Load adaptive GL values for missing data
         df = pd.read_csv(os.path.join(prm.WD, 'adaptive_gls.csv'),
                          header=None,
                          names=['rowsrr', 'rowsra', 'rowsaa', 'colsrr', 'colsra', 'colsaa',
@@ -490,6 +495,7 @@ def process_file(data: VCF, groups: list, f: int, fileout: list) -> None:
                         [rr, ra, aa]) for rwrr, rwra, rwaa, clrr, clra, claa,
                                           n, m,
                                           rr, ra, aa in df.itertuples(index=False, name=None))
+
         sig = allfqc.SigmoidInterpolator(os.path.join(prm.PATH_GT_FILES, prm.RAW['gz'].replace('gl', 'gt')),
                                          os.path.join(prm.PATH_GT_FILES, prm.POOLED['gz'].replace('gl', 'gt')))
         params = sig.get_sigmoid_params()
@@ -534,7 +540,7 @@ def process_line(groups: list, f: int, w: Writer, v: Variant, dict_gl: dict,
     for gp in groups[0]:
         sets.append(SNPsPool().set_subset(gp))
 
-    if POOL[f]:  # sig is not None if adaptative
+    if prm.POOL[f]:  # sig is not None if adaptative
         i = 1
         for p in sets:
             i += 1
@@ -599,8 +605,8 @@ def init_chunk(WD: str, path_in: str, chunk: bool = True, strat: bool = False) -
     if chunk:
         #TODO: rewrite with bcftools functions
         if not strat:
-            delete_file('ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(CHK_SZ)))
-            delete_file('chunk_{}.vcf'.format(str(CHK_SZ)))
+            delete_file('ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(prm.CHK_SZ)))
+            delete_file('chunk_{}.vcf'.format(str(prm.CHK_SZ)))
             delete_file('TMP.chr20.snps.gt.chunk.vcf')
 
             print('Extracting header'.ljust(80, '.'))
@@ -609,28 +615,28 @@ def init_chunk(WD: str, path_in: str, chunk: bool = True, strat: bool = False) -
                            cwd=WD)
             print('Sampling markers'.ljust(80, '.'))
             subprocess.run('bcftools view -H ALL.chr20.snps.gt.vcf.gz '
-                           + '| sort -R | head -{} > chunk_{}.vcf'.format(str(CHK_SZ), str(CHK_SZ)),
+                           + '| sort -R | head -{} > chunk_{}.vcf'.format(str(prm.CHK_SZ), str(prm.CHK_SZ)),
                            shell=True,
                            cwd=WD)
-            subprocess.run('cat headers.ALL.chr20.snps.gt.vcf chunk_{}.vcf '.format(str(CHK_SZ))
+            subprocess.run('cat headers.ALL.chr20.snps.gt.vcf chunk_{}.vcf '.format(str(prm.CHK_SZ))
                            + '> TMP.chr20.snps.gt.chunk.vcf',
                            shell=True,
                            cwd=WD)
             print('BGzipping chunk file'.ljust(80, '.'))
-            subprocess.run('bcftools view -Oz -o ALL.chr20.snps.gt.chunk{}.vcf.gz '.format(str(CHK_SZ))
+            subprocess.run('bcftools view -Oz -o ALL.chr20.snps.gt.chunk{}.vcf.gz '.format(str(prm.CHK_SZ))
                            + 'TMP.chr20.snps.gt.chunk.vcf',
                            shell=True,
                            cwd=WD)
-            delete_file('chunk_{}.vcf'.format(str(CHK_SZ)))
+            delete_file('chunk_{}.vcf'.format(str(prm.CHK_SZ)))
             delete_file('TMP.chr20.snps.gt.chunk.vcf')
-            delete_file('headers.ALL.chr20.snps.gt.vcf'.format(str(CHK_SZ)))
+            delete_file('headers.ALL.chr20.snps.gt.vcf'.format(str(prm.CHK_SZ)))
 
         else:
-            delete_file('ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(CHK_SZ)))
+            delete_file('ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(prm.CHK_SZ)))
             mkdir(os.path.join(prm.DATA_PATH,
                                'gt',
                                'stratified'))
-            bcftls.stratified_aaf_sampling(prm.PATH_IN,
+            bcftls.stratified_aaf_sampling(prm.SRCFILE,
                                            os.path.join(prm.DATA_PATH,
                                                         'gt',
                                                         'stratified'))
@@ -639,50 +645,50 @@ def init_chunk(WD: str, path_in: str, chunk: bool = True, strat: bool = False) -
         # Eliminate the remaining samples (not involved in any pool)
         #TODO: rewrite with bcftools functions
         os.chdir(prm.PATH_GT_FILES)
-        subprocess.run(' '.join(['bcftools view -Ov -o ALL.chr20.snps.gt.chunk{}.vcf'.format(str(CHK_SZ)),
+        subprocess.run(' '.join(['bcftools view -Ov -o ALL.chr20.snps.gt.chunk{}.vcf'.format(str(prm.prm.CHK_SZ)),
                                  '-s',
                                  '^' + ','.join(splits[1]),
-                                 'ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(CHK_SZ))]),
+                                 'ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(prm.CHK_SZ))]),
                        shell=True,
                        cwd=prm.PATH_GT_FILES)
         # back to vcf un-bgzipped for avoiding "file truncated" error
-        subprocess.run('bcftools view -Oz -o ALL.chr20.snps.gt.chunk{}.vcf.gz '.format(str(CHK_SZ))
-                       + 'ALL.chr20.snps.gt.chunk{}.vcf'.format(str(CHK_SZ)),
+        subprocess.run('bcftools view -Oz -o ALL.chr20.snps.gt.chunk{}.vcf.gz '.format(str(prm.CHK_SZ))
+                       + 'ALL.chr20.snps.gt.chunk{}.vcf'.format(str(prm.CHK_SZ)),
                        shell=True,
                        cwd=prm.PATH_GT_FILES)
-        subprocess.run('bcftools sort -Oz -o ALL.chr20.snps.gt.chunk{}.vcf.gz '.format(str(CHK_SZ))
-                       + 'ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(CHK_SZ)),
+        subprocess.run('bcftools sort -Oz -o ALL.chr20.snps.gt.chunk{}.vcf.gz '.format(str(prm.CHK_SZ))
+                       + 'ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(prm.CHK_SZ)),
                        shell=True,
                        cwd=prm.PATH_GT_FILES)
-        subprocess.run('bcftools index -f ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(CHK_SZ)),
+        subprocess.run('bcftools index -f ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(prm.CHK_SZ)),
                        shell=True,
                        cwd=prm.PATH_GT_FILES)
-        delete_file('ALL.chr20.snps.gt.chunk{}.vcf'.format(str(CHK_SZ)))
+        delete_file('ALL.chr20.snps.gt.chunk{}.vcf'.format(str(prm.CHK_SZ)))
 
     # Reorder samples according to pools
     os.chdir(prm.PATH_GT_FILES)
     subprocess.run(' '.join(['bcftools view',
-                             '-Oz -o ALL.chr20.snps.gt.chunk{}.unordered.samples.vcf.gz'.format(str(CHK_SZ)),
-                             'ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(CHK_SZ))]),
+                             '-Oz -o ALL.chr20.snps.gt.chunk{}.unordered.samples.vcf.gz'.format(str(prm.CHK_SZ)),
+                             'ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(prm.CHK_SZ))]),
                    shell=True,
                    cwd=prm.PATH_GT_FILES)
 
-    subprocess.run('bcftools index -f ALL.chr20.snps.gt.chunk{}.unordered.samples.vcf.gz'.format(str(CHK_SZ)),
+    subprocess.run('bcftools index -f ALL.chr20.snps.gt.chunk{}.unordered.samples.vcf.gz'.format(str(prm.CHK_SZ)),
                    shell=True,
                    cwd=prm.PATH_GT_FILES)
 
     subprocess.run(' '.join(['bcftools view -S {}/ALL.chr20.snps.allID.txt'.format(prm.WD + '/gt/'),
-                             '-Oz -o ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(CHK_SZ)),
-                             'ALL.chr20.snps.gt.chunk{}.unordered.samples.vcf.gz'.format(str(CHK_SZ))]),
+                             '-Oz -o ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(prm.CHK_SZ)),
+                             'ALL.chr20.snps.gt.chunk{}.unordered.samples.vcf.gz'.format(str(prm.CHK_SZ))]),
                    shell=True,
                    cwd=prm.PATH_GT_FILES)
 
-    subprocess.run('bcftools index -f ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(CHK_SZ)),
+    subprocess.run('bcftools index -f ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(prm.CHK_SZ)),
                    shell=True,
                    cwd=prm.PATH_GT_FILES)
 
-    delete_file('ALL.chr20.snps.gt.chunk{}.unordered.samples.vcf.gz'.format(str(CHK_SZ)))
-    delete_file('ALL.chr20.snps.gt.chunk{}.unordered.samples.vcf.gz.csi'.format(str(CHK_SZ)))
+    delete_file('ALL.chr20.snps.gt.chunk{}.unordered.samples.vcf.gz'.format(str(prm.CHK_SZ)))
+    delete_file('ALL.chr20.snps.gt.chunk{}.unordered.samples.vcf.gz.csi'.format(str(prm.CHK_SZ)))
     os.chdir(WD)
 
     return splits
@@ -691,10 +697,10 @@ def init_chunk(WD: str, path_in: str, chunk: bool = True, strat: bool = False) -
 def run(splits: list, iteration: int) -> None:
     for it in iteration:
         # vcf = VCF(os.path.join(prm.WD, 'gt', source), threads=4)
-        vcf = VCF(os.path.join(prm.PATH_GT_FILES, source), threads=nb_cores)
+        vcf = VCF(os.path.join(prm.PATH_GT_FILES, prm.CHKFILE), threads=nb_cores)
         print('Iteration --> ', it)
         start = time.time()
-        process_file(vcf, splits, it, PATH_OUT)
+        process_file(vcf, splits, it, prm.PATH_OUT)
         stop = time.time()
         print('Elapsed time for pooling the VCF files: {:06.2f} sec'.format(stop - start))
 
@@ -713,7 +719,7 @@ def subset_chunked_vcf(wd: str, src: str, path_out: str, chz_sz: int, trc: int) 
     for fi in path_out:
         delete_file(fi.replace('chunk' + str(chz_sz), 'chunk' + str(trc)) + '.gz.csi')
         print('Creating subchunk file for {}'.format(fi).ljust(80, '.'))
-        lgth = write_truncate_vcf(fi, fi.replace('chunk' + str(CHK_SZ), 'chunk' + str(trc)), trc)
+        lgth = write_truncate_vcf(fi, fi.replace('chunk' + str(prm.CHK_SZ), 'chunk' + str(trc)), trc)
         print('Subchunk size: ', lgth)
 
     delete_file(src.replace('chunk' + str(chz_sz), 'chunk' + str(trc)) + '.csi')
@@ -736,31 +742,3 @@ def subset_chunked_vcf(wd: str, src: str, path_out: str, chz_sz: int, trc: int) 
     subprocess.run('bcftools index -f ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(trc)),
                    shell=True,
                    cwd=wd)
-
-
-if __name__ == '__main__':
-    # TODO: exchange names source - path_in
-    if prm.GTGL == 'GT':
-        CD = prm.PATH_GT_FILES
-    if prm.GTGL == 'GL':
-        CD = prm.PATH_GL_FILES
-    os.chdir(CD)
-    CHK_SZ = prm.CHK_SZ
-    PATH_IN = prm.PATH_IN
-    PATH_OUT = prm.PATH_OUT
-    POOL = prm.POOL
-    source = prm.SOURCE
-    # source = 'ALL.chr20.snps.gt.chunk10000.strat.vcf.gz'
-    subset = prm.SUBSET
-
-    groups = init_chunk(CD, PATH_IN, chunk=False, strat=True)
-
-    data = VCF(os.path.join(prm.WD, 'gt', source), threads=nb_cores)
-
-    SAMPLES = data.samples
-
-    run(groups, range(2))
-    # run(groups, [1])
-
-    if subset:
-        subset_chunked_vcf(CD, source, PATH_OUT, CHK_SZ, prm.SUBCHUNK)
