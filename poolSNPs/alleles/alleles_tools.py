@@ -96,25 +96,84 @@ def vcf2array(vcf_obj, size):
     return arr[1:,:,:], vars
 
 
-def vcf2dframe(vcf_obj, size, idt='id'):
+class PandasVCF(object):
     """
-    Throws the genotypes values of a VCF file into an array.
-    :param vcf_obj: VCF file read with cyvcf2
-    :return: two dataframes, one for each allele of the genotype
+    Pandas objects and methods for manipulatig VCF files.
+    * trinary encoding
+    * AF_INFO extraction, with variant index
+    * AAF extraction, with variant index
+    *
     """
-    vars = []
-    arr = np.zeros((1, size, 2), dtype=int)
-    for v in vcf_obj:
-        if idt == 'id':
-            vars.append(v.ID)
-        if idt == 'chrom:pos':
-            vars.append(':'.join([str(v.CHROM), str(v.POS)]))
-        arr = np.vstack((arr,
-                         np.expand_dims(np.array(v.genotypes)[:, :-1],
-                                        axis=0)))
-    df0 = pd.DataFrame(arr[1:,:,0], index=vars, columns=vcf_obj.samples)
-    df1 = pd.DataFrame(arr[1:, :, 1], index=vars, columns=vcf_obj.samples)
-    return df0, df1
+    def __init__(self, vcfpath: FilePath, indextype: str = 'id'):
+        self.path = vcfpath
+        self.idx = indextype
+        self.samples = VCF(vcfpath).samples
+
+    def load(self):
+        # object returned can be read only once
+        return VCF(self.path)
+
+    def variants(self) -> pd.Index:
+        """
+        Read variants identifiers ordered as in the input file
+        :return:
+        """
+        vcfobj = self.load()
+        vars = []
+        if self.idx == 'id':
+            for var in vcfobj:
+                vars.append(var.ID)
+        if self.idx == 'chrom:pos':
+            for var in vcfobj:
+                vars.append(':'.join([str(var.CHROM), str(var.POS)]))
+
+        return pd.Index(data=vars, dtype=str)
+
+    def vcf2dframe(self):
+        """
+       Throws the genotypes values of a VCF file into side-DataFrames.
+       :return: two data frames, one for each allele of the genotype
+       """
+        vcfobj = self.load()
+        vars = self.variants()
+        arr = np.empty((len(vars), len(self.samples), 2), dtype=int)
+        for i, var in enumerate(vcfobj):
+            arr[i, :, :] = np.array(var.genotypes)[:, :-1]
+        # alleles 1
+        df0 = pd.DataFrame(arr[:, :, 0], index=vars, columns=self.samples)
+        # alleles 2
+        df1 = pd.DataFrame(arr[:, :, 1], index=vars, columns=self.samples)
+
+        return df0, df1
+
+    def trinary_encoding(self):
+        vcfobj = self.load()
+        vars = self.variants()
+        arr = np.empty((len(vars), len(self.samples)), dtype=int)
+        for i, var in enumerate(vcfobj):
+            tri = np.array(var.genotypes)[:, :-1].sum(axis=-1)  # warning if missing alleles -1
+            arr[i, :] = tri
+        dftrinary = pd.DataFrame(arr, index=vars, columns=self.samples, dtype=int)
+
+        return dftrinary
+
+    def af_info(self):
+        vcfobj = self.load()
+        vars = self.variants()
+        arr = np.zeros((len(vars),), dtype=float)
+        for i, var in enumerate(vcfobj):
+            arr[i] = var.INFO['AF']
+
+        return pd.Series(arr, index=vars)
+
+    def aaf(self):
+        vcfobj = self.load()
+        vars = self.variants()
+        arr = np.zeros((len(vars),), dtype=float)
+        for i, var in enumerate(vcfobj):
+            arr[i] = var.aaf
+
+        return pd.Series(arr, index=vars)
 
 
 def convert_aaf(x: object):
