@@ -60,10 +60,11 @@ print('Load alleles frequencies'.ljust(80, '.'))
 aafs = alltls.get_aaf(prm.WD + '/gt/stratified/ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(chk_sz)))
 
 # Load data sets for each working directory
-raw0, raw1 = alltls.vcf2dframe(VCF(RAW), popsize)
+vcfraw = alltls.PandasVCF(RAW)
+raw0, raw1 = vcfraw.vcf2dframe()
 raw0, raw1 = utils.sort_datasets([raw0, raw1], pop_idx, aafs)
-samples = VCF(RAW).samples
-variants = raw0.index.tolist()
+samples = vcfraw.samples
+variants = vcfraw.variants()
 raw = np.stack([raw0.values, raw1.values], axis=-1)
 
 for cd in vcfpathdic.keys():
@@ -73,7 +74,8 @@ for cd in vcfpathdic.keys():
     for name, dset in zip(setnames, vcfpathdic[cd]):
         if dset is not None:
             print('Error and discordance in {}'.format(dset).ljust(80, '.'))
-            dset0, dset1 = alltls.vcf2dframe(VCF(dset), popsize)
+            vcfset = alltls.PandasVCF(dset)
+            dset0, dset1 = vcfset.vcf2dframe()
             dset0, dset1 = utils.sort_datasets([dset0, dset1], pop_idx, aafs)
 
             # NumPy juxtapos for error computation

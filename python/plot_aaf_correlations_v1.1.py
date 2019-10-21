@@ -218,8 +218,10 @@ if __name__ == '__main__':
         aaf_idx, pop_idx = alltls.make_index(B1, src=ALL, id=idt)
 
         print('Build datasets'.ljust(80, '.'))
-        raw0, raw1 = alltls.vcf2dframe(VCF(B1), prm.NB_IMP, id=idt)
-        pool0, pool1 = alltls.vcf2dframe(VCF(POOL), prm.NB_IMP, id=idt)
+        rawvcf = alltls.PandasVCF(B1, indextype=idt)
+        poolvcf =alltls.PandasVCF(POOL, indextype=idt)
+        raw0, raw1 = rawvcf.vcf2dframe()
+        pool0, pool1 = poolvcf.vcf2dframe()
         # raw0 = raw0.join(pool0.index.to_frame(), how='inner').iloc[:, :-1]
         # raw1 = raw1.join(pool1.index.to_frame(), how='inner').iloc[:, :-1]
 
