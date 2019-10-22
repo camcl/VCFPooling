@@ -16,6 +16,7 @@ chk_sz = prm.CHK_SZ
 ALL = 'ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(chk_sz))
 
 maf_idx, pop_idx = res.make_index(ALL)
+#TODO: modify with PandasVCF
 data = alltls.vcf2array(VCF(ALL), len(pop_idx))[0]
 
 # MEAN LMAF PER POPULATION
