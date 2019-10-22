@@ -76,7 +76,7 @@ class PandasVCF(object):
         self.samples = VCF(vcfpath).samples
 
     def load(self):
-        # object returned can be read only once
+        # cyvcf2 object returned can be read only once
         return VCF(self.path)
 
     def variants(self) -> pd.Index:
@@ -126,20 +126,20 @@ class PandasVCF(object):
     def af_info(self) -> pd.Series:
         vcfobj = self.load()
         vars = self.variants()
-        arr = np.zeros((len(vars),), dtype=float, name='af_info')
+        arr = np.zeros((len(vars),), dtype=float)
         for i, var in enumerate(vcfobj):
             arr[i] = var.INFO['AF']
 
-        return pd.Series(arr, index=vars)
+        return pd.Series(arr, index=vars, name='af_info')
 
     def aaf(self) -> pd.Series:
         vcfobj = self.load()
         vars = self.variants()
-        arr = np.zeros((len(vars),), dtype=float, name='aaf')
+        arr = np.zeros((len(vars),), dtype=float)
         for i, var in enumerate(vcfobj):
             arr[i] = var.aaf
 
-        return pd.Series(arr, index=vars)
+        return pd.Series(arr, index=vars, name='aaf')
 
     @staticmethod
     def writetocsv(df: pd.DataFrame, title: str, idx: bool = True, hdr: bool = True) -> None:
