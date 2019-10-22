@@ -96,9 +96,9 @@ import numpy as np
 from scipy.stats import pearsonr
 from typing import *
 
-from scripts.poolSNPs import parameters as prm
-from scripts.poolSNPs import patterns as pat
-from scripts.poolSNPs.alleles import alleles_tools as alltls
+from scripts.VCFPooling.poolSNPs import parameters as prm
+from scripts.VCFPooling.poolSNPs import patterns as pat
+from scripts.VCFPooling.poolSNPs.alleles import alleles_tools as alltls
 from persotools.debugging import *
 from persotools.files import *
 
@@ -117,3 +117,42 @@ def correlation_r2(vcf_true: FilePath, vcf_imputed: FilePath) -> Tuple:
     return r, p_value
 
 #TODO: implement method for extracting GP field
+
+
+class Quality(object):
+    """
+    Implement different methods for assessing imputation performance:
+    * accuracy and recall per variant per genotype (cross-table)
+    * correlation per variant and/or per sample between imputed and true genotypes
+    * difference per variant and/or per sample between imputed and true genotypes
+    * allele dosage
+    """
+    def __init__(self, truefile: FilePath, imputedfile: FilePath, idx: str = 'id'):
+        self.trueobj = alltls.PandasVCF(truefile, indextype=idx)
+        self.imputedobj = alltls.PandasVCF(imputedfile, indextype=idx)
+
+    def pearsoncorrelation(self, ax: int = None) -> tuple:
+        """
+        Compute Pearson's correlation coefficient between true and imputed genotypes.
+        Compare variant-to-variant or sample-to-sample.
+        :param ax: correlation between variants (ax=1 i.e. mean genotypes along samples axis),
+        or correlation between samples (ax=0 i.e. mean genotypes along variant axis),
+        or global correlation (ax=None i.e. mean of flattened array)
+        :return: correlation coefficients and p-value for each
+        """
+        truedf = self.trueobj.trinary_encoding()
+        imputeddf = self.imputedobj.trinary_encoding()
+        true = truedf.values.mean(axis=ax)
+        imputed = imputeddf.values.mean(axis=ax)
+        r, p_value = pearsonr(true, imputed)
+
+        return r, p_value
+
+    def diff(self):
+        pass
+
+    def alleledosage(self):
+        pass
+
+    def crosstable(self):
+        pass
