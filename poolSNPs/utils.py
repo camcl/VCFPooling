@@ -13,16 +13,16 @@ dbg = MyPrintClass(True)
 
 """
 Utils for data sets processing
-NumPy or pandas DataFramde data sets
+NumPy or pandas DataFrame data sets
 """
 
 ### TOOLS
 
-
-def sort_datasets(args, groups, df_aaf):
+#TODO: PEP8 refactoring
+def sort_datasets(dflist: list, groups: list, df_aaf: pd.DataFrame) -> list:
     out = []
     df_aaf.reset_index(drop=True, inplace=True)
-    for dfset in args:
+    for dfset in dflist:
         # Sort samples by population
         dfset.sort_index(axis=1, inplace=True)
         dfset.columns = groups
@@ -37,3 +37,5 @@ def sort_datasets(args, groups, df_aaf):
         dfset.reset_index(drop=True, inplace=True)
         out.append(dfset)
     return out
+
+
