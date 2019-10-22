@@ -17,8 +17,8 @@ class SigmoidInterpolator(object):
 
     """
     def __init__(self, file_true_aaf, file_twist_aaf):
-        aaf_true = alltls.get_aaf(file_true_aaf, id='chrom:pos').loc[:, ['aaf']]
-        aaf_twist = alltls.get_aaf(file_twist_aaf, id='chrom:pos').loc[:, 'aaf']
+        aaf_true = alltls.PandasVCF(file_true_aaf, indextype='chrom:pos').aaf()
+        aaf_twist = alltls.PandasVCF(file_twist_aaf, indextype='chrom:pos').aaf()
         aaf = aaf_true.join(aaf_twist, how='inner', rsuffix='_pooled')
         aaf = aaf.sort_values('aaf_pooled', axis=0)
         self.aaf = aaf.drop_duplicates(subset='aaf_pooled', keep='first')

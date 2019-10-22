@@ -80,22 +80,6 @@ def per_axis_error(arr4d, ax):
     return per_element_error(arr4d, ax).sum(axis=1)/arr4d.shape[ax]
 
 
-def vcf2array(vcf_obj, size):
-    """
-    Throws the genotypes values of a VCF file into an array.
-    :param vcf_obj: VCF file read with cyvcf2
-    :return: 3d-array
-    """
-    vars = []
-    arr = np.zeros((1, size, 2), dtype=int)
-    for v in vcf_obj:
-        vars.append(v.ID)
-        arr = np.vstack((arr,
-                         np.expand_dims(np.array(v.genotypes)[:, :-1],
-                                        axis=0)))
-    return arr[1:,:,:], vars
-
-
 class PandasVCF(object):
     """
     Pandas objects and methods for manipulatig VCF files.
@@ -127,9 +111,9 @@ class PandasVCF(object):
             for var in vcfobj:
                 vars.append(':'.join([str(var.CHROM), str(var.POS)]))
 
-        return pd.Index(data=vars, dtype=str)
+        return pd.Index(data=vars, dtype=str, name='id')
 
-    def vcf2dframe(self):
+    def vcf2dframe(self) -> tuple:
         """
        Throws the genotypes values of a VCF file into side-DataFrames.
        :return: two data frames, one for each allele of the genotype
@@ -146,7 +130,7 @@ class PandasVCF(object):
 
         return df0, df1
 
-    def trinary_encoding(self):
+    def trinary_encoding(self) -> pd.DataFrame:
         vcfobj = self.load()
         vars = self.variants()
         arr = np.empty((len(vars), len(self.samples)), dtype=int)
@@ -157,19 +141,19 @@ class PandasVCF(object):
 
         return dftrinary
 
-    def af_info(self):
+    def af_info(self) -> pd.Series:
         vcfobj = self.load()
         vars = self.variants()
-        arr = np.zeros((len(vars),), dtype=float)
+        arr = np.zeros((len(vars),), dtype=float, name='af_info')
         for i, var in enumerate(vcfobj):
             arr[i] = var.INFO['AF']
 
         return pd.Series(arr, index=vars)
 
-    def aaf(self):
+    def aaf(self) -> pd.Series:
         vcfobj = self.load()
         vars = self.variants()
-        arr = np.zeros((len(vars),), dtype=float)
+        arr = np.zeros((len(vars),), dtype=float, name='aaf')
         for i, var in enumerate(vcfobj):
             arr[i] = var.aaf
 
@@ -196,36 +180,38 @@ def get_aaf(vcf_raw: str, idt: str = 'id') -> pd.DataFrame:
     Return the computed alternate allele frequencies computed per variant from the input file.
     Variants must be GT filled in.
     :param vcf_raw: path to the VCF-formatted file with GT INFO fields
-    :param id: kind of ID wished for pandas.Index: 'id'|'chrom:pos̈́'
+    :param idt: kind of ID wished for pandas.Index: 'id'|'chrom:pos̈́'
     :return: id-indexed dataframe with AF from INFO-field, computed AAF and binned AF_INFO
     """
-    dico = {'id': list(),
-            'af_info': list(),  # alternate allele frequency estimated on the population
-            'aaf': list()}  # alternate allele frequency estimated on the file
+    # dico = {'id': list(),
+    #         'af_info': list(),  # alternate allele frequency estimated on the population
+    #         'aaf': list()}  # alternate allele frequency estimated on the file
     try:
-        if idt == 'id':
-            for var in VCF(vcf_raw):
-                dico['id'].append(var.ID)
-                try:
-                    dico['af_info'].append(var.INFO['AF'])
-                except KeyError:
-                    dico['af_info'].append(np.nan)
-                dico['aaf'].append(var.aaf)
-        if idt == 'chrom:pos':
-            for var in VCF(vcf_raw):
-                dico['id'].append(':'.join([str(var.CHROM), str(var.POS)]))
-                try:
-                    dico['af_info'].append(var.INFO['AF'])
-                except KeyError:
-                    dico['af_info'].append(np.nan)
-                dico['aaf'].append(var.aaf)
-        df_aaf = pd.DataFrame.from_dict(dico)
-        df_aaf.sort_values('id', axis=0, inplace=True)
-        df_aaf.reset_index(drop=True, inplace=True)
-        df_aaf.set_index('id', drop=False, inplace=True)
+    #     if idt == 'id':
+    #         for var in VCF(vcf_raw):
+    #             dico['id'].append(var.ID)
+    #             try:
+    #                 dico['af_info'].append(var.INFO['AF'])
+    #             except KeyError:
+    #                 dico['af_info'].append(np.nan)
+    #             dico['aaf'].append(var.aaf)
+    #     if idt == 'chrom:pos':
+    #         for var in VCF(vcf_raw):
+    #             dico['id'].append(':'.join([str(var.CHROM), str(var.POS)]))
+    #             try:
+    #                 dico['af_info'].append(var.INFO['AF'])
+    #             except KeyError:
+    #                 dico['af_info'].append(np.nan)
+    #             dico['aaf'].append(var.aaf)
+        pandasvcf = PandasVCF(vcf_raw, indextype=idt)
+        infoseries = pandasvcf.af_info()
+        aafseries = pandasvcf.aaf()
+        df_aaf = pd.concat([infoseries, aafseries], axis=1)
+        df_aaf.sort_index(axis=0, inplace=True)
         convert = np.vectorize(lambda x: convert_aaf(x))
         df_aaf['aaf_bin'] = np.digitize(convert(df_aaf['af_info']),
                                         bins=np.array([0.00, 0.01, 0.05]))
+
     except IOError or UnicodeDecodeError or MemoryError:
         if idt == 'id':
             subprocess.run(['''bcftools query -f '%ID\t%AF\n' {0} > {1}/TMP.aaf.csv'''.format(vcf_raw, os.getcwd())],
@@ -257,7 +243,7 @@ def compute_imp_err(set_names, objs, raw, idx1, idx2, sorting):
                   encoding='utf-8')
     return set_err
 
-
+# TODO: refactor in metrics
 def compute_discordance(setnames: list, objs: list, raw: str, idx1, idx2, sorting) -> dict:
     """
     Compute discordance per variant per sample on input data sets.
@@ -506,7 +492,7 @@ def extract_variant_onfreq(file_in, aaf_range):
     :param aaf_range: list: [min, max] of the range the AAF should be comprised in.
     :return: dataframe of cyvcf2.Variants
     """
-    aafs = get_aaf(file_in, id='chrom:pos')
+    aafs = get_aaf(file_in, idt='chrom:pos')
     print(aafs.describe())
     inf, sup = aaf_range[0], aaf_range[1]
     #extracted = aafs.loc[(aafs['af_info'] >= min and aafs['af_info'] <= max).all()]
@@ -606,7 +592,7 @@ def get_pop():
     df_pop.sort_values(['Sample', 'Population'], axis=0, inplace=True)
     return df_pop
 
-
+# TODO: remove aaf_bin
 def make_index(raw_data, src=None, idt='id'):
     if src is None:
         src = os.path.join(prm.WD, 'gt', 'stratified', prm.CHKFILE)

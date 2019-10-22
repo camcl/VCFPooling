@@ -136,7 +136,6 @@ def plot_aaf_evol(err_dic, path_all, typ='line'):
     plt.rcParams["figure.autolayout"] = True
 
     df_aaf = alltls.get_aaf(path_all)
-    df_aaf.drop('id', axis=1, inplace=True)
 
     if prm.SUBSET:
         df_aaf = df_aaf.iloc[:prm.SUBCHUNK]
@@ -144,7 +143,9 @@ def plot_aaf_evol(err_dic, path_all, typ='line'):
     for k_set in err_dic.keys():
         list_aaf = alltls.compute_aaf_evol(k_set)
         df_aaf = df_aaf.join(list_aaf)
+
     df_aaf.sort_values(by='af_info', axis=0, inplace=True)
+
     if bin_aaf:
         convert = np.vectorize(lambda x: alltls.convert_aaf(x))
         inter = prm.INTER
@@ -209,16 +210,19 @@ def plot_aaf_twist(setname: str, setdf: pd.DataFrame, vcfpath: str):
     plt.rcParams["figure.autolayout"] = True
 
     chkfile = os.path.join(prm.PATH_GT_FILES, prm.CHKFILE)
+    vcfchk = alltls.PandasVCF(chkfile, indextype='id')
+    chkinfo = vcfchk.af_info()
 
-    df_aaf = alltls.get_aaf(chkfile, idt='id')
-    df_aaf.drop(['aaf_bin'], axis=1, inplace=True)
-    df_aaf.drop(['aaf'], axis=1, inplace=True)
+    # df_aaf = alltls.get_aaf(chkfile, idt='id')
+    # df_aaf.drop(['aaf_bin'], axis=1, inplace=True)
+    # df_aaf.drop(['aaf'], axis=1, inplace=True)
 
-    aafs = pd.DataFrame.from_dict(alltls.compute_aaf(vcfpath, idt='id'),
-                                  orient='index',
-                                  columns=['aaf'])
+    # aafs = pd.DataFrame.from_dict(alltls.compute_aaf(vcfpath, idt='id'),
+    #                               orient='index',
+    #                               columns=['aaf'])
+    aafs = alltls.PandasVCF(vcfpath, indextype='id').aaf()
     print(aafs)
-    df_aaf = df_aaf.join(aafs)
+    df_aaf = pd.concat([chkinfo, aafs], axis=1)
 
     imperrors = pd.DataFrame(setdf.mean(axis=1), columns=['error_' + setname])
     print('\r\nMean squared imputation error from {} data set = {}'.format(setname, imperrors.mean()))
@@ -377,9 +381,8 @@ def plot_aaf_vs_miss():
         prm.GTGL == 'GT'
         os.chdir(prm.WD + '/gt/')
         # missing data from the preimputed dataset
-        aafs = alltls.get_aaf('ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(prm.CHK_SZ),
-                              id='id')
-        df_plot = aafs.loc[:, 'af_info'].astype(float, copy=True).to_frame()
+        aafs = alltls.PandasVCF(prm.CHKFILE, indextype='id').af_info()
+        df_plot = aafs.to_frame()
         for (dic, name) in [(prm.POOLED, 'pooled'), (prm.MISSING, 'missing')]:
             misNp = alltls.count_missing_alleles(dic['imp'], id='id')
             misSer = pd.Series(misNp[:, -1], index=misNp[:, 0]).astype(float, copy=True)
