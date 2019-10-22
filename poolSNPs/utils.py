@@ -16,7 +16,22 @@ Utils for data sets processing
 NumPy or pandas DataFrame data sets
 """
 
-### TOOLS
+
+def pgcd(a, b):
+    """Computes the biggest common divider"""
+    while b != 0:
+        r = a % b
+        a, b = b, r
+    return a
+
+
+def ppcm(a, b):
+    """Computes the smallest common multiple"""
+    if (a == 0) or (b == 0):
+        return 0
+    else:
+        return (a*b)//pgcd(a, b)
+
 
 #TODO: PEP8 refactoring
 def sort_datasets(dflist: list, groups: list, df_aaf: pd.DataFrame) -> list:

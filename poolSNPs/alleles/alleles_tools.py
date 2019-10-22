@@ -16,24 +16,6 @@ Plot different analysis.
 """
 
 
-### GENERAL TOOLS
-
-def pgcd(a, b):
-    """Computes the biggest common divider"""
-    while b != 0:
-        r = a % b
-        a, b = b, r
-    return a
-
-
-def ppcm(a, b):
-    """Computes the smallest common multiple"""
-    if (a == 0) or (b == 0):
-        return 0
-    else:
-        return (a*b)//pgcd(a, b)
-
-
 ### SPECIFIC TOOLS
 
 def per_site_sample_error(elem2x2):
@@ -82,11 +64,11 @@ def per_axis_error(arr4d, ax):
 
 class PandasVCF(object):
     """
-    Pandas objects and methods for manipulatig VCF files.
+    Pandas objects and methods for manipulating VCF files.
     * trinary encoding
     * AF_INFO extraction, with variant index
     * AAF extraction, with variant index
-    *
+    * write to csv file
     """
     def __init__(self, vcfpath: FilePath, indextype: str = 'id'):
         self.path = vcfpath
@@ -158,6 +140,22 @@ class PandasVCF(object):
             arr[i] = var.aaf
 
         return pd.Series(arr, index=vars)
+
+    @staticmethod
+    def writetocsv(df: pd.DataFrame, title: str, idx: bool = True, hdr: bool = True) -> None:
+        """
+        Write input data frame to csv file in the current working directory
+        :param df: pandas data frame to be written
+        :param title: name for saving the csv file
+        :param idx: bool: write row names (variants ID)
+        :param hdr: bool: write columns names as header of the csv
+        :return: -
+        """
+        df.to_csv(title,
+                  sep='\t',
+                  header=hdr,
+                  index=idx,
+                  encoding='utf-8')
 
 
 def convert_aaf(x: object):
