@@ -377,11 +377,11 @@ def plot_aaf_vs_miss():
     :param err_set:
     :return:
     """
-    try:
-        prm.GTGL == 'GT'
-        os.chdir(prm.WD + '/gt/')
+    if prm.GTGL == 'GT':
+        os.chdir(prm.PATH_GT_FILES)
+        chkgtfile = 'IMP.chr20.snps.gt.chunk{}.vcf.gz'.format(prm.CHK_SZ)
         # missing data from the preimputed dataset
-        aafs = alltls.PandasVCF(prm.CHKFILE, indextype='id').af_info()
+        aafs = alltls.PandasVCF(chkgtfile, indextype='id').af_info()
         df_plot = aafs.to_frame()
         for (dic, name) in [(prm.POOLED, 'pooled'), (prm.MISSING, 'missing')]:
             misNp = alltls.count_missing_alleles(dic['imp'], id='id')
@@ -412,7 +412,7 @@ def plot_aaf_vs_miss():
         plt .savefig(prm.PLOTS_PATH + '/plot_aaf_vs_miss.chunk{}.jpg'.format(prm.CHK_SZ),
                      dpi=500)
 
-    except AssertionError:
+    else:
         print('Function should be run with prm.GTGL = GT')
 
 
