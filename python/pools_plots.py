@@ -2,8 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from cyvcf2 import VCF
 
-from scripts.poolSNPs.alleles import alleles_tools as alltls
-from scripts.poolSNPs import parameters as prm
+from scripts.VCFPooling.poolSNPs.alleles import alleles_tools as alltls
+from scripts.VCFPooling.poolSNPs import parameters as prm
 from persotools.files import *
 
 """

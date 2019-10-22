@@ -3,9 +3,9 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.stats import *
 import itertools
-from scripts.poolSNPs import parameters as prm
-from scripts.poolSNPs import pool
-from scripts.poolSNPs.alleles import alleles_tools as alltls
+from scripts.VCFPooling.poolSNPs import parameters as prm
+from scripts.VCFPooling.poolSNPs import pool
+from scripts.VCFPooling.poolSNPs.alleles import alleles_tools as alltls
 from persotools.files import *
 
 print('Load parameters'.ljust(80, '.'))

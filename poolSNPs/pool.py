@@ -7,10 +7,10 @@ import math
 from scipy.stats import bernoulli as bn
 from cyvcf2 import VCF, Writer, Variant
 
-from scripts.poolSNPs import parameters as prm
-from scripts.poolSNPs.alleles import alleles_tools as alltls
-from scripts.poolSNPs.alleles import frequency_distribution as allfqc
-from scripts.poolSNPs import pybcf as bcftls
+from scripts.VCFPooling.poolSNPs import parameters as prm
+from scripts.VCFPooling.poolSNPs.alleles import alleles_tools as alltls
+from scripts.VCFPooling.poolSNPs.alleles import frequency_distribution as allfqc
+from scripts.VCFPooling.poolSNPs import pybcf as bcftls
 
 from persotools.files import *
 from typing import *

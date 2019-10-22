@@ -3,9 +3,9 @@ import numpy as np
 from cyvcf2 import VCF
 import inspect
 
-from scripts.poolSNPs import pool
-from scripts.poolSNPs import parameters as prm
-from scripts.poolSNPs.alleles import alleles_tools as alltls
+from scripts.VCFPooling.poolSNPs import pool
+from scripts.VCFPooling.poolSNPs import parameters as prm
+from scripts.VCFPooling.poolSNPs.alleles import alleles_tools as alltls
 
 wd = '/home/camille/1000Genomes/data/tests-beagle'
 os.chdir(wd)

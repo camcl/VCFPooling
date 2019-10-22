@@ -1,7 +1,7 @@
 import itertools
-from scripts.poolSNPs.alleles import alleles_tools as alltls
-from scripts.poolSNPs.results import *
-from scripts.poolSNPs import parameters as prm
+from scripts.VCFPooling.poolSNPs.alleles import alleles_tools as alltls
+from scripts.VCFPooling.poolSNPs.results import *
+from scripts.VCFPooling.poolSNPs import parameters as prm
 from persotools.files import *
 from persotools.debugging import *
 

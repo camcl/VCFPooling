@@ -1,7 +1,7 @@
 import subprocess
 import numpy as np
 
-from scripts.poolSNPs import parameters as prm
+from scripts.VCFPooling.poolSNPs import parameters as prm
 from persotools.files import *
 
 """

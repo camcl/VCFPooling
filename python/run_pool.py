@@ -1,7 +1,7 @@
 import os
 from cyvcf2 import VCF
-from scripts.poolSNPs import parameters as prm
-from scripts.poolSNPs import pool
+from scripts.VCFPooling.poolSNPs import parameters as prm
+from scripts.VCFPooling.poolSNPs import pool
 
 nb_cores = os.cpu_count()
 

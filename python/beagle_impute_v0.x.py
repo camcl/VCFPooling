@@ -1,9 +1,9 @@
 import subprocess
 import numpy as np
 
-from scripts.poolSNPs import parameters as prm
-from scripts.poolSNPs import pybcf
-from scripts.poolSNPs.alleles import alleles_tools as alltls
+from scripts.VCFPooling.poolSNPs import parameters as prm
+from scripts.VCFPooling.poolSNPs import pybcf
+from scripts.VCFPooling.poolSNPs.alleles import alleles_tools as alltls
 
 from persotools.files import *
 from persotools.struct import *

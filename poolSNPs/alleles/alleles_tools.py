@@ -6,7 +6,7 @@ import collections
 from scipy.stats import *
 import math
 
-import scripts.poolSNPs.parameters as prm
+import scripts.VCFPooling.poolSNPs.parameters as prm
 from persotools.files import *
 
 """

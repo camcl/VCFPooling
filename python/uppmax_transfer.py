@@ -2,7 +2,7 @@ import os
 import pathlib
 import shutil
 
-from scripts.poolSNPs.myssh import sshtools
+from scripts.VCFPooling.poolSNPs.myssh import sshtools
 
 from persotools.files import dir_size
 

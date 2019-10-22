@@ -2,8 +2,8 @@ import subprocess
 
 from typing import *
 
-from scripts.poolSNPs import parameters as prm
-from scripts.poolSNPs import pybcf
+from scripts.VCFPooling.poolSNPs import parameters as prm
+from scripts.VCFPooling.poolSNPs import pybcf
 from persotools.files import *
 
 '''

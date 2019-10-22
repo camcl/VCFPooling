@@ -7,8 +7,8 @@ from scipy.interpolate import Akima1DInterpolator
 from typing import *
 import math
 
-from scripts.poolSNPs import parameters as prm
-from scripts.poolSNPs.alleles import alleles_tools as alltls
+from scripts.VCFPooling.poolSNPs import parameters as prm
+from scripts.VCFPooling.poolSNPs.alleles import alleles_tools as alltls
 from persotools.files import *
 
 

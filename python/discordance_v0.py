@@ -4,9 +4,9 @@ import matplotlib.pyplot as plt
 from cyvcf2 import VCF
 import itertools
 
-from scripts.poolSNPs.alleles import alleles_tools as alltls
-from scripts.poolSNPs import parameters as prm
-from scripts.poolSNPs import utils
+from scripts.VCFPooling.poolSNPs.alleles import alleles_tools as alltls
+from scripts.VCFPooling.poolSNPs import parameters as prm
+from scripts.VCFPooling.poolSNPs import utils
 from persotools.files import *
 
 """
