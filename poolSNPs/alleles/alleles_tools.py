@@ -16,8 +16,6 @@ Plot different analysis.
 """
 
 
-### SPECIFIC TOOLS
-
 def per_site_sample_error(elem2x2):
     """
     Computes the imputation error as the distance between
@@ -65,6 +63,7 @@ def per_axis_error(arr4d, ax):
 class PandasVCF(object):
     """
     Pandas objects and methods for manipulating VCF files.
+    Implements cyvcf2 methods into Pandas structures.
     * trinary encoding
     * AF_INFO extraction, with variant index
     * AAF extraction, with variant index
@@ -79,6 +78,7 @@ class PandasVCF(object):
         # cyvcf2 object returned can be read only once
         return VCF(self.path)
 
+    @property
     def variants(self) -> pd.Index:
         """
         Read variants identifiers ordered as in the input file
@@ -94,6 +94,16 @@ class PandasVCF(object):
                 vars.append(':'.join([str(var.CHROM), str(var.POS)]))
 
         return pd.Index(data=vars, dtype=str, name='variants')
+
+    @property
+    def phases(self) -> pd.Series:
+        vcfobj = self.load()
+        vars = self.variants()
+        arr = np.zeros((len(vars), len(self.samples)), dtype=float)
+        for i, var in enumerate(vcfobj):
+            arr[i, :] = var.gt_phases
+
+        return pd.Series(arr, index=vars, name='af_info')
 
     def vcf2dframe(self) -> tuple:
         """
@@ -123,6 +133,7 @@ class PandasVCF(object):
 
         return dftrinary
 
+    @property
     def af_info(self) -> pd.Series:
         vcfobj = self.load()
         vars = self.variants()
@@ -132,6 +143,7 @@ class PandasVCF(object):
 
         return pd.Series(arr, index=vars, name='af_info')
 
+    @property
     def aaf(self) -> pd.Series:
         vcfobj = self.load()
         vars = self.variants()
@@ -140,6 +152,50 @@ class PandasVCF(object):
             arr[i] = var.aaf
 
         return pd.Series(arr, index=vars, name='aaf')
+
+    @property
+    def missing_rate(self) -> pd.Series:
+        vcfobj = self.load()
+        vars = self.variants()
+        arr = np.zeros((len(vars),), dtype=float)
+        for i, var in enumerate(vcfobj):
+            arr[i] = 1.0 - var.INFO['call_rate']
+
+        return pd.Series(arr, index=vars, name='missing_rate')
+
+    @property
+    def het_rate(self) -> pd.Series:
+        vcfobj = self.load()
+        vars = self.variants()
+        arr = np.zeros((len(vars),), dtype=float)
+        for i, var in enumerate(vcfobj):
+            arr[i] = var.num_het / var.num_called
+
+        return pd.Series(arr, index=vars, name='het_rate')
+
+    @property
+    def hom_alt_rate(self) -> pd.Series:
+        vcfobj = self.load()
+        vars = self.variants()
+        arr = np.zeros((len(vars),), dtype=float)
+        for i, var in enumerate(vcfobj):
+            arr[i] = var.num_hom_alt / var.num_called
+
+        return pd.Series(arr, index=vars, name='hom_alt_rate')
+
+    @property
+    def hom_ref_rate(self) -> pd.Series:
+        vcfobj = self.load()
+        vars = self.variants()
+        arr = np.zeros((len(vars),), dtype=float)
+        for i, var in enumerate(vcfobj):
+            arr[i] = var.num_hom_ref / var.num_called
+
+        return pd.Series(arr, index=vars, name='hom_ref_rate')
+
+    @property
+    def hom_rate(self) -> pd.Series:
+        return self.hom_alt_rate.add(self.hom_ref_rate)
 
     @staticmethod
     def writetocsv(df: pd.DataFrame, title: str, idx: bool = True, hdr: bool = True) -> None:
