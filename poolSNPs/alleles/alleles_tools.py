@@ -93,7 +93,7 @@ class PandasVCF(object):
             for var in vcfobj:
                 vars.append(':'.join([str(var.CHROM), str(var.POS)]))
 
-        return pd.Index(data=vars, dtype=str, name='id')
+        return pd.Index(data=vars, dtype=str, name='variants')
 
     def vcf2dframe(self) -> tuple:
         """

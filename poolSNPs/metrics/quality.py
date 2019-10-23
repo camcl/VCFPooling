@@ -93,7 +93,9 @@ The nltk metrics package also provides for calculating and printing confusion ma
 
 import os
 import numpy as np
+import pandas as pd
 from scipy.stats import pearsonr
+from sklearn import metrics
 from typing import *
 
 from scripts.VCFPooling.poolSNPs import parameters as prm
@@ -117,6 +119,7 @@ def correlation_r2(vcf_true: FilePath, vcf_imputed: FilePath) -> Tuple:
     return r, p_value
 
 #TODO: implement method for extracting GP field
+#TODO: coming later: evaluate phase/switch rate
 
 
 class Quality(object):
@@ -127,9 +130,24 @@ class Quality(object):
     * difference per variant and/or per sample between imputed and true genotypes
     * allele dosage
     """
-    def __init__(self, truefile: FilePath, imputedfile: FilePath, idx: str = 'id'):
+    def __init__(self, truefile: FilePath, imputedfile: FilePath, ax: object, idx: str = 'id'):
         self.trueobj = alltls.PandasVCF(truefile, indextype=idx)
         self.imputedobj = alltls.PandasVCF(imputedfile, indextype=idx)
+        self._axis = ax
+        #TODO: index properties and verification
+
+    @property
+    def axis(self):
+        return self._axis
+
+    @axis.setter
+    def set_axis(self, ax):
+        if ax == 0 or ax == 'variants':
+            self._axis = 0
+        elif ax == 1 or ax == 'samples':
+            self._axis = 1
+        else:
+            self._axis = None
 
     def pearsoncorrelation(self, ax: int = None) -> tuple:
         """
@@ -148,11 +166,78 @@ class Quality(object):
 
         return r, p_value
 
-    def diff(self):
-        pass
+    def diff(self) -> pd.DataFrame:
+        """
+        Compute absolute genotype difference element-wise i.i per variant per sample
+        :return: absolute difference true vs. imputed genotypes
+        """
+        truedf = self.trueobj.trinary_encoding()
+        imputeddf = self.imputedobj.trinary_encoding()
+        floordiffdf = truedf.sub(imputeddf).abs()
+        return floordiffdf
 
-    def alleledosage(self):
-        pass
+    @staticmethod
+    def expectation(a: np.ndarray, freq: np.ndarray):
+        """
+        sum(Pr(G=x)*x)
+        :param a:
+        :param freq:
+        :return:
+        """
+        return np.multiply(a, freq).sum()
 
-    def crosstable(self):
-        pass
+    def alleledosage(self) -> tuple:
+        """
+        Compute mean genotype along the given axis. Equivalent to AAF computation.
+        Makes sense only accross a population i.e. mean values along samples-axis.
+        Allele dosage = 2 * AAF for a diploid organism
+        :return:
+        """
+        truedos = self.trueobj.trinary_encoding().values.mean(axis=1)
+        imputeddos = self.imputedobj.trinary_encoding().values.mean(axis=1)
+        strue = pd.Series(truedos, index=self.trueobj.variants(), name='truedos')
+        simputed = pd.Series(imputeddos, index=self.imputedobj.variants(), name='imputeddos')
+
+        return strue, simputed
+
+    @property
+    def precision(self):
+        """
+        Precision score for the allele dosage
+        average param needed for multiclass classification
+        :return:
+        """
+        a_true, a_imputed = self.alleledosage()
+        # cast Series type to discrete classes
+        return metrics.precision_score(a_true.astype(str), a_imputed.astype(str), average='samples')
+
+    @property
+    def accuracy(self):
+        """
+        Precision score for the allele dosage.
+        Equal to Jaccard index in the case of multilabel classification tasks.
+        Jaccard similarity coefficient is defined as the size of the intersection
+        divided by the size of the union of two label sets.
+        :return:
+        """
+        a_true, a_imputed = self.alleledosage()
+        # cast Series type to discrete classes
+        return metrics.precision_score(a_true.astype(str), a_imputed.astype(str))
+
+    @property
+    def recall(self):
+        """
+        Recall score for the allele dosage
+        :return:
+        """
+        a_true, a_imputed = self.alleledosage()
+        return metrics.recall_score(a_true.astype(str), a_imputed.astype(str), average='samples')
+
+    @property
+    def f1_score(self):
+        """
+        F1-score for the allele dosage
+        :return:
+        """
+        a_true, a_imputed = self.alleledosage()
+        return metrics.f1_score(a_true.astype(str), a_imputed.astype(str), average='samples')
