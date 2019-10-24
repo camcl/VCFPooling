@@ -149,22 +149,20 @@ class Quality(object):
         else:
             self._axis = None
 
-    def pearsoncorrelation(self, ax: int = None) -> tuple:
+    def pearsoncorrelation(self) -> pd.Series:
         """
         Compute Pearson's correlation coefficient between true and imputed genotypes.
-        Compare variant-to-variant or sample-to-sample.
-        :param ax: correlation between variants (ax=1 i.e. mean genotypes along samples axis),
+        Correlation between variants (ax=1 i.e. mean genotypes along samples axis),
         or correlation between samples (ax=0 i.e. mean genotypes along variant axis),
         or global correlation (ax=None i.e. mean of flattened array)
         :return: correlation coefficients and p-value for each
         """
-        truedf = self.trueobj.trinary_encoding()
-        imputeddf = self.imputedobj.trinary_encoding()
-        true = truedf.values.mean(axis=ax)
-        imputed = imputeddf.values.mean(axis=ax)
-        r, p_value = pearsonr(true, imputed)
-
-        return r, p_value
+        true = self.trueobj.trinary_encoding().values
+        imputed = self.imputedobj.trinary_encoding().values
+        scorer = lambda t: pearsonr(t[0], t[1])[0]  # keeps only correlation, not p-value
+        score = list(map(scorer, zip(true, imputed)))
+        # astype(str) casts Series type to discrete classes
+        return pd.Series(score, index=self.trueobj.variants, name='r_squared')
 
     def diff(self) -> pd.DataFrame:
         """
@@ -186,58 +184,88 @@ class Quality(object):
         """
         return np.multiply(a, freq).sum()
 
-    def alleledosage(self) -> tuple:
+    def alleledosage(self) -> Tuple[pd.Series]:
         """
         Compute mean genotype along the given axis. Equivalent to AAF computation.
-        Makes sense only accross a population i.e. mean values along samples-axis.
-        Allele dosage = 2 * AAF for a diploid organism
+        Makes sense only accross a population i.e. mean values along samples axis.
+        Allele dosage = 2 * AAF, for a diploid organism
         :return:
         """
         truedos = self.trueobj.trinary_encoding().values.mean(axis=1)
         imputeddos = self.imputedobj.trinary_encoding().values.mean(axis=1)
-        strue = pd.Series(truedos, index=self.trueobj.variants(), name='truedos')
-        simputed = pd.Series(imputeddos, index=self.imputedobj.variants(), name='imputeddos')
+        strue = pd.Series(truedos, index=self.trueobj.variants, name='truedos')
+        simputed = pd.Series(imputeddos, index=self.imputedobj.variants, name='imputeddos')
 
         return strue, simputed
 
     @property
-    def precision(self):
+    def precision(self, avg: str = 'weighted') -> pd.Series:
         """
-        Precision score for the allele dosage
-        average param needed for multiclass classification
+        Compute precision score for the imputed genotypes.
+        The precision is the ratio tp / (tp + fp) where tp is the number of true positives and
+        fp the number of false positives. The precision is intuitively the ability of the classifier
+        not to label as positive a sample that is negative. The best value is 1 and the worst value is 0.
+        :param avg: 'weighted' needed for multiclass classification
         :return:
         """
-        a_true, a_imputed = self.alleledosage()
-        # cast Series type to discrete classes
-        return metrics.precision_score(a_true.astype(str), a_imputed.astype(str), average='samples')
+        true = self.trueobj.trinary_encoding().values
+        imputed = self.imputedobj.trinary_encoding().values
+        scorer = lambda t: metrics.precision_score(t[0].astype(str),
+                                                   t[1].astype(str),
+                                                   average=avg)
+        score = list(map(scorer, zip(true, imputed)))
+        # astype(str) casts Series type to discrete classes
+        return pd.Series(score, index=self.trueobj.variants, name='precision_score')
 
     @property
-    def accuracy(self):
+    def accuracy(self) -> pd.Series:
         """
-        Precision score for the allele dosage.
+        Compute accuracy score for the imputed genotypes.
+        In multilabel classification, this function computes subset accuracy i.e. the number of exact true matches.
+        The accuracy is the ratio tp / (tp + fp + tn + fn) for each class.
         Equal to Jaccard index in the case of multilabel classification tasks.
         Jaccard similarity coefficient is defined as the size of the intersection
         divided by the size of the union of two label sets.
         :return:
         """
-        a_true, a_imputed = self.alleledosage()
-        # cast Series type to discrete classes
-        return metrics.precision_score(a_true.astype(str), a_imputed.astype(str))
+        true = self.trueobj.trinary_encoding().values
+        imputed = self.imputedobj.trinary_encoding().values
+        scorer = lambda t: metrics.accuracy_score(t[0].astype(str),
+                                                  t[1].astype(str))
+        score = list(map(scorer, zip(true, imputed)))
+        # astype(str) casts Series type to discrete classes
+        return pd.Series(score, index=self.trueobj.variants, name='accuracy_score')
 
     @property
-    def recall(self):
+    def recall(self, avg: str = 'weighted') -> pd.Series:
         """
-        Recall score for the allele dosage
+        Compute recall score for the imputed genotypes.
+        The recall is the ratio tp / (tp + fn) where tp is the number of true positives and
+        fn the number of false negatives. The recall is intuitively the ability of the classifier
+        to find all the positive samples.
+        The best value is 1 and the worst value is 0.
         :return:
         """
-        a_true, a_imputed = self.alleledosage()
-        return metrics.recall_score(a_true.astype(str), a_imputed.astype(str), average='samples')
+        true = self.trueobj.trinary_encoding().values
+        imputed = self.imputedobj.trinary_encoding().values
+        scorer = lambda t: metrics.recall_score(t[0].astype(str),
+                                                t[1].astype(str),
+                                                average=avg)
+        score = list(map(scorer, zip(true, imputed)))
+        # astype(str) casts Series type to discrete classes
+        return pd.Series(score, index=self.trueobj.variants, name='recall_score')
 
     @property
-    def f1_score(self):
+    def f1_score(self, avg: str = 'weighted') -> pd.Series:
         """
-        F1-score for the allele dosage
+        F1-score for the genotypes
         :return:
         """
-        a_true, a_imputed = self.alleledosage()
-        return metrics.f1_score(a_true.astype(str), a_imputed.astype(str), average='samples')
+        true = self.trueobj.trinary_encoding().values
+        imputed = self.imputedobj.trinary_encoding().values
+        scorer = lambda t: metrics.f1_score(t[0].astype(str),
+                                            t[1].astype(str),
+                                            average=avg)
+        score = list(map(scorer, zip(true, imputed)))
+        # astype(str) casts Series type to discrete classes
+        return pd.Series(score, index=self.trueobj.variants, name='f1_score')

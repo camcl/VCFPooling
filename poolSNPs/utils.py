@@ -33,6 +33,14 @@ def ppcm(a, b):
         return (a*b)//pgcd(a, b)
 
 
+def normalize(v):
+    norm = np.linalg.norm(v)
+    if norm == 0:
+        return v
+    else:
+        return v / norm
+
+
 #TODO: PEP8 refactoring
 def sort_datasets(dflist: list, groups: list, df_aaf: pd.DataFrame) -> list:
     out = []
