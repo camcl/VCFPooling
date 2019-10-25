@@ -21,7 +21,7 @@ Plot imputation performance in:
 - Pearson's correlation
 """
 
-# First example with results from Phaser on 10000 markers
+# Example with results from Phaser and Beagle on 10000 markers
 paths = {'phaser': {
     'true': '/home/camille/1000Genomes/data/gt/stratified/IMP.chr20.snps.gt.chunk10000.vcf.gz',
     'imputed': '/home/camille/1000Genomes/data/gl/gl_adaptive/phaser/IMP.chr20.pooled.imputed.gt.chunk10000.vcf.gz'},
@@ -30,7 +30,8 @@ paths = {'phaser': {
      'imputed': '/home/camille/1000Genomes/data/gl/gl_adaptive/chunk10000_20190725/IMP.chr20.pooled.imputed.gt.chunk10000.vcf.gz'}
 }
 qphaser = quality.Quality(*paths['phaser'].values(), 0, idx='chrom:pos')
-tabphaser = pd.concat([qphaser.trueobj.af_info,
+tabphaser = pd.concat([qphaser.concordance(),
+                       qphaser.trueobj.af_info,
                        qphaser.pearsoncorrelation(),
                        qphaser.precision,
                        qphaser.accuracy,
@@ -39,7 +40,8 @@ tabphaser = pd.concat([qphaser.trueobj.af_info,
 dosphaser = qphaser.alleledosage()
 
 qbeagle = quality.Quality(*paths['beagle'].values(), 0, idx='chrom:pos')
-tabbeagle = pd.concat([qbeagle.trueobj.af_info,
+tabbeagle = pd.concat([qbeagle.concordance(),
+                       qbeagle.trueobj.af_info,
                        qbeagle.pearsoncorrelation(),
                        qbeagle.precision,
                        qbeagle.accuracy,
@@ -51,13 +53,13 @@ plt.rcParams["figure.figsize"] = [5*2, 4*6]
 fig, axes = plt.subplots(6, 2)
 tabbeagle.plot.scatter('af_info', 'precision_score', ax=axes[0, 0], s=0.7, label='beagle')
 tabbeagle.plot.scatter('af_info', 'accuracy_score', ax=axes[1, 0], s=0.7, label='beagle')
-tabbeagle.plot.scatter('af_info', 'recall_score', ax=axes[2, 0], s=0.7, label='beagle')
+tabbeagle.plot.scatter('af_info', 'concordance', ax=axes[2, 0], s=0.7, label='beagle')
 tabbeagle.plot.scatter('af_info', 'f1_score', ax=axes[3, 0], s=0.7, label='beagle')
 tabbeagle.plot.scatter('af_info', 'r_squared', ax=axes[4, 0], s=0.7, label='beagle')
 axes[5, 0].scatter(dosbeagle[0], dosbeagle[1], s=0.7, label='beagle')
 tabphaser.plot.scatter('af_info', 'precision_score', ax=axes[0, 1], s=0.7, label='phaser')
 tabphaser.plot.scatter('af_info', 'accuracy_score', ax=axes[1, 1], s=0.7, label='phaser')
-tabphaser.plot.scatter('af_info', 'recall_score', ax=axes[2, 1], s=0.7, label='phaser')
+tabphaser.plot.scatter('af_info', 'concordance', ax=axes[2, 1], s=0.7, label='phaser')
 tabphaser.plot.scatter('af_info', 'f1_score', ax=axes[3, 1], s=0.7, label='phaser')
 tabphaser.plot.scatter('af_info', 'r_squared', ax=axes[4, 1], s=0.7, label='phaser')
 axes[5, 1].scatter(dosphaser[0], dosphaser[1], s=0.7, label='phaser')

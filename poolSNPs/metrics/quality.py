@@ -94,12 +94,12 @@ The nltk metrics package also provides for calculating and printing confusion ma
 import os
 import numpy as np
 import pandas as pd
-from scipy.stats import pearsonr
+from scipy.stats import pearsonr, zscore
 from sklearn import metrics
 from typing import *
 
 from scripts.VCFPooling.poolSNPs import parameters as prm
-from scripts.VCFPooling.poolSNPs import patterns as pat
+from scripts.VCFPooling.poolSNPs import utils
 from scripts.VCFPooling.poolSNPs.alleles import alleles_tools as alltls
 from persotools.debugging import *
 from persotools.files import *
@@ -171,8 +171,22 @@ class Quality(object):
         """
         truedf = self.trueobj.trinary_encoding()
         imputeddf = self.imputedobj.trinary_encoding()
-        floordiffdf = truedf.sub(imputeddf).abs()
-        return floordiffdf
+        absdiffdf = truedf.sub(imputeddf).abs()
+        return absdiffdf
+
+    def concordance(self) -> pd.Series:
+        """
+        Compute concordance between true and imputed genotypes
+        i.e. 1 - the Z-norm of the absolute difference of true vs. imputed genotypes?
+        :return:
+        """
+        absdiff = self.diff()
+        scorer = lambda x: 1.0 - np.linalg.norm(x)
+        # scipy.stats.zscore?
+        # np.mean?
+        # np.linalg.norm --> accuracy = recall
+        score = np.apply_along_axis(scorer, 1, absdiff)
+        return pd.Series(score, index=self.trueobj.variants, name='concordance')
 
     @staticmethod
     def expectation(a: np.ndarray, freq: np.ndarray):
