@@ -49,22 +49,19 @@ chk_sz = prm.CHK_SZ
 
 # Load AAFs
 print('Load aaf from {}'.format(ALL).ljust(80, '.'))
-aafs = alltls.get_aaf(prm.WD + '/gt/stratified/ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(chk_sz)))
+pdvcf = alltls.PandasVCF(os.path.join(prm.PATH_GT_FILES, prm.CHKFILE), indextype='id')
+aafs = pdvcf.concatcols([pdvcf.af_info, pdvcf.aaf])
 
 # Create line-index and column-index (multi-indexing)
 print('Create multi-indices for the study population (IMP data sets)'.ljust(80, '.'))
 aaf_idx, pop_idx = alltls.make_index(RAW)
 
-# Load AAFs
-print('Load alleles frequencies'.ljust(80, '.'))
-aafs = alltls.get_aaf(prm.WD + '/gt/stratified/ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(chk_sz)))
-
 # Load data sets for each working directory
-vcfraw = alltls.PandasVCF(RAW)
+vcfraw = alltls.PandasVCF(RAW, indextype='id')
 raw0, raw1 = vcfraw.vcf2dframe()
 raw0, raw1 = utils.sort_datasets([raw0, raw1], pop_idx, aafs)
 samples = vcfraw.samples
-variants = vcfraw.variants()
+variants = vcfraw.variants
 raw = np.stack([raw0.values, raw1.values], axis=-1)
 
 for cd in vcfpathdic.keys():

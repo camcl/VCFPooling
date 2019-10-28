@@ -90,14 +90,16 @@ if __name__ == '__main__':
     devol = []
 
     # Load AAFs
-    allaafs = alltls.get_aaf(prm.PATH_GT_FILES + '/ALL.chr20.pooled.snps.gt.chunk{}.vcf.gz'.format(prm.CHK_SZ),
-                             id='chrom:pos')
-    aafs = allaafs.loc[:, 'af_info'].to_frame()
-    print(aafs.shape)
-    # aafs = allaafs.loc[:, 'aaf'].to_frame()
-    impaafs = alltls.get_aaf(prm.PATH_GT_FILES + '/IMP.chr20.pooled.snps.gt.chunk{}.vcf.gz'.format(prm.CHK_SZ),
-                             id='chrom:pos')
-    compaafs = allaafs.loc[:, ['af_info', 'aaf']].join(impaafs.loc[:, ['af_info', 'aaf']], how='inner', rsuffix='_imp')
+    pdvcfall = alltls.PandasVCF(os.path.join(prm.PATH_GT_FILES,
+                                             'ALL.chr20.pooled.snps.gt.chunk{}.vcf.gz'.format(prm.CHK_SZ),
+                                             indextype='id'))
+    allaafs = pdvcfall.concatcols([pdvcfall.af_info, pdvcfall.aaf])
+    afinfo = pdvcfall.af_info.to_frame()
+    pdvcfimp = alltls.PandasVCF(os.path.join(prm.PATH_GT_FILES,
+                                             '/IMP.chr20.pooled.snps.gt.chunk{}.vcf.gz'.format(prm.CHK_SZ),
+                                             idt='id'))
+    impaafs = pdvcfimp.concatcols([pdvcfimp.af_info, pdvcfimp.aaf])
+    compaafs = allaafs.join(impaafs, how='inner', rsuffix='_imp')
 
     for p_set in params:
         print('\nSet params:', p_set)
@@ -124,10 +126,10 @@ if __name__ == '__main__':
         # raw0 = raw0.join(pool0.index.to_frame(), how='inner').iloc[:, :-1]
         # raw1 = raw1.join(pool1.index.to_frame(), how='inner').iloc[:, :-1]
 
-        raw0 = raw0.join(aafs, how='inner').drop('af_info', axis=1)
-        raw1 = raw1.join(aafs, how='inner').drop('af_info', axis=1)
-        pool0 = pool0.join(aafs, how='inner').drop('af_info', axis=1)
-        pool1 = pool1.join(aafs, how='inner').drop('af_info', axis=1)
+        raw0 = raw0.join(afinfo, how='inner').drop('af_info', axis=1)
+        raw1 = raw1.join(afinfo, how='inner').drop('af_info', axis=1)
+        pool0 = pool0.join(afinfo, how='inner').drop('af_info', axis=1)
+        pool1 = pool1.join(afinfo, how='inner').drop('af_info', axis=1)
 
         samples = VCF(B1).samples
         variants = raw0.index.tolist()
@@ -157,9 +159,9 @@ if __name__ == '__main__':
 
         devol.append(df_chk)
 
-    df_plot = aafs.join(devol, how='inner')
+    df_plot = afinfo.join(devol, how='inner')
     print(df_plot)
     df_plot.sort_values(by='af_info', inplace=True)
     print('dfplot\n', df_plot)
-    plot_zygosity_correlation(f_plot, col_set=list(zip(*params))[0], typ='scatter')
+    plot_zygosity_correlation(df_plot, col_set=list(zip(*params))[0], typ='scatter')
 

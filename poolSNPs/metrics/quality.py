@@ -106,18 +106,6 @@ from persotools.files import *
 
 ArrayLike = NewType('ArrayLike', Union[Sequence, List, Set, Tuple, Iterable, np.ndarray, int, float, str])
 
-
-def correlation_r2(vcf_true: FilePath, vcf_imputed: FilePath) -> Tuple:
-    try:
-        x = alltls.get_aaf(vcf_true, id='chrom:pos')
-        y = alltls.get_aaf(vcf_imputed, id='chrom:pos')
-    except IOError:
-        print('VCF files must provide GT-formatted genotypes')
-        x, y = None, None
-
-    r, p_value = pearsonr(x, y)
-    return r, p_value
-
 #TODO: implement method for extracting GP field
 #TODO: coming later: evaluate phase/switch rate
 

@@ -186,6 +186,11 @@ class PandasVCF(object):
         return pd.Series(arr, index=vars, name='aaf')
 
     def aaf_binned(self, b=np.array([0.00, 0.01, 0.05])) -> pd.Series:
+        """
+        Bin alternate allele frequencies values in chosen classes.
+        :param b: bins to use. Default is 3 classes with focus on low AAF.
+        :return: pandas Series with chosen index type and binned AAF values.
+        """
         aaf = self.aaf
         binner = lambda x: np.digitize(x, bins=b)
 
@@ -475,7 +480,7 @@ def rmse_df(df, kind='rmse', ax=None, lev=None):
         return mse
 
 
-def extract_variant_onfreq(file_in, aaf_range):
+def extract_variant_onfreq(file_in: FilePath, aaf_range: list) -> pd.DataFrame:
     """
     Returns variants where the alternate allele has a frequency
     in the input range.
@@ -483,11 +488,11 @@ def extract_variant_onfreq(file_in, aaf_range):
     :param aaf_range: list: [min, max] of the range the AAF should be comprised in.
     :return: dataframe of cyvcf2.Variants
     """
-    aafs = get_aaf(file_in, idt='chrom:pos')
-    print(aafs.describe())
+    pdvcf = PandasVCF(file_in, idt='chrom:pos')
+    dfaaf = pdvcf.concatcols([pdvcf.af_info, pdvcf.aaf])
     inf, sup = aaf_range[0], aaf_range[1]
     #extracted = aafs.loc[(aafs['af_info'] >= min and aafs['af_info'] <= max).all()]
-    extracted = aafs.query('af_info >= @inf & af_info <= @sup')
+    extracted = dfaaf.query('af_info >= @inf & af_info <= @sup')
 
     return extracted
 
@@ -586,15 +591,16 @@ def get_pop():
 # TODO: remove aaf_bin
 def make_index(raw_data, src=None, idt='id'):
     if src is None:
-        src = os.path.join(prm.WD, 'gt', 'stratified', prm.CHKFILE)
+        src = os.path.join(prm.PATH_GT_FILES, prm.CHKFILE)
     group = get_pop()
-    df_aaf = get_aaf(src, id=idt).loc[:, ['id', 'af_info', 'aaf_bin']]
+    pdvcf = PandasVCF(src, indextype=idt)
+    df_aaf = pdvcf.af_info.to_frame().reset_index()
 
     samples = pd.Series(VCF(raw_data).samples,
                         name='Sample').str.rstrip('_IMP').to_frame()
     df_pop = group.merge(samples, on='Sample', how='inner')
 
-    aaf_idx = pd.MultiIndex.from_arrays(list(zip(*df_aaf.values)), names=['id', 'af_info', 'aaf_bin'])
+    aaf_idx = pd.MultiIndex.from_arrays(list(zip(*df_aaf.values)), names=['id', 'af_info'])
     pop_idx = pd.MultiIndex.from_arrays(list(zip(*df_pop.values)), names=['Sample', 'Population'])
 
     return aaf_idx, pop_idx

@@ -135,7 +135,8 @@ def plot_aaf_evol(err_dic, path_all, typ='line'):
     plt.rcParams["figure.figsize"] = [12, 6]
     plt.rcParams["figure.autolayout"] = True
 
-    df_aaf = alltls.get_aaf(path_all)
+    pdvcf = alltls.PandasVCF(path_all, indextype='chrom:pos')
+    df_aaf = pdvcf.concatcols([pdvcf.af_info, pdvcf.aaf])
 
     if prm.SUBSET:
         df_aaf = df_aaf.iloc[:prm.SUBCHUNK]
@@ -147,12 +148,7 @@ def plot_aaf_evol(err_dic, path_all, typ='line'):
     df_aaf.sort_values(by='af_info', axis=0, inplace=True)
 
     if bin_aaf:
-        convert = np.vectorize(lambda x: alltls.convert_aaf(x))
-        inter = prm.INTER
-        np_bin_aaf = np.digitize(convert(df_aaf.values),
-                                 bins=inter)
-        np_bin_aaf = np.subtract(np_bin_aaf/len(inter), 0.00)
-        df_aaf = pd.DataFrame(data=np_bin_aaf, index=df_aaf.index, columns=df_aaf.columns)
+        df_aaf = df_aaf.join([pdvcf.aaf_binned(b=prm.INTER)])
 
     lin_aaf, ax_lin = plt.subplots()
     a = 0

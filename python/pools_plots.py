@@ -250,10 +250,16 @@ if __name__ == '__main__':
     devol = []
 
     # Load AAFs
-    aafs = alltls.get_aaf(os.path.join(prm.PATH_GT_FILES,
-                                       'IMP.chr20.pooled.snps.gt.chunk{}.vcf.gz'.format(chk_sz)),
-                          id='chrom:pos')
-    aafs = aafs.loc[:, 'af_info'].to_frame()
+    pdvcfall = alltls.PandasVCF(os.path.join(prm.PATH_GT_FILES,
+                                             'ALL.chr20.pooled.snps.gt.chunk{}.vcf.gz'.format(prm.CHK_SZ),
+                                             indextype='id'))
+    allaafs = pdvcfall.concatcols([pdvcfall.af_info, pdvcfall.aaf])
+    afinfo = pdvcfall.af_info.to_frame()
+    pdvcfimp = alltls.PandasVCF(os.path.join(prm.PATH_GT_FILES,
+                                             '/IMP.chr20.pooled.snps.gt.chunk{}.vcf.gz'.format(prm.CHK_SZ),
+                                             idt='id'))
+    impaafs = pdvcfimp.concatcols([pdvcfimp.af_info, pdvcfimp.aaf])
+    compaafs = allaafs.join(impaafs, how='inner', rsuffix='_imp')
     ALL = os.path.join(prm.PATH_GT_FILES, 'ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(chk_sz))
     REF = os.path.join(prm.PATH_GT_FILES, 'REF.chr20.snps.gt.chunk{}.vcf.gz'.format(chk_sz))
     IMP = os.path.join(prm.PATH_GT_FILES, 'IMP.chr20.snps.gt.chunk{}.vcf.gz'.format(chk_sz))
@@ -284,7 +290,7 @@ if __name__ == '__main__':
             print('\nSet params: {} for variant 20:{}'.format(params, v))
             gtgl, sz, idt = params
             varid = ''.join(['20:', v])
-            print('AAF: ', aafs.loc[varid])  # id.ljust(11, ' ')
+            print('AAF: ', afinfo.loc[varid])  # id.ljust(11, ' ')
             gt_iterator = VCF(ALL)
             gl_iterator = read_gl_vcf(B1)
             out_iterator = VCF(OUT)
@@ -300,9 +306,9 @@ if __name__ == '__main__':
                     marker2 = np.array(g.genotypes).reshape((15, 16, 3)).astype(float)
                     aaf2 = g.aaf
 
-            plot_pools(marker0, 'gt', 0, v, chk_sz, af_info=aafs.loc['20:' + v, 'af_info'], aaf=aaf0)
-            plot_pools(marker1, 'gl', 1, v, chk_sz, af_info=aafs.loc['20:' + v, 'af_info'])
-            plot_pools(marker2, 'gt', 2, v, chk_sz, af_info=aafs.loc['20:' + v, 'af_info'], aaf=aaf2)
+            plot_pools(marker0, 'gt', 0, v, chk_sz, af_info=afinfo.loc['20:' + v, 'af_info'], aaf=aaf0)
+            plot_pools(marker1, 'gl', 1, v, chk_sz, af_info=afinfo.loc['20:' + v, 'af_info'])
+            plot_pools(marker2, 'gt', 2, v, chk_sz, af_info=afinfo.loc['20:' + v, 'af_info'], aaf=aaf2)
 
             before_after_pooling(v, chk_sz)
 
