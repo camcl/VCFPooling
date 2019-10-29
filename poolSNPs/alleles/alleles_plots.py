@@ -24,7 +24,6 @@ def plot_heat_map(dtfr, figname, figsize, sorting, title='{}', rightYaxis=False)
     :param rightYaxis: boolean for plotting a second y-axis or not
     :return:
     """
-    #TODO: colorbar's parameters to tune
     plt.rcParams["figure.figsize"] = figsize
 
     try:
@@ -138,6 +137,7 @@ def join_aaf_dataset():
 
 
 def plot_aaf_evol(wd, dset: dict, path_all: FilePath, typ='line'):
+    # TODO: Remove
     """
 
     :param wd:
@@ -192,6 +192,7 @@ def plot_aaf_evol(wd, dset: dict, path_all: FilePath, typ='line'):
 
 
 def plot_aaf_twist(setname: str, setdf: pd.DataFrame, vcfpath: str):
+    # TODO: Refactor
     """
     Plot aaf before/after pooling.
     Plot error after pooling vs. aaf

@@ -9,24 +9,27 @@ from scripts.VCFPooling.poolSNPs import parameters as prm
 from persotools.files import *
 
 """
-Plot AAF values after imputation (computed with Beagle)
+Plot AAF values after imputation (computed with Beagle from GT)
 vs. AAF values in the original dataset (theoretical).
-Compare effects of imputation:
-- GT serves as baseline for comparison
-- adaptive GL values for filling in missing genotypes
+Compare:
+- imputation from randomly missing markers
+- imputation from pooled samples
 """
 
+# TODO: Test!
+
+# 1. Plot imputation with GT vs imputation with missing GL=1/3
+# Configure working directory
 print('Configure working directory'.ljust(80, '.'))
 # chunk10000_20190725 settings gave the best results for Beagle
-dirs = {'default': os.path.join(prm.WD, 'gt', 'stratified', 'all_snps_all_samples'),
-        'adaptive': os.path.join(prm.WD, 'gl', 'gl_adaptive', 'chunk10000_20190725')}
-os.chdir(dirs['adaptive'])
+dirs = {'default_gt': os.path.join(prm.WD, 'gt', 'stratified', 'all_snps_all_samples')}
+os.chdir(dirs['default_gt'])
 
 print('Load files path locations'.ljust(80, '.'))
-paths = {'preimp_gt_default': os.path.join(dirs['default'], prm.POOLED['b1']) + '.vcf.gz',
-         'postimp_gt_default': os.path.join(dirs['default'], prm.POOLED['gtonly']) + '.vcf.gz',
-         'preimp_gl_adaptive': os.path.join(dirs['adaptive'], prm.POOLED['b1']) + '.vcf.gz',
-         'postimp_gl_adaptive': os.path.join(dirs['adaptive'], prm.POOLED['gtonly']) + '.vcf.gz'
+paths = {'preimp_gt_missing': os.path.join(dirs['default_gt'], prm.MISSING['b1']) + '.vcf.gz',
+         'postimp_gt_missing': os.path.join(dirs['default_gt'], prm.MISSING['gtonly']) + '.vcf.gz',
+         'preimp_gt_pooled': os.path.join(dirs['default_gt'], prm.POOLED['b1']) + '.vcf.gz',
+         'postimp_gt_pooled': os.path.join(dirs['default_gt'], prm.POOLED['gtonly']) + '.vcf.gz'
          }
 
 print('Concatenate together AAF from files to compare'.ljust(80, '.'))
