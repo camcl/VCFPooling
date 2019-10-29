@@ -399,39 +399,6 @@ def count_missing_alleles(vcf_path=None, gt_array=None, id='id'):
     return mis
 
 
-def compute_aaf(vcf_path: FilePath, idt: str = 'id', verbose: bool = False):
-    #TODO: rewrite with PandasVCF.aaf
-    """
-    Return only AAF computed on the input file, per variant ID
-    :param vcf_path:
-    :param idt:
-    :param verbose:
-    :return:
-    """
-    print('Computing AAFs from {}/{}'.format(os.path.dirname(vcf_path), os.path.basename(vcf_path)).ljust(80, '.'))
-    print(os.getcwd())
-    vcf_obj = VCF(vcf_path)
-    dic_aaf = {}
-    for i, var in enumerate(vcf_obj):
-        if idt == 'id':
-            varid = var.ID
-        if idt == 'chrom:pos':
-            varid = ':'.join([str(var.CHROM), str(var.POS)])
-        # GT:DS:GP
-        if verbose:
-            try:
-                print(str(i) + '\t' + var.ID + '\t' + var.format('GP'))
-            except TypeError:
-                print(str(i) + '\t', var.ID)
-        try:
-            dic_aaf[varid] = var.aaf
-        except TypeError:
-            pass
-        print(varid)
-
-    return dic_aaf
-
-
 def compute_aaf_evol(wd: str, dset: str, idt: str = 'id') -> list:
     #TODO: rewrite with PandasVCF.aaf, af_info
     """
@@ -453,7 +420,7 @@ def compute_aaf_evol(wd: str, dset: str, idt: str = 'id') -> list:
                  'postimp': prm.MISSING['gtonly'] + '.vcf.gz'}
     temp = []
     for d, vcf in steps.items():
-        df = pd.DataFrame.from_dict(compute_aaf(vcf, idt=idt),
+        df = pd.DataFrame.from_dict(PandasVCF(vcf, idt=idt).aaf,
                                     orient='index',
                                     columns=[d + '_' + dset])
         temp.append(df)
@@ -588,7 +555,7 @@ def get_pop():
     df_pop.sort_values(['Sample', 'Population'], axis=0, inplace=True)
     return df_pop
 
-# TODO: remove aaf_bin
+
 def make_index(raw_data, src=None, idt='id'):
     if src is None:
         src = os.path.join(prm.PATH_GT_FILES, prm.CHKFILE)

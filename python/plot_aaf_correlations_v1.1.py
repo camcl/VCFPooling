@@ -33,7 +33,7 @@ def compute_aaf_evol(set, fpre, fpost, gtgl='gt', chk_sz=None, idt='id'):
              'postimp': fpost}
     temp = []
     for d, vcf in steps.items():
-        df = pd.DataFrame.from_dict(alltls.compute_aaf(vcf, idt=idt),
+        df = pd.DataFrame.from_dict(alltls.PandasVCF(vcf, idt=idt).aaf,
                                     orient='index',
                                     columns=[d + '_' + set])
         temp.append(df)
