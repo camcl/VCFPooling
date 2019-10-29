@@ -275,6 +275,22 @@ def convert_aaf(x: object):
         return x
 
 
+class PanelVCF(object):
+    """
+    Assemble together a dict ('<>' identifier of VCF files (if compatible indices...)
+    Join column-wise
+    """
+    def __init__(self, **vcffiles):
+        self.vcffiles = vcffiles
+
+    def join(self, idt='id'):
+        pdvcfs = []
+        for fname, fpath in self.vcffiles.items():
+            frame = PandasVCF(fpath, indextype=idt).aaf.rename('aaf_' + fname)
+            pdvcfs.append(frame)
+        return pd.concat(pdvcfs, axis=1)
+
+
 def get_aaf(vcf_raw: str, idt: str = 'id') -> pd.DataFrame:
     #TODO: replace usages by PandasVCF instances in the whole code
     """

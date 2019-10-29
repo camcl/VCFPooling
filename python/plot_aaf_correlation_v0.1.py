@@ -17,7 +17,7 @@ Compare effects of imputation:
 """
 
 
-def get_df_evol(wd: str, k_set: list, path_all: str, idt='id') -> pd.DataFrame:
+def get_df_evol(wd: str, dset: dict, path_all: str, idt='id') -> pd.DataFrame:
     """
     Compute alternate alleles frequencies after before/after imputation
     :param wd:
@@ -26,9 +26,12 @@ def get_df_evol(wd: str, k_set: list, path_all: str, idt='id') -> pd.DataFrame:
     :param idt:
     :return:
     """
-    df_aaf = alltls.get_aaf(path_all, id=idt)
+    pdvcf = alltls.PandasVCF(path_all, indextype='chrom:pos')
+    df_aaf = pdvcf.concatcols([pdvcf.af_info, pdvcf.aaf])
+    df_aaf = df_aaf.join(alltls.PanelVCF(dset).join(idt='chrom:pos'))
+    df_aaf.sort_values(by='af_info', axis=0, inplace=True)
 
-    list_aaf = alltls.compute_aaf_evol(wd, k_set, idt=idt)
+    list_aaf = alltls.compute_aaf_evol(wd, dset, idt=idt)
     df_aaf = df_aaf.join(list_aaf)
     df_aaf.sort_values(by='af_info', axis=0, inplace=True)
 
@@ -110,12 +113,10 @@ if __name__ == '__main__':
                                 'IMP.chr20.pooled.imputed.gt.chunk{}.vcf.gz'.format(sz))
 
         df_chk = get_df_evol(os.path.dirname(POOL),
-                             'pooled',
+                             {'preimp_pooled': os.path.join(os.path.dirname(POOL), prm.POOLED['b1']) + '.vcf.gz',
+                              'postimp_pooled': prm.POOLED['gtonly'] + '.vcf.gz'},
                              ALL,
-                             idt=idt).loc[:, ['preimp_pooled', 'postimp_pooled']]
-        df_chk.rename(columns={'preimp_pooled': 'preimp_' + str(gtgl),
-                               'postimp_pooled': 'postimp_' + str(gtgl)},
-                      inplace=True)
+                             idt=idt)
 
         devol.append(df_chk)
 

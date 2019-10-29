@@ -129,7 +129,26 @@ def boxplot_densities(set_errors):
     plt.savefig('root.mean.square.error.box.density.chunk{}.png'.format(prm.CHK_SZ), dpi='figure')
 
 
-def plot_aaf_evol(err_dic, path_all, typ='line'):
+def join_aaf_dataset():
+    """
+    Join AAF columns from different chosen data sets
+    :return:
+    """
+    pass
+
+
+def plot_aaf_evol(wd, dset: dict, path_all: FilePath, typ='line'):
+    """
+
+    :param wd:
+    :param dset: {<file name>: <file path>}
+    :param path_all:
+    :param typ:
+    :return:
+    """
+
+    os.chdir(wd)
+    dset = dset.lower()
     bin_aaf = prm.BIN_AAF
 
     plt.rcParams["figure.figsize"] = [12, 6]
@@ -137,14 +156,7 @@ def plot_aaf_evol(err_dic, path_all, typ='line'):
 
     pdvcf = alltls.PandasVCF(path_all, indextype='chrom:pos')
     df_aaf = pdvcf.concatcols([pdvcf.af_info, pdvcf.aaf])
-
-    if prm.SUBSET:
-        df_aaf = df_aaf.iloc[:prm.SUBCHUNK]
-
-    for k_set in err_dic.keys():
-        list_aaf = alltls.compute_aaf_evol(k_set)
-        df_aaf = df_aaf.join(list_aaf)
-
+    df_aaf = df_aaf.join(alltls.PanelVCF(dset).join(idt='chrom:pos'))
     df_aaf.sort_values(by='af_info', axis=0, inplace=True)
 
     if bin_aaf:
@@ -153,41 +165,28 @@ def plot_aaf_evol(err_dic, path_all, typ='line'):
     lin_aaf, ax_lin = plt.subplots()
     a = 0
     colors = ['b', 'g', 'r']
-    for k_set in err_dic.keys():
+    for k_set in dset.keys():
         if typ == 'line':
             df_aaf.plot.line(x='af_info',
-                             y='preimp_' + k_set,
+                             y='aaf_' + k_set,
                              ax = ax_lin,
                              linestyle='--',
                              color=colors[a])
-            df_aaf.plot.line(x='af_info',
-                             y='postimp_' + k_set,
-                             ax=ax_lin,
-                             linestyle='-',
-                             color=colors[a])
         if typ == 'scatter':
             df_aaf.plot.line(x='af_info',
-                             y='preimp_' + k_set,
+                             y='aaf_' + k_set,
                              ax=ax_lin,
                              marker='v',
-                             color=colors[a])
-            df_aaf.plot.line(x='af_info',
-                             y='postimp_' + k_set,
-                             ax=ax_lin,
-                             marker='o',
                              color=colors[a])
         plt.xlabel('Theoretical AAF')
         plt.ylabel('Dataset AAF')
         plt.plot(range(2), linestyle='-', color='k')
-        delta_post = df_aaf['postimp_' + k_set].sub(df_aaf['af_info'])
-        err_post = alltls.rmse_df(delta_post.to_frame(), kind='mse')
-        plt.text(0.65, 0.25-0.1*a, 'MSE postimp_' + k_set + ' = ' + str(err_post))
         plt.legend()
         a += 1
 
     plt.title('AAF evolution through processing of data sets', loc='center')
     plt.suptitle("")
-    plt.savefig('af_info_evol.{}.chunk{}.png'.format(typ, prm.CHK_SZ),
+    plt.savefig('aaf_evol.{}.chunk{}.png'.format(typ, prm.CHK_SZ),
                 orientation='landscape',
                 dpi='figure')
 
