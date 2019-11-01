@@ -16,7 +16,6 @@ Compare effects of imputation:
 - GT serves as baseline for comparison
 """
 
-# 1. Plot imputation with GT vs imputation with missing GL=1/3
 # Configure working directory
 print('Configure working directory'.ljust(80, '.'))
 # chunk10000_20190725 settings gave the best results for Beagle

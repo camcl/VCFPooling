@@ -17,120 +17,65 @@ Compare effects of imputation:
 """
 
 
-def get_df_evol(wd: str, k_set: list, path_all: str, idt='id') -> pd.DataFrame:
-    """
-    Compute alternate alleles frequencies after before/after imputation
-    :param wd:
-    :param keys:
-    :param path_all:
-    :param idt:
-    :return:
-    """
-    df_aaf = alltls.get_aaf(path_all, idt=idt)
+print('Configure working directory'.ljust(80, '.'))
+# chunk10000_20190822 settings gave the best results for Phaser
+dirs = {'default': os.path.join(prm.WD, 'gt', 'stratified', 'all_snps_all_samples'),
+        'adaptive': os.path.join(prm.WD, 'gl', 'gl_adaptive', 'phaser')}
+os.chdir(dirs['adaptive'])
 
-    list_aaf = alltls.compute_aaf_evol(wd, k_set, idt=idt)
-    df_aaf = df_aaf.join(list_aaf)
-    df_aaf.sort_values(by='af_info', axis=0, inplace=True)
+print('Load files path locations'.ljust(80, '.'))
+paths = {'preimp_gt_default': os.path.join(dirs['default'], prm.POOLED['b1']) + '.vcf.gz',
+         'postimp_gt_default': os.path.join(dirs['default'], prm.POOLED['gtonly']) + '.vcf.gz',
+         'preimp_gl_adaptive': os.path.join(os.path.dirname(dirs['adaptive']), prm.POOLED['b1'] + '.vcf.gz'),
+         'postimp_gl_adaptive': os.path.join(dirs['adaptive'], prm.POOLED['gtonly'] + '.vcf.gz')
+         }
 
-    return df_aaf
+print('Concatenate together AAF from files to compare'.ljust(80, '.'))
+basefile = os.path.join(prm.PATH_GT_FILES, 'IMP.chr20.pooled.snps.gt.chunk{}.vcf.gz'.format(prm.CHK_SZ))
+pdvcfbase = alltls.PandasVCF(basefile, indextype='chrom:pos')
+afinfo = pdvcfbase.af_info.to_frame()
 
+compaafs = alltls.PanelVCF(**paths).join(idt='chrom:pos')
+print(compaafs)
 
-def plot_aaf_correlation(df_aaf, col_set, typ='scatter'):
-    plt.rcParams["figure.figsize"] = [12, 6]
-    plt.rcParams["figure.autolayout"] = True
+dfplot = afinfo.join(compaafs, how='inner')
+dfplot.sort_values(by='af_info', inplace=True)
+print('dfplot\n', dfplot)
 
-    lin_aaf, ax_lin = plt.subplots()
-    for a, k_set in enumerate(col_set):
-        colors = tuple(np.random.rand(3))  # RGB --> 3
-        if typ == 'scatter':
-            df_aaf.plot.scatter(x='af_info',
-                                y='preimp_' + k_set,
-                                ax=ax_lin,
-                                label='preimp_' + k_set,
-                                marker='o',
-                                color=np.concatenate((colors, [0.2])))  # RGBA, transparency
-            df_aaf.plot.scatter(x='af_info',
-                                y='postimp_' + k_set,
-                                ax=ax_lin,
-                                label='postimp_' + k_set,
-                                marker='o',
-                                color=colors)
-        plt.xlabel('Theoretical AAF')
-        plt.ylabel('Dataset AAF')
-        plt.plot(range(2), linestyle='-', color='k')
-        plt.legend()
+print('Plotting'.ljust(80, '.'))
+plt.rcParams["figure.figsize"] = [12, 6]
+plt.rcParams["figure.autolayout"] = True
+colors = ['tab:green', 'tab:olive', 'tab:cyan', 'tab:blue']
 
-    plt.title('AAF evolution through processing of data sets', loc='center')
-    plt.suptitle("")
-    plt.savefig('aaf_evol.{}.gtgl.pooled.chunk{}.png'.format(typ, df_aaf.shape[0]),
-                orientation='landscape',
-                dpi='figure')
+fig, axis = plt.subplots()
+for k, y_key in enumerate(paths.keys()):
+    dfplot.plot.scatter(x='af_info',
+                        y='aaf_' + y_key,
+                        ax=axis,
+                        label=y_key,
+                        marker='o',
+                        color=colors[k],
+                        s=0.7)
+plt.xlabel('Theoretical AAF')
+plt.ylabel('Dataset AAF')
+plt.plot(range(2), linestyle='-', color='k')
+plt.legend()
+plt.title('AAF evolution through processing of data sets', loc='center')
+plt.suptitle("")
+# plt.savefig('aaf_evol.scatter.gtgl.pooled.chunk{}.png'.format(prm.CHK_SZ),
+#             orientation='landscape',
+#             dpi='figure')
+plt.show()
 
-
-if __name__ == '__main__':
-    # Configure working directory
-    print('Configure working directory'.ljust(80, '.'))
-    if prm.GTGL == 'GT':
-        cd = prm.PATH_GT_FILES
-    if prm.GTGL == 'GL':
-        if prm.unknown_gl != 'adaptative':
-            cd = os.path.join(prm.WD, 'gl', 'gl_' + '_'.join(np.around(prm.unknown_gl, decimals=2).astype(str)))
-        else:
-            cd = os.path.join(prm.WD, 'gl', 'gl_adaptive', 'phaser')
-    os.chdir(cd)
-
-    print('Load parameters'.ljust(80, '.'))
-    sorting = True  # sort data sets by AAF and population values
-    params = [('gt', prm.CHK_SZ, 'id'), ('gl', prm.CHK_SZ, 'id')]
-    devol = []
-
-    # Load AAFs
-    pdvcfall = alltls.PandasVCF(os.path.join(prm.PATH_GT_FILES,
-                                             'ALL.chr20.pooled.snps.gt.chunk{}.vcf.gz'.format(prm.CHK_SZ),
-                                             indextype='id'))
-    allaafs = pdvcfall.concatcols([pdvcfall.af_info, pdvcfall.aaf])
-    afinfo = pdvcfall.af_info.to_frame()
-    pdvcfimp = alltls.PandasVCF(os.path.join(prm.PATH_GT_FILES,
-                                             '/IMP.chr20.pooled.snps.gt.chunk{}.vcf.gz'.format(prm.CHK_SZ),
-                                             idt='id'))
-    impaafs = pdvcfimp.concatcols([pdvcfimp.af_info, pdvcfimp.aaf])
-    compaafs = allaafs.join(impaafs, how='inner', rsuffix='_imp')
-
-    for p_set in params:
-        print('\nSet params:', p_set)
-        gtgl, sz, idt = p_set
-        ALL = prm.PATH_GT_FILES + '/ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(sz)
-        B1 = prm.PATH_GT_FILES + '/IMP.chr20.pooled.snps.gt.chunk{}.vcf.gz'.format(sz)
-        if gtgl == 'gl':
-            POOL = os.path.join(cd,
-                                'IMP.chr20.pooled.imputed.gt.chunk{}.vcf.gz'.format(sz))
-        if gtgl == 'gt':
-            POOL = os.path.join(prm.PATH_GT_FILES,
-                                'all_snps_all_samples',
-                                'IMP.chr20.pooled.imputed.gt.chunk{}.vcf.gz'.format(sz))
-
-        df_chk = get_df_evol(os.path.dirname(POOL),
-                             'pooled',
-                             ALL,
-                             idt=idt).loc[:, ['preimp_pooled', 'postimp_pooled']]
-        df_chk.rename(columns={'preimp_pooled': 'preimp_' + str(gtgl),
-                               'postimp_pooled': 'postimp_' + str(gtgl)},
-                      inplace=True)
-
-        devol.append(df_chk)
-
-    df_plot = afinfo.join(devol, how='inner')
-    df_plot.sort_values(by='af_info', inplace=True)
-    # print('dfplot\n', df_plot)
-    plot_aaf_correlation(df_plot, col_set=list(zip(*params))[0], typ='scatter')
-    df_err = pd.read_csv('pooled' + '{}.chunk{}.csv'.format('.sorted' if sorting else '', prm.CHK_SZ),
-                         sep='\t',
-                         encoding='utf-8',
-                         index_col=0,
-                         usecols=[0] + list(range(3, prm.NB_IMP + 3)),
-                         skiprows=[0, 1]
-                         )
-    allplt.plot_aaf_twist('pooled',
-                          df_err,
-                          os.path.join(cd, 'IMP.chr20.pooled.imputed.gt.chunk{}.vcf.gz'.format(prm.CHK_SZ)))
+###
+# df_err = pd.read_csv('pooled.sorted.chunk{}.csv',
+#                      sep='\t',
+#                      encoding='utf-8',
+#                      index_col=0,
+#                      usecols=[0] + list(range(3, prm.NB_IMP + 3)),
+#                      skiprows=[0, 1]
+#                      )
+# allplt.plot_aaf_twist('pooled',
+#                       df_err,
+#                       os.path.join(dirs['adaptive'], 'IMP.chr20.pooled.imputed.gt.chunk{}.vcf.gz'.format(prm.CHK_SZ)))
 

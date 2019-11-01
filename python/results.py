@@ -14,8 +14,7 @@ dbg = MyPrintClass(True)
 
 """
 Compute the imputation errors.
-Vertically: read chunks of 1000 markers.
-Plot different analyses.
+Write to csv
 """
 
 ### TOOLS
@@ -62,28 +61,4 @@ if __name__ == '__main__':
                             )
         set_errors[k] = dfmse
 
-    '''
 
-    ### PLOT BOXPLOTS AND DENSITY CURVES OF IMPUTATION ERRORS
-    # allplt.boxplot_densities(set_errors)
-
-    # allplt.multiplot_err_het(set_errors)
-
-    ### ERROR VS. HETEROZIGOSITY/MISSING ALLELES
-    # for k, err in set_errors.items():
-    #     reffile = prm.RAW['imp']
-    #     allplt.plot_err_vs_het(k,
-    #                                   err,
-    #                                   reffile,
-    #                                   low_aaf=False,
-    #                                   save=True)
-    #     allplt.plot_err_vs_miss(k,
-    #                                    err)
-    '''
-
-    ### AAF BEHAVIOR
-    # allplt.plot_aaf_evol(set_errors, ALL)
-    for setkey, setval in set_errors.items():
-        allplt.plot_aaf_twist(setkey, setval, vcfpathdic[setkey])
-
-    # TODO: correlation between aaf and aaf imputed. Move in a alleles.metrics file

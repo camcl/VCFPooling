@@ -415,35 +415,6 @@ def count_missing_alleles(vcf_path=None, gt_array=None, id='id'):
     return mis
 
 
-def compute_aaf_evol(wd: str, dset: str, idt: str = 'id') -> list:
-    #TODO: rewrite with PandasVCF.aaf, af_info
-    """
-    Data set for genotypes before imputation = output from phasing step
-    Data set for genotypes after imputation = output from imputation step
-    :param dset: short name for the data set kind e.g. pooled/missing
-    :param fpre:
-    :param fpost:
-    :param idt:
-    :return: list of DataFrames with AAF values before/after imputation
-    """
-    print('\r\ndset --> {} in {}'.format(dset, wd))
-    os.chdir(wd)
-    if dset.lower() == 'pooled':
-        steps = {'preimp': os.path.join(os.path.dirname(wd), prm.POOLED['b1']) + '.vcf.gz',
-                 'postimp': prm.POOLED['gtonly'] + '.vcf.gz'}
-    if dset.lower() == 'missing':
-        steps = {'preimp': os.path.join(os.path.dirname(wd), prm.MISSING['b1']) + '.vcf.gz',
-                 'postimp': prm.MISSING['gtonly'] + '.vcf.gz'}
-    temp = []
-    for d, vcf in steps.items():
-        df = pd.DataFrame.from_dict(PandasVCF(vcf, idt=idt).aaf,
-                                    orient='index',
-                                    columns=[d + '_' + dset])
-        temp.append(df)
-
-    return temp
-
-
 def compute_zygosity_evol(zygosity: str, idt: str = 'id') -> list:
     pass
 
