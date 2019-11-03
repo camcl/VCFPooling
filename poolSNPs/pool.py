@@ -21,6 +21,7 @@ warnings.simplefilter('ignore')
 
 nb_cores = os.cpu_count()
 
+# VCF file to be pooled
 data = VCF(os.path.join(prm.WD, 'gt', prm.CHKFILE), threads=nb_cores)
 
 SAMPLES = data.samples
@@ -50,11 +51,11 @@ from a set of samples in a VCF file:
 
 def random_delete(rate: float = 0.01, activate: bool = False) -> bool:
     """
-
+    Delete randomly genotypes in a variant call.
     :param arr: variant.genotypes instance
-    :param rate:
-    :param activate:
-    :return:
+    :param rate: proportion of genoyptes to delete over the call
+    :param activate: activation of the deletion function
+    :return: array of boolean indicating if the genotypes have to be deleted (1) or not (0).
     """
     if activate:
         flag: bool = bn.rvs(p=rate, size=1)
@@ -69,10 +70,10 @@ def random_delete(rate: float = 0.01, activate: bool = False) -> bool:
 
 def split_pools(idv_id: List[str], pool_size: int, seed: object = None) -> Tuple[List[str], List[str]]:
     """
-
-    :param idv_id:
-    :param pool_size:
-    :return:
+    Assign samples to pools and output the remaning samples that could not be assigned (to few samples).
+    :param idv_id: sample's identiifer in the VCF-file.
+    :param pool_size: size of group expected (e.g. 16 if 4*4 pooling design)
+    :return: samples identifiers grouped and remaining samples
     """
     idv_nb = len(idv_id)
     nb_pool, left = divmod(idv_nb, pool_size)
@@ -91,8 +92,10 @@ def split_pools(idv_id: List[str], pool_size: int, seed: object = None) -> Tuple
 
 class SNPsPool(np.ndarray):
     """
-    Simulates the different steps of a pooling process and
-    builds the pooling design.
+    Simulates the different steps of a genotype pooling process.
+    Builds the pooling design matrix.
+    Encodes pooled genotypes per group.
+    Decodes encoded genotypes of the pools back to individual genotypes.
     """
     def __new__(cls,
                 shape: tuple = (4, 4),
@@ -157,15 +160,23 @@ class SNPsPool(np.ndarray):
         return self
 
     def get_subset(self) -> np.ndarray:
+        """
+        Flatten the matrix of pooled samples
+        :return: flattened array of samples identifiers or genotypes.
+        """
         ids = self.flatten()  # .reshape(1, self.size)
         return ids
 
     def pools_list(self) -> List[str]:
+        """
+        Samples into matrix structure, just for representation
+        :return:
+        """
         design = self.design_matrix()
         if np.where(self == '', False, True).all():
             pools_: List[str] = []
             for i in range(design.shape[0]):
-                cache = (design[i,:].reshape(self.shape) == False)
+                cache = (design[i, :].reshape(self.shape) == False)  # cache = ~design[i, :].reshape(self.shape)
                 pool = np.ma.masked_array(self, mask=cache)
                 pools_.append(pool.compressed())
             return pools_
