@@ -161,7 +161,7 @@ class SNPsPool(np.ndarray):
 
     def get_subset(self) -> np.ndarray:
         """
-        Flatten the matrix of pooled samples
+        Flatten the matrix of pooled samples identifiers.
         :return: flattened array of samples identifiers or genotypes.
         """
         ids = self.flatten()  # .reshape(1, self.size)
@@ -169,8 +169,8 @@ class SNPsPool(np.ndarray):
 
     def pools_list(self) -> List[str]:
         """
-        Samples into matrix structure, just for representation
-        :return:
+        Put samples into matrix structure, just for representation
+        :return: list of matrix-shaped samples identifiers
         """
         design = self.design_matrix()
         if np.where(self == '', False, True).all():
@@ -185,6 +185,15 @@ class SNPsPool(np.ndarray):
     def set_line_values(self, samples: list, variant: Variant,
                         sig: object = None,
                         params: List[float] = [], interp: object = None) -> None:
+        """
+        Attach sigmoid-transformed alternate allele frequencies to the current variant.
+        :param samples: samples identifiers from the VCF-file
+        :param variant: variant identifier from the VCF-file
+        :param sig: sigmoid object computed from another set of pooled genotype data
+        :param params: parameters to pass for the sigmoid approximation
+        :param interp: interpolated sigmoid object for sigmoid approximation
+        :return: variant object with attributes attached, e.g. twisted alternate allele frequency
+        """
         self.__setattr__('variant', variant.genotypes)
         self.__setattr__('samples', samples)
         self.__setattr__('var_pos', str(variant.POS))
@@ -197,6 +206,10 @@ class SNPsPool(np.ndarray):
             self.__setattr__('aat_', np.nan)
 
     def get_call(self) -> np.ndarray:
+        """
+        Get pooled samples genotypes for a given variant
+        :return:
+        """
         subs = self.get_subset()
         idx = np.argwhere(np.isin(self.samples, subs))
         self.__setattr__('call', np.asarray(self.variant)[idx])
@@ -227,9 +240,8 @@ class SNPsPool(np.ndarray):
     def pooler_gt(self, a: np.ndarray) -> np.ndarray:
         """
         Decodes pooled scores into individual GT.
-        :param a: score
-        :param unknown: GL to set when unknown genotype
-        :return:
+        :param a: score from matrix-vector pooling
+        :return: pool's true genotype with phase
         """
         if np.all(a == 0):  # RR * RR * RR * RR
             gt = [0, 0, 0]
@@ -241,9 +253,9 @@ class SNPsPool(np.ndarray):
 
     def decode_genotypes_gt(self, samples_gt: np.ndarray) -> np.ndarray:
         """
-        Recomputes genotypes of samples with/without pooling/missing data
-        :param pooled_samples: Variant.genotypes
-        :return:
+        Recomputes true genotypes of samples with/without pooling/missing data
+        :param pooled_samples: Variant.genotypes (unpooled samples' true genotypes with phase)
+        :return: individual samples genotypes (true genotype with phase)
         """
         pooled: np.ndarray = self.pool_genotypes()  # pooled[:, :, -1]: bool = phase of the genotype
         scores: np.ndarray = np.apply_along_axis(sum, axis=-1, arr=pooled[:, :, :-1])
@@ -303,15 +315,11 @@ class SNPsPool(np.ndarray):
 
     def decode_genotypes_gl(self, samples_gl: np.ndarray, dict_gl: dict) -> np.ndarray:
         """
-
-        :param samples_gl:
-        :param dict_gl:
-        :return:
+        Recomputes genotypes likelihoods of samples with/without pooling/missing data
+        :param samples_gl: samples' true genotypes with phase
+        :param dict_gl: likelihoods values to set when encountering missing genotypes
+        :return: individual samples genotypes (genotype likelihoods)
         """
-        # printf = False
-        # if str(self.var_pos) == '59973567':
-        #     printf = True
-
         samples_gl = samples_gl.astype(float)  # avoid truncating GL
         pooled: np.ndarray = self.pool_genotypes()  # outputs unphased genotypes
         scores: np.ndarray = np.apply_along_axis(sum, axis=-1, arr=pooled[:, :, :-1]).flatten()
@@ -337,9 +345,6 @@ class SNPsPool(np.ndarray):
         nb_alt: int = alt_row + alt_col
         nb_ref: int = ref_row + ref_col
 
-        # r = min(alt_row, alt_col)
-        # c = max(alt_row, alt_col)
-
         if np.isin(pooled, -1).any():
             x = np.ones((1, self.size, 1))
             y = np.asarray([1/3, 1/3, 1/3])
@@ -357,34 +362,24 @@ class SNPsPool(np.ndarray):
             elif nb_ref == 0:
                 aa = np.array([0, 0, 1])
                 decoded_gl = np.tile(aa, self.size).reshape((1, self.size, 3))
-            # elif nb_alt == 2:
-            #     decoder: Callable = lambda x: [0.0, 0.5, 0.5] if np.all(x == 2) else [1.0, 0.0, 0.0]
-            #     # np.all() because of b.shape
-            #     decoded_gl = np.apply_along_axis(decoder, axis=-1, arr=b)
-            # elif nb_ref == 2:  # symmetric case with ref allele in only 2 pools: individual is RR or RA
-            #     decoder: Callable = lambda x: [0.5, 0.5, 0.0] if np.all(x == 2) else [0.0, 0.0, 1.0]
-            #     decoded_gl = np.apply_along_axis(decoder, axis=-1, arr=b)
             else:  # nb_alt >= 2 and nb_alt < 8: # nb_alt = 2*n with n > 1
                 unknown = dict_gl[tuple([*rowcounts, *colcounts, 1, 1])]  # 1,1 only cross-section that outputs unknown genotypes
-                # self.twister(dict_gl[(r, c)], self.aaf, self.aat, self.aat_)
                 decoded_gl = np.apply_along_axis(self.multidecoder_gl, -1, b, unknown)
 
         np.put_along_axis(samples_gl,
                           np.broadcast_to(p, (self.size, 3)),
                           decoded_gl.squeeze(),
                           axis=0)
-        # if printf:
-        #     print(scores)
-        #     print(pooled)
-        #     print(nb_alt, nb_ref)
-        #     print(decoded_gl)
-        #     print(samples_gl)
-        #     print('')
 
         return samples_gl
 
     @staticmethod
     def rowcolcounts(a: np.ndarray) -> Tuple[Tuple[int, int, int]]:
+        """
+        Count number of pooled RR|RA|AA genotypes over all rows and columns of a pooled matrix
+        :param a: score i.e. trinary-encoded true genotypes
+        :return: counts of genotypes for the rows and columns
+        """
         # a should be scores
         count_rr: Callable[int] = np.vectorize(lambda x: 1 if x == 0 else 0)
         count_aa: Callable[int] = np.vectorize(lambda x: 1 if x == 2 else 0)
@@ -406,7 +401,7 @@ class SNPsPool(np.ndarray):
         """
         Decodes pooled scores into individual GT.
         :param a: score
-        :return:
+        :return: true genotype with phase
         """
         if np.all(a == 2):  # RA * RA
             gt = [-1, -1, 0]
@@ -422,7 +417,7 @@ class SNPsPool(np.ndarray):
         Decodes pooled scores into individual GL.
         :param a: score
         :param mis: GL to set when unknown genotype
-        :return:
+        :return: genotypes likeihoods
         """
         if np.all(a == 2):  # RA * RA
             gl = mis
@@ -434,6 +429,11 @@ class SNPsPool(np.ndarray):
 
     @staticmethod
     def normalize(v):
+        """
+        Normalize (Z-norm) an array. See NumPy documentation.
+        :param v: array to normalize
+        :return: normalized array
+        """
         norm = np.linalg.norm(v)
         if norm == 0:
             return v
@@ -442,11 +442,11 @@ class SNPsPool(np.ndarray):
     def twister(self, a: prm.GLtype, f0: float, f1: float, f1_: float) -> prm.GLtype:
         """
         Adjusts the GLs according to the AAF gap due to pooling
-        :param a:
-        :param f0:
-        :param f1:
-        :param f1_: derivative
-        :return:
+        :param a: genotype likelihoods
+        :param f0: pooled allele frequency value
+        :param f1: sigmoid reciprocal of the pooled allele frequency
+        :param f1_: derivative value
+        :return: genotypes likelihoods
         """
         if f0 >= 0.4 and f0 < 0.6:
             t = np.multiply(a, [1, max((f1/f0), (f0/f1))**f1_, 1])
