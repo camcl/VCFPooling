@@ -644,13 +644,12 @@ def init_chunk(WD: str, path_in: str, chunk: bool = True, strat: bool = False) -
                                'gt',
                                'stratified'))
             pybcf.stratified_aaf_sampling(prm.SRCFILE,
-                                           os.path.join(prm.DATA_PATH,
-                                                        'gt',
-                                                        'stratified'))
+                                          os.path.join(prm.DATA_PATH,
+                                                       'gt',
+                                                       'stratified'))
 
 
         # Eliminate the remaining samples (not involved in any pool)
-        #TODO: rewrite with bcftools functions
         os.chdir(prm.PATH_GT_FILES)
         subprocess.run(' '.join(['bcftools view -Ov -o ALL.chr20.snps.gt.chunk{}.vcf'.format(str(prm.prm.CHK_SZ)),
                                  '-s',
@@ -659,41 +658,22 @@ def init_chunk(WD: str, path_in: str, chunk: bool = True, strat: bool = False) -
                        shell=True,
                        cwd=prm.PATH_GT_FILES)
         # back to vcf un-bgzipped for avoiding "file truncated" error
-        subprocess.run('bcftools view -Oz -o ALL.chr20.snps.gt.chunk{}.vcf.gz '.format(str(prm.CHK_SZ))
-                       + 'ALL.chr20.snps.gt.chunk{}.vcf'.format(str(prm.CHK_SZ)),
-                       shell=True,
-                       cwd=prm.PATH_GT_FILES)
-        subprocess.run('bcftools sort -Oz -o ALL.chr20.snps.gt.chunk{}.vcf.gz '.format(str(prm.CHK_SZ))
-                       + 'ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(prm.CHK_SZ)),
-                       shell=True,
-                       cwd=prm.PATH_GT_FILES)
-        subprocess.run('bcftools index -f ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(prm.CHK_SZ)),
-                       shell=True,
-                       cwd=prm.PATH_GT_FILES)
+        pybcf.bgzip('ALL.chr20.snps.gt.chunk{}.vcf'.format(str(prm.CHK_SZ)), prm.CHKFILE, WD)
+        pybcf.sort(prm.CHKFILE, WD)
+        pybcf.index(prm.CHKFILE, WD)
         delete_file('ALL.chr20.snps.gt.chunk{}.vcf'.format(str(prm.CHK_SZ)))
 
     # Reorder samples according to pools (reorder columns int the VCF file)
     os.chdir(prm.PATH_GT_FILES)
-    subprocess.run(' '.join(['bcftools view',
-                             '-Oz -o ALL.chr20.snps.gt.chunk{}.unordered.samples.vcf.gz'.format(str(prm.CHK_SZ)),
-                             'ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(prm.CHK_SZ))]),
-                   shell=True,
-                   cwd=prm.PATH_GT_FILES)
-
-    subprocess.run('bcftools index -f ALL.chr20.snps.gt.chunk{}.unordered.samples.vcf.gz'.format(str(prm.CHK_SZ)),
-                   shell=True,
-                   cwd=prm.PATH_GT_FILES)
-
-    subprocess.run(' '.join(['bcftools view -S {}/ALL.chr20.snps.allID.txt'.format(prm.WD + '/gt/'),
-                             '-Oz -o ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(prm.CHK_SZ)),
-                             'ALL.chr20.snps.gt.chunk{}.unordered.samples.vcf.gz'.format(str(prm.CHK_SZ))]),
-                   shell=True,
-                   cwd=prm.PATH_GT_FILES)
-
-    subprocess.run('bcftools index -f ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(prm.CHK_SZ)),
-                   shell=True,
-                   cwd=prm.PATH_GT_FILES)
-
+    pybcf.bgzip(prm.CHKFILE,
+                'ALL.chr20.snps.gt.chunk{}.unordered.samples.vcf.gz'.format(str(prm.CHK_SZ)),
+                prm.PATH_GT_FILES)
+    pybcf.index(prm.CHKFILE, prm.PATH_GT_FILES)
+    pybcf.sampling('ALL.chr20.snps.gt.chunk{}.unordered.samples.vcf.gz'.format(str(prm.CHK_SZ)),
+                   prm.CHKFILE,
+                   '{}/ALL.chr20.snps.allID.txt'.format(prm.WD + '/gt/'),
+                   prm.PATH_GT_FILES)
+    pybcf.index(prm.CHKFILE, prm.PATH_GT_FILES)
     delete_file('ALL.chr20.snps.gt.chunk{}.unordered.samples.vcf.gz'.format(str(prm.CHK_SZ)))
     delete_file('ALL.chr20.snps.gt.chunk{}.unordered.samples.vcf.gz.csi'.format(str(prm.CHK_SZ)))
     os.chdir(WD)
