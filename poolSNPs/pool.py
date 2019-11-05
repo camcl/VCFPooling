@@ -10,7 +10,7 @@ from cyvcf2 import VCF, Writer, Variant
 from scripts.VCFPooling.poolSNPs import parameters as prm
 from scripts.VCFPooling.poolSNPs.alleles import alleles_tools as alltls
 from scripts.VCFPooling.poolSNPs.alleles import frequency_distribution as allfqc
-from scripts.VCFPooling.poolSNPs import pybcf as bcftls
+from scripts.VCFPooling.poolSNPs import pybcf
 
 from persotools.files import *
 from typing import *
@@ -474,12 +474,14 @@ class SNPsPool(np.ndarray):
 
 
 def process_file(data: VCF, groups: list, f: int, fileout: list) -> None:
+    #TODO: clean/refactor execution comments like processed file name
+    #TODO: refactor processing lis tof files into single file processing + remove MSS param
     """
-    Computes and rewrites genotypes of all individuals for all samples.
-    :param data:
-    :param groups:
+    Computes and rewrites genotypes of all individuals for all samples from input files
+    :param data: cyvcf2 object reader pointing on a VCF-file
+    :param groups: samples identifiers split in pools
     :param f: integer, index of the file to process in the list
-    :param fileout:
+    :param fileout: VCF-files with simulated pooled or randomly missing genotypes
     """
     print('Missing data: ', prm.MSS[f])
     print('Pooling: ', prm.POOL[f])
@@ -524,12 +526,13 @@ def process_file(data: VCF, groups: list, f: int, fileout: list) -> None:
     # for n, variant in enumerate(data('20:59973567-59973568')):
     for n, variant in enumerate(data):
         process_line(groups, f, w, variant, df2dict, sig, params, interp)
-        if n%1000 == 0:
+        if n % 1000 == 0:
             print('{} variants processed in {:06.2f} sec'.format(n+1, time.time()-tm).ljust(80, '.'))
         # if n+1 == 1000:
         #     break
     w.close()
 
+    # GL converted from GT, missing GLs will be filled with [0.33, 0.33, 0.33]
     if prm.GTGL == 'GL' and prm.unknown_gl != 'adaptative':
         alltls.file_likelihood_converter(os.path.join(prm.PATH_GT_FILES,
                                                       fileout[f].replace('.gl', '.gt')) + '.gz',
@@ -539,6 +542,7 @@ def process_file(data: VCF, groups: list, f: int, fileout: list) -> None:
 def process_line(groups: list, f: int, w: Writer, v: Variant, dict_gl: dict,
                  sig: object, params: List[float], interp: object, write: bool = True) -> None:
     """
+    From currently pointed variant object:
     Computes and rewrites genotypes of all individual for one sample.
     :param f: integer, index of the file to process in the list
     :param v: cyvcf2.cyvcf2.Variant object
@@ -551,7 +555,7 @@ def process_line(groups: list, f: int, w: Writer, v: Variant, dict_gl: dict,
     for gp in groups[0]:
         sets.append(SNPsPool().set_subset(gp))
 
-    if prm.POOL[f]:  # sig is not None if adaptative
+    if prm.POOL[f]:  # sig might be not None if adaptive GL
         i = 1
         for p in sets:
             i += 1
@@ -563,7 +567,7 @@ def process_line(groups: list, f: int, w: Writer, v: Variant, dict_gl: dict,
             else: # prm.GTGL == 'GT' or fixed GL
                 pooled_samples = p.decode_genotypes_gt(pooled_samples)
 
-    else:
+    else:  # randomly missing simulation. Refactor with boolean MISS param
         for p in sets:
             p.set_line_values(SAMPLES, var)
             dlt = random_delete(activate=prm.MSS[f])
@@ -601,7 +605,8 @@ def process_line(groups: list, f: int, w: Writer, v: Variant, dict_gl: dict,
 
 def init_chunk(WD: str, path_in: str, chunk: bool = True, strat: bool = False) -> Tuple[List[str], List[str]]:
     """
-
+    Randomly select a limited amount of markers from an input VCF file.
+    Obs! Long to run when stratifying markers (sorting/filtering tasks involved)
     :param chunk: boolean. If True, a new subfile from parameters.CHK_SZ
     randomly drawm markers is created i.e. a new set of SNPs.
     :return: list of 16-sized groups of samples i.e. pools
@@ -614,30 +619,21 @@ def init_chunk(WD: str, path_in: str, chunk: bool = True, strat: bool = False) -
                 f.write(i + os.linesep)
 
     if chunk:
-        #TODO: rewrite with bcftools functions
         if not strat:
             delete_file('ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(str(prm.CHK_SZ)))
             delete_file('chunk_{}.vcf'.format(str(prm.CHK_SZ)))
             delete_file('TMP.chr20.snps.gt.chunk.vcf')
 
             print('Extracting header'.ljust(80, '.'))
-            subprocess.run('bcftools view -h -Ov -o headers.ALL.chr20.snps.gt.vcf ALL.chr20.snps.gt.vcf.gz',
-                           shell=True,
-                           cwd=WD)
+            pybcf.extract_header('ALL.chr20.snps.gt.vcf.gz', 'headers.ALL.chr20.snps.gt.vcf', WD)
+
             print('Sampling markers'.ljust(80, '.'))
-            subprocess.run('bcftools view -H ALL.chr20.snps.gt.vcf.gz '
-                           + '| sort -R | head -{} > chunk_{}.vcf'.format(str(prm.CHK_SZ), str(prm.CHK_SZ)),
-                           shell=True,
-                           cwd=WD)
-            subprocess.run('cat headers.ALL.chr20.snps.gt.vcf chunk_{}.vcf '.format(str(prm.CHK_SZ))
-                           + '> TMP.chr20.snps.gt.chunk.vcf',
-                           shell=True,
-                           cwd=WD)
+            pybcf.chunk_markers(prm.SRCFILE, prm.CHK_SZ, WD)
+            pybcf.concatenate(['headers.ALL.chr20.snps.gt.vcf', 'chunk_{}.vcf '.format(str(prm.CHK_SZ))],
+                              'TMP.chr20.snps.gt.chunk.vcf', WD)
+
             print('BGzipping chunk file'.ljust(80, '.'))
-            subprocess.run('bcftools view -Oz -o ALL.chr20.snps.gt.chunk{}.vcf.gz '.format(str(prm.CHK_SZ))
-                           + 'TMP.chr20.snps.gt.chunk.vcf',
-                           shell=True,
-                           cwd=WD)
+            pybcf.bgzip('TMP.chr20.snps.gt.chunk.vcf', prm.CHKFILE, WD)
             delete_file('chunk_{}.vcf'.format(str(prm.CHK_SZ)))
             delete_file('TMP.chr20.snps.gt.chunk.vcf')
             delete_file('headers.ALL.chr20.snps.gt.vcf'.format(str(prm.CHK_SZ)))
@@ -647,7 +643,7 @@ def init_chunk(WD: str, path_in: str, chunk: bool = True, strat: bool = False) -
             mkdir(os.path.join(prm.DATA_PATH,
                                'gt',
                                'stratified'))
-            bcftls.stratified_aaf_sampling(prm.SRCFILE,
+            pybcf.stratified_aaf_sampling(prm.SRCFILE,
                                            os.path.join(prm.DATA_PATH,
                                                         'gt',
                                                         'stratified'))
@@ -676,7 +672,7 @@ def init_chunk(WD: str, path_in: str, chunk: bool = True, strat: bool = False) -
                        cwd=prm.PATH_GT_FILES)
         delete_file('ALL.chr20.snps.gt.chunk{}.vcf'.format(str(prm.CHK_SZ)))
 
-    # Reorder samples according to pools
+    # Reorder samples according to pools (reorder columns int the VCF file)
     os.chdir(prm.PATH_GT_FILES)
     subprocess.run(' '.join(['bcftools view',
                              '-Oz -o ALL.chr20.snps.gt.chunk{}.unordered.samples.vcf.gz'.format(str(prm.CHK_SZ)),
@@ -706,6 +702,10 @@ def init_chunk(WD: str, path_in: str, chunk: bool = True, strat: bool = False) -
 
 
 def run(splits: list, iteration: int) -> None:
+    #TODO: that function should take as input params:
+    # * type of simulation for the missing data,
+    # * single file path,
+    # *
     for it in iteration:
         # vcf = VCF(os.path.join(prm.WD, 'gt', source), threads=4)
         vcf = VCF(os.path.join(prm.PATH_GT_FILES, prm.CHKFILE), threads=nb_cores)

@@ -181,14 +181,57 @@ def rename_samples(file_in: str, file_out:str, wd: str, suffix:str) -> None:
     # delete_file(os.path.join(wd, 'tmp.samples.set_names.txt'))
 
 
-if __name__ == '__main__':
-    pass
-    # os.chdir(prm.WD + '/gt')
-    # print(os.getcwd())
-    # mkdir(os.path.join(prm.DATA_PATH,
-    #                    'gt',
-    #                    'stratified'))
-    # stratified_aaf_sampling(prm.PATH_IN,
-    #                         os.path.join(prm.DATA_PATH,
-    #                                      'gt',
-    #                                      'stratified'))
+def extract_header(f_gz: str, f_head: str, wd: str) -> None:
+    """
+    Extract header from VCF to uncompressed VCF format (text file)
+    :param f_gz: input vcf.gz file name
+    :param f_head: output vcf file name
+    :param wd: path to working directory
+    :return: None
+    """
+    cmd = ' '.join(['bcftools',
+                    'view -h -Ov -o',
+                    f_head,
+                    f_gz
+                    ])
+    subprocess.run(cmd, shell=True, cwd=wd)
+    print('{}:\r\n File created? -> {}'.format(os.path.join(wd, f_head),
+                                               check_file_creation(wd, f_head)))
+
+
+def chunk_markers(f_gz: str, chk_sz: int, wd: str) -> None:
+    """
+
+    :param f_gz:
+    :param chk_sz:
+    :param wd:
+    :return:
+    """
+    cmd = ' '.join(['bcftools',
+                    'view -H',
+                    f_gz,
+                    '| sort -R | head -{}'.format(str(chk_sz)),
+                    '> chunk_{}.vcf'.format(str(chk_sz))
+                    ])
+    subprocess.run(cmd, shell=True, cwd=wd)
+    print('{}:\r\n File created? -> {}'.format(os.path.join(wd,
+                                                            'chunk_{}.vcf'.format(str(chk_sz)),
+                                               check_file_creation(wd,
+                                                                   'chunk_{}.vcf'.format(str(chk_sz))))))
+
+
+def concatenate(flist_in: list, f_out: FilePath, wd: str):
+    """
+
+    :param flist_in:
+    :param f_out:
+    :return:
+    """
+    cmd = ' '.join(['cat',
+                    ' '.join([f for f in flist_in]),
+                    '>',
+                    f_out
+                    ])
+    subprocess.run(cmd, shell=True, cwd=wd)
+    print('{}:\r\n File created? -> {}'.format(os.path.join(wd, f_out),
+                                               check_file_creation(wd, f_out)))
