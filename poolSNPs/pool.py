@@ -476,6 +476,7 @@ class SNPsPool(np.ndarray):
 def process_file(data: VCF, groups: list, f: int, fileout: list) -> None:
     #TODO: clean/refactor execution comments like processed file name
     #TODO: refactor processing lis tof files into single file processing + remove MSS param
+    # data: VCF, groups: list, simul: str, fileout: str
     """
     Computes and rewrites genotypes of all individuals for all samples from input files
     :param data: cyvcf2 object reader pointing on a VCF-file
@@ -483,9 +484,8 @@ def process_file(data: VCF, groups: list, f: int, fileout: list) -> None:
     :param f: integer, index of the file to process in the list
     :param fileout: VCF-files with simulated pooled or randomly missing genotypes
     """
-    print('Missing data: ', prm.MSS[f])
-    print('Pooling: ', prm.POOL[f])
-    print('file out: ', os.path.join(os.getcwd(), fileout[f]))
+    print('Simulation type: ', 'simul')
+    print('file out: ', os.path.join(os.getcwd(), fileout[f]))  # prm.PATH_OUT[simul]
     if prm.GTGL == 'GL' and prm.unknown_gl == 'adaptative':
         dic_header = {'ID': 'GL',
                       'Number': 'G',
@@ -493,9 +493,11 @@ def process_file(data: VCF, groups: list, f: int, fileout: list) -> None:
                       'Description': 'three log10-scaled likelihoods for RR,RA,AA genotypes'}
         data.add_format_to_header(dic_header)
         whead = Writer(fileout[f], data)
+        #TODO: whead = Writer(prm.PATH_OUT[simul], data)
         whead.write_header()
         whead.close()
         w = open(fileout[f], 'ab')
+        #TODO:  w = open(prm.PATH_OUT[simul], 'ab')
         # Load adaptive GL values for missing data
         df = pd.read_csv(os.path.join(prm.WD, 'adaptive_gls.csv'),
                          header=None,
@@ -516,6 +518,7 @@ def process_file(data: VCF, groups: list, f: int, fileout: list) -> None:
 
     else:  # prm.GTGL == 'GT' or fixed GL
         w = Writer(fileout[f], data)
+        #TODO: w = Writer(prm.PATH_OUT[simul], data)
         w.set_threads(4)
         df2dict = None
         sig = None
@@ -535,8 +538,8 @@ def process_file(data: VCF, groups: list, f: int, fileout: list) -> None:
     # GL converted from GT, missing GLs will be filled with [0.33, 0.33, 0.33]
     if prm.GTGL == 'GL' and prm.unknown_gl != 'adaptative':
         alltls.file_likelihood_converter(os.path.join(prm.PATH_GT_FILES,
-                                                      fileout[f].replace('.gl', '.gt')) + '.gz',
-                                         fileout[f])
+                                                      fileout[f].replace('.gl', '.gt')) + '.gz',  # prm.PATH_OUT[simul]
+                                         fileout[f])  # prm.PATH_OUT[simul]
 
 
 def process_line(groups: list, f: int, w: Writer, v: Variant, dict_gl: dict,
@@ -683,8 +686,8 @@ def init_chunk(WD: str, path_in: str, chunk: bool = True, strat: bool = False) -
 
 def run(splits: list, iteration: int) -> None:
     #TODO: that function should take as input params:
-    # * type of simulation for the missing data,
-    # * single file path,
+    # * type of simulation for the missing data: replace iteration + modify comments,
+    # * output file path,
     # *
     for it in iteration:
         # vcf = VCF(os.path.join(prm.WD, 'gt', source), threads=4)

@@ -7,10 +7,10 @@ from scripts.VCFPooling.poolSNPs import pool
 from scripts.VCFPooling.poolSNPs import parameters as prm
 from scripts.VCFPooling.poolSNPs.alleles import alleles_tools as alltls
 
-wd = '/home/camille/1000Genomes/data/tests-beagle'
+wd = '/home/camille/1000Genomes/data/gt/stratified'
 os.chdir(wd)
 
-## Mtx test
+# Data for running tests
 M0 = {'in': np.array([[[0, 0, 1], [0, 0, 1], [0, 0, 1], [0, 0, 1]],
                [[0, 0, 1], [0, 0, 1], [0, 0, 1], [0, 0, 1]],
                [[0, 0, 1], [0, 0, 1], [0, 0, 1], [0, 0, 1]],

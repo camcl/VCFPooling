@@ -95,29 +95,26 @@ def stratified_aaf_sampling(f_gz: str, wd: str, binning: bool = False) -> None:
     """
     os.chdir(wd)
     print(wd)
-    subprocess.run(' '.join(['bcftools',
-                             'view -h -Ov -o',
-                             'headers.ALL.chr20.snps.gt.chunk{}.strat.vcf'.format(prm.CHK_SZ),
-                             os.path.join(prm.DATA_PATH, 'gt', 'ALL.chr20.snps.gt.vcf.gz')
-                             ]),
-                   shell=True, cwd=wd)
+    extract_header(os.path.join(prm.DATA_PATH, 'gt', 'ALL.chr20.snps.gt.vcf.gz'),
+                   'headers.ALL.chr20.snps.gt.chunk{}.strat.vcf'.format(prm.CHK_SZ),
+                   wd)
     bins = np.arange(0.0, 1.0, 0.1)
     for b in bins:
-        print('interval for AAF: [{}, {})'.format(b, b+0.1))
+        print('interval for AAF: [{}, {})'.format(b, b+0.99))  # 0.99 and not 0.1: avoid intervals q/Q overlapping
         cmd1 = ' '.join(['bcftools',
                          'view -Oz -o',
-                         f_gz.replace('.vcf.gz', '.maf_{}_{}.vcf.gz'.format(b, b+0.1)),
-                         '-q {} -Q {}'.format(b, b+0.1),
+                         f_gz.replace('.vcf.gz', '.maf_{}_{}.vcf.gz'.format(b, b+0.99)),
+                         '-q {} -Q {}'.format(b, b+0.99),
                          f_gz
                          ])
-
+        #TODO: what is done here?
         tmp = ' '.join(['cat ./bins_for_chunk10000/chunk{}.vcf'.format(b),
                         '| sort -R | head -{}'.format(prm.CHK_SZ // len(bins)),
                         '> chunk{}.vcf'.format(b)
                         ])  # for generating strat_chunk1000 from strat_chunk10000
 
         cmd2 = ' '.join(['bcftools view -H',
-                         f_gz.replace('.vcf.gz', '.maf_{}_{}.vcf.gz'.format(b, b+0.1)),
+                         f_gz.replace('.vcf.gz', '.maf_{}_{}.vcf.gz'.format(b, b+0.99)),
                          '| sort -R | head -{}'.format(prm.CHK_SZ // len(bins)),
                          '> chunk{}.vcf'.format(b)
                          ])
