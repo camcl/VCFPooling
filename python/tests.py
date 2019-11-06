@@ -102,32 +102,6 @@ M9 = {'in': np.array([[[-1, -1, 1], [-1, -1, 1], [-1, -1, 1], [-1, -1, 1]],
                [[-1, -1, 0], [-1, -1, 0], [-1, -1, 0], [-1, -1, 0]]])}
 
 
-def _pool_decode(M):
-    Z = np.zeros_like(M['in']).reshape((1, 16, 3))
-    oo = pool.SNPsPool()
-    d = oo.design_matrix()
-    f = M['in'].reshape((1, 16, 3))
-
-    pools = np.zeros((1, 8, 3), dtype=int)
-    for i in range(d.shape[0]):
-        cache = d[i,:]
-        poolval = f[:, np.argwhere(cache == 1)].squeeze()
-        pools[:, i, :] = oo.pooling_rules(poolval)
-
-    nb_alt = np.sum(
-        np.apply_along_axis(
-            lambda x: 1 in x,
-            -1,
-            pools[:, :, :-1]
-        )
-    )
-    for i,s in enumerate(f[0]):  # 16
-        p_p = np.argwhere(d[:,i] == 1).flatten()
-        Z[:, i, :] = oo.decoding_rules(pools[:, p_p], nb_alt)
-
-    return Z.reshape((4, 4, 3))
-
-
 def pool_genotypes(d, call):
     """
     Computes genotypes of the different pools.
@@ -152,7 +126,7 @@ def pool_genotypes(d, call):
 def decode_genotypes(d, call, drop=False):
     """
     Recoomputes genotypes of samples with/without pooling/missing data
-    :param pooled_samples: Variant.genotypes
+    :param call: Variant.genotypes
     :return:
     """
     pooled = pool_genotypes(d, call)
@@ -187,6 +161,16 @@ def decode_genotypes(d, call, drop=False):
     return decoded_gt
 
 
+def _pool_decode(M):
+    oo = pool.SNPsPool()
+    d = oo.design_matrix()
+    f = M['in'].reshape((1, 16, 3))
+
+    Z = decode_genotypes(d, f)
+
+    return Z.reshape((4, 4, 3))
+
+
 def _design_based(M):
     oo = pool.SNPsPool()
     d = oo.design_matrix()
@@ -200,6 +184,10 @@ def _design_based(M):
 
 
 def test_pool_decode():
+    """
+    To be run for verifying how pooling works
+    :return:
+    """
     for i, m in enumerate([M0, M1, M2, M3, M4, M5, M6, M7, M8, M9]):
     # for i, m in enumerate([M1]):
         z = _pool_decode(m)
@@ -222,7 +210,7 @@ def test_design_based():
 
 def idx_subsampling():
     samples = VCF('ALL.chr20.snps.gt.vcf.gz').samples
-    subset = numpy.random.choice(samples, size=(16,), replace=False)
+    subset = np.random.choice(samples, size=(16,), replace=False)
     p = np.argwhere(np.isin(np.asarray(samples), subset))
 
     t = np.all(np.asarray(samples)[p].sort() == subset.sort())
@@ -272,9 +260,9 @@ def test_gtgl_converter():
 
 if __name__ == '__main__':
     os.chdir(prm.WD)
-    # test_pool_decode()
+    test_pool_decode()
     # test_design_based()
     # idx_subsampling()
     # cyvcf_threads()
     # test_het_computing()
-    test_gtgl_converter()
+    # test_gtgl_converter()
