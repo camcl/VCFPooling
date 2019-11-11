@@ -27,7 +27,7 @@ path_gl_files = prm.PATH_GL_FILES
 if prm.GTGL == 'GT':
     cd = path_gt_files
 if prm.GTGL == 'GL':
-    if prm.unknown_gl != 'adaptative':
+    if prm.unknown_gl != 'adaptive':
         cd = os.path.join(path_gl_files, 'gl_' + '_'.join(np.around(prm.unknown_gl, decimals=2).astype(str)))
     else:
         cd = os.path.join(path_gl_files, 'gl_adaptive')

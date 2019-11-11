@@ -486,7 +486,7 @@ def process_file(data: VCF, groups: list, f: int, fileout: list) -> None:
     """
     print('Simulation type: ', 'simul')
     print('file out: ', os.path.join(os.getcwd(), fileout[f]))  # prm.PATH_OUT[simul]
-    if prm.GTGL == 'GL' and prm.unknown_gl == 'adaptative':
+    if prm.GTGL == 'GL' and prm.unknown_gl == 'adaptive':
         dic_header = {'ID': 'GL',
                       'Number': 'G',
                       'Type': 'Float',
@@ -536,7 +536,7 @@ def process_file(data: VCF, groups: list, f: int, fileout: list) -> None:
     w.close()
 
     # GL converted from GT, missing GLs will be filled with [0.33, 0.33, 0.33]
-    if prm.GTGL == 'GL' and prm.unknown_gl != 'adaptative':
+    if prm.GTGL == 'GL' and prm.unknown_gl != 'adaptive':
         alltls.file_likelihood_converter(os.path.join(prm.PATH_GT_FILES,
                                                       fileout[f].replace('.gl', '.gt')) + '.gz',  # prm.PATH_OUT[simul]
                                          fileout[f])  # prm.PATH_OUT[simul]
@@ -564,7 +564,7 @@ def process_line(groups: list, f: int, w: Writer, v: Variant, dict_gl: dict,
             i += 1
             p.set_line_values(SAMPLES, var, sig, params, interp)
             #dlt = random_delete(activate=prm.MSS[f])
-            if prm.GTGL == 'GL' and prm.unknown_gl == 'adaptative':
+            if prm.GTGL == 'GL' and prm.unknown_gl == 'adaptive':
                     pooled_samples = p.decode_genotypes_gl(pooled_samples,
                                                            dict_gl)
             else: # prm.GTGL == 'GT' or fixed GL
@@ -576,14 +576,14 @@ def process_line(groups: list, f: int, w: Writer, v: Variant, dict_gl: dict,
             dlt = random_delete(activate=prm.MSS[f])
             idx = np.argwhere(np.isin(SAMPLES, p))
             if dlt:
-                if prm.GTGL == 'GL' and prm.unknown_gl == 'adaptative':
+                if prm.GTGL == 'GL' and prm.unknown_gl == 'adaptive':
                     pooled_samples = pooled_samples.astype(float)  # avoid truncating GL
                     np.put(pooled_samples, idx, np.asarray([1/3, 1/3, 1/3]))
                 else:
                     np.put(pooled_samples, idx, np.asarray([-1, -1, 0]))
 
     if write:
-        if prm.GTGL == 'GL' and prm.unknown_gl == 'adaptative':
+        if prm.GTGL == 'GL' and prm.unknown_gl == 'adaptive':
             logzero = np.vectorize(lambda x: -5.0 if x <= pow(10, -5) else math.log10(x))
             info = ';'.join([kv for kv in ['='.join([str(k), str(v)]) for k, v in var.INFO]])
             gl = alltls.repr_gl_array(logzero(pooled_samples))

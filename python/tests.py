@@ -16,15 +16,15 @@ Each 3D-array element representing the genotype of 1 sample at 1 SNP
 is written in the format [int, int, bool]
 which stands for [allele1, allele2, phased]
 
+Recall alleles can be either 0 (REF allele) or 1 (ALT allele)
+phased = 0 = False if the genotype is unphased, else 1. 
+Note that the phase is NOT taken into account for that study
+
 Ex.
 [1, 1, 0] is homozygous for the ALT allele (score for genotype = 2) and unphased
 [1, 0, 0] is heterozygous (score for genotype = 1) and unphased
 [0, 0, 0] is homozygous for the REF allele (score for genotype = 0) and unphased
 [-1, -1, 0] is unknown (missing genotype) and unphased
-
-Recall alleles can be either 0 (REF allele) or 1 (ALT allele)
-phased = 0 = False if the genotype is unphased, else 1. 
-Note that the phase is taken into account for that study
 """
 
 M0 = {'in': np.array([[[0, 0, 1], [0, 0, 1], [0, 0, 1], [0, 0, 1]],
