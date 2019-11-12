@@ -473,10 +473,11 @@ class SNPsPool(np.ndarray):
 # ## PROCESS SUMMARY
 
 
-def process_file(data: VCF, groups: list, f: int, fileout: list) -> None:
+def process_file(data: VCF, groups: list, simul: str) -> None:
     #TODO: clean/refactor execution comments like processed file name
     #TODO: refactor processing lis tof files into single file processing + remove MSS param
-    # data: VCF, groups: list, simul: str, fileout: str
+    # data: VCF, groups: list, f: int, fileout: list
+    # data: VCF, groups: list, simul: str
     """
     Computes and rewrites genotypes of all individuals for all samples from input files
     :param data: cyvcf2 object reader pointing on a VCF-file
@@ -485,19 +486,17 @@ def process_file(data: VCF, groups: list, f: int, fileout: list) -> None:
     :param fileout: VCF-files with simulated pooled or randomly missing genotypes
     """
     print('Simulation type: ', 'simul')
-    print('file out: ', os.path.join(os.getcwd(), fileout[f]))  # prm.PATH_OUT[simul]
+    print('File out: ', os.path.join(os.getcwd(), fileout[f]))  # prm.PATH_OUT[simul]
     if prm.GTGL == 'GL' and prm.unknown_gl == 'adaptive':
         dic_header = {'ID': 'GL',
                       'Number': 'G',
                       'Type': 'Float',
                       'Description': 'three log10-scaled likelihoods for RR,RA,AA genotypes'}
         data.add_format_to_header(dic_header)
-        whead = Writer(fileout[f], data)
-        #TODO: whead = Writer(prm.PATH_OUT[simul], data)
+        whead = Writer(prm.PATH_OUT[simul], data)
         whead.write_header()
         whead.close()
-        w = open(fileout[f], 'ab')
-        #TODO:  w = open(prm.PATH_OUT[simul], 'ab')
+        w = open(prm.PATH_OUT[simul], 'ab')
         # Load adaptive GL values for missing data
         df = pd.read_csv(os.path.join(prm.WD, 'adaptive_gls.csv'),
                          header=None,
@@ -517,8 +516,7 @@ def process_file(data: VCF, groups: list, f: int, fileout: list) -> None:
         interp = sig.interpolate_derivative()
 
     else:  # prm.GTGL == 'GT' or fixed GL
-        w = Writer(fileout[f], data)
-        #TODO: w = Writer(prm.PATH_OUT[simul], data)
+        w = Writer(prm.PATH_OUT[simul], data)
         w.set_threads(4)
         df2dict = None
         sig = None
@@ -538,12 +536,13 @@ def process_file(data: VCF, groups: list, f: int, fileout: list) -> None:
     # GL converted from GT, missing GLs will be filled with [0.33, 0.33, 0.33]
     if prm.GTGL == 'GL' and prm.unknown_gl != 'adaptive':
         alltls.file_likelihood_converter(os.path.join(prm.PATH_GT_FILES,
-                                                      fileout[f].replace('.gl', '.gt')) + '.gz',  # prm.PATH_OUT[simul]
-                                         fileout[f])  # prm.PATH_OUT[simul]
+                                                      prm.PATH_OUT[simul].replace('.gl', '.gt')) + '.gz',
+                                         prm.PATH_OUT[simul])
 
 
-def process_line(groups: list, f: int, w: Writer, v: Variant, dict_gl: dict,
+def process_line(groups: list, simul: str, w: Writer, v: Variant, dict_gl: dict,
                  sig: object, params: List[float], interp: object, write: bool = True) -> None:
+    #TODO: groups: list, simul: str, v: Variant, dict_gl: dict, sig: object, params: List[float], interp: object, write: bool = True
     """
     From currently pointed variant object:
     Computes and rewrites genotypes of all individual for one sample.
@@ -558,22 +557,21 @@ def process_line(groups: list, f: int, w: Writer, v: Variant, dict_gl: dict,
     for gp in groups[0]:
         sets.append(SNPsPool().set_subset(gp))
 
-    if prm.POOL[f]:  # sig might be not None if adaptive GL
+    if simul == 'pooled':  # sig might be not None if adaptive GL
         i = 1
         for p in sets:
             i += 1
             p.set_line_values(SAMPLES, var, sig, params, interp)
-            #dlt = random_delete(activate=prm.MSS[f])
             if prm.GTGL == 'GL' and prm.unknown_gl == 'adaptive':
                     pooled_samples = p.decode_genotypes_gl(pooled_samples,
                                                            dict_gl)
             else: # prm.GTGL == 'GT' or fixed GL
                 pooled_samples = p.decode_genotypes_gt(pooled_samples)
 
-    else:  # randomly missing simulation. Refactor with boolean MISS param
+    else:  # randomly missing simulation
         for p in sets:
             p.set_line_values(SAMPLES, var)
-            dlt = random_delete(activate=prm.MSS[f])
+            dlt = random_delete(activate=True)
             idx = np.argwhere(np.isin(SAMPLES, p))
             if dlt:
                 if prm.GTGL == 'GL' and prm.unknown_gl == 'adaptive':
@@ -584,6 +582,8 @@ def process_line(groups: list, f: int, w: Writer, v: Variant, dict_gl: dict,
 
     if write:
         if prm.GTGL == 'GL' and prm.unknown_gl == 'adaptive':
+            # cyvcf2.Variant.genotypes does not handle GL-format
+            # customize line format for GL
             logzero = np.vectorize(lambda x: -5.0 if x <= pow(10, -5) else math.log10(x))
             info = ';'.join([kv for kv in ['='.join([str(k), str(v)]) for k, v in var.INFO]])
             gl = alltls.repr_gl_array(logzero(pooled_samples))
@@ -602,6 +602,7 @@ def process_line(groups: list, f: int, w: Writer, v: Variant, dict_gl: dict,
             stream = towrite.encode()
             w.write(stream)
         else:
+            # cyvcf2.Variant.genotypes does handle GT-format
             var.genotypes = pooled_samples.tolist()
             w.write_record(var)
 
@@ -684,19 +685,17 @@ def init_chunk(WD: str, path_in: str, chunk: bool = True, strat: bool = False) -
     return splits
 
 
-def run(splits: list, iteration: int) -> None:
+def run(splits: list, sim: str) -> None:
     #TODO: that function should take as input params:
     # * type of simulation for the missing data: replace iteration + modify comments,
     # * output file path,
     # *
-    for it in iteration:
-        # vcf = VCF(os.path.join(prm.WD, 'gt', source), threads=4)
-        vcf = VCF(os.path.join(prm.PATH_GT_FILES, prm.CHKFILE), threads=nb_cores)
-        print('Iteration --> ', it)
-        start = time.time()
-        process_file(vcf, splits, it, prm.PATH_OUT)
-        stop = time.time()
-        print('Elapsed time for pooling the VCF files: {:06.2f} sec'.format(stop - start))
+    vcf = VCF(os.path.join(prm.PATH_GT_FILES, prm.CHKFILE), threads=nb_cores)
+    print('File to write to --> ', prm.PATH_OUT[sim])
+    start = time.time()
+    process_file(vcf, splits, sim)
+    stop = time.time()
+    print('Elapsed time for pooling the VCF files: {:06.2f} sec'.format(stop - start))
 
 
 def write_truncate_vcf(path_in: str, path_out: str, trunc: int) -> int:

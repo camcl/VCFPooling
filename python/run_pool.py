@@ -25,8 +25,8 @@ data = VCF(os.path.join(prm.WD, 'gt', source), threads=nb_cores)
 
 SAMPLES = data.samples
 
-pool.run(groups, range(2))
-# run(groups, [1])
+for sim in prm.PATH_OUT.keys():
+    pool.run(groups, sim)
 
 if subset:
     pool.subset_chunked_vcf(CD, source, PATH_OUT, CHK_SZ, prm.SUBCHUNK)
