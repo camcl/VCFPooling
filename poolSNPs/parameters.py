@@ -67,7 +67,6 @@ PATH_GL_FILES = os.path.join(DATA_PATH, 'gl')
 SRCFILE = 'ALL.chr20.snps.gt.vcf.gz'
 # PATH_OUT = ['ALL.chr20.pooled.snps.{}.chunk{}.vcf'.format(GTGL.lower(), CHK_SZ),
 #             'ALL.chr20.missing.snps.{}.chunk{}.vcf'.format(GTGL.lower(), CHK_SZ)]
-#TODO:
 PATH_OUT = {'pooled': 'ALL.chr20.pooled.snps.{}.chunk{}.vcf'.format(GTGL.lower(), CHK_SZ),
             'missing': 'ALL.chr20.missing.snps.{}.chunk{}.vcf'.format(GTGL.lower(), CHK_SZ)}
 MSS = [False, True]

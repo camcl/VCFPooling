@@ -5,9 +5,9 @@ from cyvcf2 import VCF
 from scripts.VCFPooling.poolSNPs import pool
 # from scripts.VCFPooling.poolSNPs import parameters as prm
 # from scripts.VCFPooling.poolSNPs.alleles import alleles_tools as alltls
-
-wd = '/home/camille/1000Genomes/data/gt/stratified'
-os.chdir(wd)
+#
+# wd = '/home/camille/1000Genomes/data/gt/stratified'
+# os.chdir(wd)
 
 # Data for running tests
 """

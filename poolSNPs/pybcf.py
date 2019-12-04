@@ -232,3 +232,20 @@ def concatenate(flist_in: list, f_out: FilePath, wd: str):
     subprocess.run(cmd, shell=True, cwd=wd)
     print('{}:\r\n File created? -> {}'.format(os.path.join(wd, f_out),
                                                check_file_creation(wd, f_out)))
+
+
+def get_first_pos(f: FilePath, wd: str):
+    """
+    Return position of the first variant in the file
+    :param f:
+    :param wd:
+    :return:
+    """
+    cmd = ' '.join(['bcftools query -f',
+                    '"%CHROM:%POS\n"',
+                    f,
+                    '| ghead -1'
+                    ])
+    process = subprocess.run(cmd, shell=True, cwd=wd, capture_output=True)
+    return process.stdout
+

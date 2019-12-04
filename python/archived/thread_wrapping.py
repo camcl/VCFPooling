@@ -2,8 +2,8 @@ import os
 import threading
 from queue import Queue
 import inspect
-from scripts.poolSNPs.alleles import alleles_tools as alltls
-from scripts.poolSNPs import parameters as prm
+from scripts.VCFPooling.poolSNPs.alleles import alleles_tools as alltls
+from scripts.VCFPooling.poolSNPs import parameters as prm
 
 chk_sz = prm.CHK_SZ
 
@@ -56,7 +56,7 @@ def read_queue(s): # 2 queues: 1 for pushing input, 1 for getting results
     return out_t
 
 if __name__ == '__main__':
-    os.chdir('/home/camille/1000Genomes/data/tests-beagle')
+    os.chdir('/home/camilleclouard/PycharmProjects/1000Genomes/data/tests-beagle')
     set = 'missing'
     o = read_queue(set)
     d = {**o[0], **o[1]}

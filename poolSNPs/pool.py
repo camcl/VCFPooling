@@ -135,6 +135,7 @@ class SNPsPool(np.ndarray):
         return design
 
     def set_subset(self, subset: np.ndarray) -> np.ndarray:
+        # TODO: refactor with more sel-explanatory name
         """
         Fills the pooling matrix according to the (default) design
         and the input list of samples.
@@ -185,6 +186,7 @@ class SNPsPool(np.ndarray):
     def set_line_values(self, samples: list, variant: Variant,
                         sig: object = None,
                         params: List[float] = [], interp: object = None) -> None:
+        # TODO: refactor with property decorator
         """
         Attach sigmoid-transformed alternate allele frequencies to the current variant.
         :param samples: samples identifiers from the VCF-file
@@ -475,9 +477,6 @@ class SNPsPool(np.ndarray):
 
 def process_file(data: VCF, groups: list, simul: str) -> None:
     #TODO: clean/refactor execution comments like processed file name
-    #TODO: refactor processing lis tof files into single file processing + remove MSS param
-    # data: VCF, groups: list, f: int, fileout: list
-    # data: VCF, groups: list, simul: str
     """
     Computes and rewrites genotypes of all individuals for all samples from input files
     :param data: cyvcf2 object reader pointing on a VCF-file
@@ -485,8 +484,8 @@ def process_file(data: VCF, groups: list, simul: str) -> None:
     :param f: integer, index of the file to process in the list
     :param fileout: VCF-files with simulated pooled or randomly missing genotypes
     """
-    print('Simulation type: ', 'simul')
-    print('File out: ', os.path.join(os.getcwd(), fileout[f]))  # prm.PATH_OUT[simul]
+    print('Simulation type: ', simul)
+    print('File out: ', os.path.join(os.getcwd(), prm.PATH_OUT[simul]))  # prm.PATH_OUT[simul]
     if prm.GTGL == 'GL' and prm.unknown_gl == 'adaptive':
         dic_header = {'ID': 'GL',
                       'Number': 'G',
@@ -526,7 +525,7 @@ def process_file(data: VCF, groups: list, simul: str) -> None:
     tm = time.time()
     # for n, variant in enumerate(data('20:59973567-59973568')):
     for n, variant in enumerate(data):
-        process_line(groups, f, w, variant, df2dict, sig, params, interp)
+        process_line(groups, simul, w, variant, df2dict, sig, params, interp)
         if n % 1000 == 0:
             print('{} variants processed in {:06.2f} sec'.format(n+1, time.time()-tm).ljust(80, '.'))
         # if n+1 == 1000:
@@ -542,7 +541,7 @@ def process_file(data: VCF, groups: list, simul: str) -> None:
 
 def process_line(groups: list, simul: str, w: Writer, v: Variant, dict_gl: dict,
                  sig: object, params: List[float], interp: object, write: bool = True) -> None:
-    #TODO: groups: list, simul: str, v: Variant, dict_gl: dict, sig: object, params: List[float], interp: object, write: bool = True
+    #TODO: comments to add
     """
     From currently pointed variant object:
     Computes and rewrites genotypes of all individual for one sample.
@@ -690,6 +689,12 @@ def run(splits: list, sim: str) -> None:
     # * type of simulation for the missing data: replace iteration + modify comments,
     # * output file path,
     # *
+    """
+
+    :param splits:
+    :param sim:
+    :return:
+    """
     vcf = VCF(os.path.join(prm.PATH_GT_FILES, prm.CHKFILE), threads=nb_cores)
     print('File to write to --> ', prm.PATH_OUT[sim])
     start = time.time()
@@ -699,6 +704,13 @@ def run(splits: list, sim: str) -> None:
 
 
 def write_truncate_vcf(path_in: str, path_out: str, trunc: int) -> int:
+    """
+
+    :param path_in:
+    :param path_out:
+    :param trunc:
+    :return:
+    """
     w = Writer(path_out, VCF(path_in, threads=nb_cores))
     for i, v in enumerate(VCF(path_in, threads=nb_cores)):
         if i == trunc:
@@ -709,6 +721,15 @@ def write_truncate_vcf(path_in: str, path_out: str, trunc: int) -> int:
 
 
 def subset_chunked_vcf(wd: str, src: str, path_out: str, chz_sz: int, trc: int) -> None:
+    """
+    
+    :param wd:
+    :param src:
+    :param path_out:
+    :param chz_sz:
+    :param trc:
+    :return:
+    """
     for fi in path_out:
         delete_file(fi.replace('chunk' + str(chz_sz), 'chunk' + str(trc)) + '.gz.csi')
         print('Creating subchunk file for {}'.format(fi).ljust(80, '.'))
