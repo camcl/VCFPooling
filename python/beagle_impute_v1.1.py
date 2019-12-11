@@ -18,7 +18,18 @@ Run Beagle.
 
 v1.1: run imputation for single sample, one by one. (Compare with imputation on all together)
 v1.1.1: implement multiprocessing
+
+Steps:
+* (transfer codes: different script)
+* (transfer raw and pooled files to the server (adaptive GL schemes only): different script)
+* split into reference panel (REF) and study population (IMP)
+* split IMP into individual files
+* phase and imput every individual file
+* merge imputed files
+* (transfer to local computer: different script)
 '''
+
+# TODO: REF-file access competition/restricted? use a queuing system with a simple for loop?
 
 ### PARAMETERS
 chk_sz = prm.CHK_SZ
@@ -37,27 +48,16 @@ os.chdir(cd)
 
 raw = NamedDict('raw', list(prm.RAW.keys()), list(prm.RAW.values()))
 pooled = NamedDict('pooled', list(prm.POOLED.keys()), list(prm.POOLED.values()))
-missing = NamedDict('missing', list(prm.MISSING.keys()), list(prm.MISSING.values()))
-subset = prm.SUBSET #if susbset get the first 1000 lines to recreate ech method file: pooled, missing etc
-trc = prm.SUBCHUNK
 
 print('Start processing files for running BEAGLE'.ljust(80, '.'))
-
-if subset:
-    print('Subset main set in {}'.format(os.getcwd()).ljust(80, '.'))
-    for dic in [pooled, missing, raw]:
-        for k, v in dic.items():
-            dic[k] = v.replace('chunk' + str(chk_sz), 'chunk' + str(trc))
-
+"""
 ### BGZIP ALL
-for dic in [pooled, missing]:
-    bgltls.bgzip_working_files(dic, path_gt_files, path_gl_files, cd)
+bgltls.bgzip_working_files(pooled, path_gt_files, path_gl_files, cd)
 
 ### REF/IMP SAMPLING
 bgltls.create_ref_imp_lists(cd, sizeref=prm.NB_REF, sizeimp=prm.NB_IMP)
 
 for (folder, dic) in tuple([(cd, pooled),
-                            (cd, missing),
                             (path_gt_files, raw)]):
     bgltls.partition_imp((folder, dic), total_ref=False)
 
@@ -65,8 +65,7 @@ bgltls.partition_ref(raw, path_gt_files)
 
 for (folder, f) in tuple([(path_gt_files, raw['imp']),
                           (path_gt_files, raw['ref']),
-                          (cd, pooled['imp']),
-                          (cd, missing['imp'])]):
+                          (cd, pooled['imp'])]):
     pybcf.sort(f, folder)
     pybcf.index(f, folder)
 
@@ -85,12 +84,7 @@ if prm.GTGL == 'G':
     pybcf.sort(raw['ref'], cd)
     pybcf.index(raw['ref'], cd)
     delete_file(raw['ref'][:-3])
-
-### BEAGLE ROUND#1: (GL to GT and) PHASING
-for dic in [raw, pooled, missing]:
-    bgltls.beagle_haplo_to_geno()
-    bgltls.beagle_phasing(dic, path_gt_files, cd)
-
+"""
 """
 Important note!
 
@@ -103,53 +97,66 @@ Alternative: queue module
 """
 ### REFINE SAMPLES OR MARKERS TO IMPUTE
 snp_to_rm: List[str] = []
-idv_to_keep: List[str] = VCF(os.path.join(path_gt_files, raw['imp'])).samples
+idv_to_keep: List[str] = VCF(os.path.join(path_gt_files, raw['imp'])).samples[0:3]
+# .samples[0:1] gets only the first sample into a list i.e. ['NA18960']
+# .samples[0] gets only the first sample as a string i.e. 'NA18960'
+print(idv_to_keep)
 
-for dic in [pooled, missing]:
-    if len(snp_to_rm) > 0:
-        args = list(zip(repeat(dic, len(snp_to_rm)),
-                        repeat(cd, len(snp_to_rm)),
-                        snp_to_rm))
-        path_out = list(starmap(bgltls.switch_off_markers, args))
-    elif len(idv_to_keep) > 0:
-        args = list(zip(repeat(dic, len(idv_to_keep)),
-                        repeat(cd, len(idv_to_keep)),
-                        idv_to_keep))
-        path_out = list(starmap(bgltls.keep_single_sample, args))
-    else:
-        path_out = bgltls.all_snps_all_samples(dic, cd)
+if len(snp_to_rm) > 0:
+    args = list(zip(repeat(pooled, len(snp_to_rm)),
+                    repeat(cd, len(snp_to_rm)),
+                    snp_to_rm))
+    path_out = list(starmap(bgltls.switch_off_markers, args))
+elif len(idv_to_keep) > 0:
+    args = list(zip(repeat(pooled, len(idv_to_keep)),
+                    repeat(cd, len(idv_to_keep)),
+                    idv_to_keep))
+    path_out = list(starmap(bgltls.keep_single_sample, args))
+else:
+    path_out = bgltls.all_snps_all_samples(pooled, cd)
+
+### BEAGLE ROUND#1: (GL to GT and) PHASING
+# TODO: bgltls.beagle_phasing(raw, path_gt_files, cd)
+args = list(zip(repeat(pooled, len(path_out)),
+                repeat(path_gt_files, len(path_out)),
+                path_out))
+for arg in args:
+   bgltls.beagle_phasing(*arg)  # _ = all(starmap(
 
 ### CONFORM-GT
 # conform-gt algo should be used if REF and IMP datasets contain different sets of markers
 # chrom-POS: min and max from the original file
-for dic in [pooled, missing]:
-    args = list(zip(repeat(dic, len(path_out)),
-                    repeat(raw, len(path_out)),
-                    path_out))
-    _ = all(starmap(bgltls.conform_gt, args))
+args = list(zip(repeat(pooled, len(path_out)),
+                repeat(raw, len(path_out)),
+                path_out))
+_ = all(starmap(bgltls.conform_gt, args))
 
 ### BEAGLE (ROUND#2): IMPUTING
-for dic in [pooled, missing]:
-    args = list(zip(repeat(dic, len(path_out)),
-                    repeat(raw, len(path_out)),
-                    path_out))
-    _ = all(starmap(bgltls.beagle_imputing, args))
+args = list(zip(repeat(pooled, len(path_out)),
+                repeat(raw, len(path_out)),
+                path_out))
+_ = all(starmap(bgltls.beagle_imputing, args))
+# for arg in args:
+#     bgltls.beagle_imputing(*arg)  # _ = all(starmap(
+
+# error: /bin/sh: 1: bgzip: not found
+# bgzip is in the tabix package (not to confound with bzip2)
+# sudo apt-get install tabix
+# on Rackham: module load bioinfo-tools && module load tabix/0.2.6
 
 ### FIX DS AND GP FORMAT FIELDS, SORT OUT GT
-for dic in [pooled, missing]:
-    args = list(zip(repeat(dic, len(path_out)),
-                    path_out))
-    _ = all(starmap(bgltls.reformat_fields, args))
+args = list(zip(repeat(pooled, len(path_out)),
+                path_out))
+_ = all(starmap(bgltls.reformat_fields, args))
 
 _ = all(map(bgltls.clean_imputed_directory, path_out))
 _ = bgltls.clean_imputed_directory(cd)
 
 ### MERGE UNIT FILES TOGETHER
-for dic in [pooled, missing]:
-    files2merge = list([os.path.join('../keeponly_{}'.format(n),
-                                     'IMP.chr20.{}.imputed.gt.chunk10000.vcf.gz'.format(dic.name)
-                                     )
-                        for n in idv_to_keep])
-    _ = bgltls.merge_files(files2merge,
-                           'IMP.chr20.{}.imputed.gt.chunk10000.vcf.gz'.format(dic.name),
-                           cd)
+files2merge = list([os.path.join('../keeponly_{}'.format(n),
+                                 'IMP.chr20.{}.imputed.gt.chunk10000.vcf.gz'.format(pooled.name)
+                                 )
+                    for n in idv_to_keep])
+_ = bgltls.merge_files(files2merge,
+                       'IMP.chr20.{}.imputed.gt.chunk10000.vcf.gz'.format(pooled.name),
+                       cd)

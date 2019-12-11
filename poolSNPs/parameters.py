@@ -57,7 +57,7 @@ SCRIPTS_PATH = os.path.join(ROOT, 'scripts')
 
 ### pool.py
 GTGL = 'GL'  # GT else: GL
-CHK_SZ = 1000
+CHK_SZ = 10000
 SUBCHUNK = 1000
 WD = os.path.join(DATA_PATH)
 
