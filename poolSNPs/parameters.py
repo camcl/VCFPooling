@@ -65,20 +65,22 @@ PATH_GT_FILES = os.path.join(DATA_PATH, 'gt', 'stratified')
 PATH_GL_FILES = os.path.join(DATA_PATH, 'gl')
 
 SRCFILE = 'ALL.chr20.snps.gt.vcf.gz'
-PATH_OUT = ['ALL.chr20.pooled.snps.{}.chunk{}.vcf'.format(GTGL.lower(), CHK_SZ),
-            'ALL.chr20.missing.snps.{}.chunk{}.vcf'.format(GTGL.lower(), CHK_SZ)]
+# PATH_OUT = ['ALL.chr20.pooled.snps.{}.chunk{}.vcf'.format(GTGL.lower(), CHK_SZ),
+#             'ALL.chr20.missing.snps.{}.chunk{}.vcf'.format(GTGL.lower(), CHK_SZ)]
+PATH_OUT = {'pooled': 'ALL.chr20.pooled.snps.{}.chunk{}.vcf'.format(GTGL.lower(), CHK_SZ),
+            'missing': 'ALL.chr20.missing.snps.{}.chunk{}.vcf'.format(GTGL.lower(), CHK_SZ)}
 MSS = [False, True]
 POOL = [True, False]
 CHKFILE = 'ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(CHK_SZ)
 
-# unknown_gl = [1/3, 1/3, 1/3]
+unknown_gl = [1/3, 1/3, 1/3]
 # unknown_gl = [0.2, 0.4, 0.4]
 # unknown_gl = [0.02, 0.49, 0.49]
 # unknown_gl = [0.02, 0.59, 0.39]
 # unknown_gl = [0.02, 0.39, 0.59]
 # unknown_gl = [0.02, 0.501, 0.479]
 # unknown_gl = [0.02, 0.51, 0.47]
-unknown_gl = 'adaptative'
+unknown_gl = 'adaptive'
 
 
 

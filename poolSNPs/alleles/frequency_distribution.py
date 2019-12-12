@@ -17,9 +17,9 @@ class SigmoidInterpolator(object):
 
     """
     def __init__(self, file_true_aaf, file_twist_aaf):
-        aaf_true = alltls.PandasVCF(file_true_aaf, indextype='chrom:pos').aaf()
-        aaf_twist = alltls.PandasVCF(file_twist_aaf, indextype='chrom:pos').aaf()
-        aaf = aaf_true.join(aaf_twist, how='inner', rsuffix='_pooled')
+        aaf_true = alltls.PandasVCF(file_true_aaf, indextype='chrom:pos').aaf
+        aaf_twist = alltls.PandasVCF(file_twist_aaf, indextype='chrom:pos').aaf
+        aaf = aaf_true.to_frame().join(aaf_twist, how='inner', rsuffix='_pooled')
         aaf = aaf.sort_values('aaf_pooled', axis=0)
         self.aaf = aaf.drop_duplicates(subset='aaf_pooled', keep='first')
 
@@ -191,7 +191,23 @@ def plot_sigmoid_aaf(plot=False):
         plt.show()
 
 
+def expected_decodability(nb_samples: int = 16, fqc: np.ndarray = np.linspace(0.0, 1.0, 100), d: int = 1):
+    """
+
+    :param nb_samples: number of items in the pool
+    :param fqc: array of ALT allele frequencies
+    :param d: decoding robustness
+    :return:
+    """
+    e_pos = nb_samples * fqc
+    plt.plot(fqc, e_pos, color='b', label='expected number of ALT carriers per pool')
+    plt.axhline(y=d, xmin=0.0, xmax=1.0, color='k', linestyle='--', label='decoding robustness')
+    plt.xlabel('ALT allele frequency')
+    plt.show()
+
+
 if __name__ == '__main__':
     # write_sigmoid_csv()
     # convolve_gl()
-    plot_sigmoid_aaf()
+    #plot_sigmoid_aaf()
+    expected_decodability()

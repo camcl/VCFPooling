@@ -95,29 +95,26 @@ def stratified_aaf_sampling(f_gz: str, wd: str, binning: bool = False) -> None:
     """
     os.chdir(wd)
     print(wd)
-    subprocess.run(' '.join(['bcftools',
-                             'view -h -Ov -o',
-                             'headers.ALL.chr20.snps.gt.chunk{}.strat.vcf'.format(prm.CHK_SZ),
-                             os.path.join(prm.DATA_PATH, 'gt', 'ALL.chr20.snps.gt.vcf.gz')
-                             ]),
-                   shell=True, cwd=wd)
+    extract_header(os.path.join(prm.DATA_PATH, 'gt', 'ALL.chr20.snps.gt.vcf.gz'),
+                   'headers.ALL.chr20.snps.gt.chunk{}.strat.vcf'.format(prm.CHK_SZ),
+                   wd)
     bins = np.arange(0.0, 1.0, 0.1)
     for b in bins:
-        print('interval for AAF: [{}, {})'.format(b, b+0.1))
+        print('interval for AAF: [{}, {})'.format(b, b+0.99))  # 0.99 and not 0.1: avoid intervals q/Q overlapping
         cmd1 = ' '.join(['bcftools',
                          'view -Oz -o',
-                         f_gz.replace('.vcf.gz', '.maf_{}_{}.vcf.gz'.format(b, b+0.1)),
-                         '-q {} -Q {}'.format(b, b+0.1),
+                         f_gz.replace('.vcf.gz', '.maf_{}_{}.vcf.gz'.format(b, b+0.99)),
+                         '-q {} -Q {}'.format(b, b+0.99),
                          f_gz
                          ])
-
+        #TODO: what is done here?
         tmp = ' '.join(['cat ./bins_for_chunk10000/chunk{}.vcf'.format(b),
                         '| sort -R | head -{}'.format(prm.CHK_SZ // len(bins)),
                         '> chunk{}.vcf'.format(b)
                         ])  # for generating strat_chunk1000 from strat_chunk10000
 
         cmd2 = ' '.join(['bcftools view -H',
-                         f_gz.replace('.vcf.gz', '.maf_{}_{}.vcf.gz'.format(b, b+0.1)),
+                         f_gz.replace('.vcf.gz', '.maf_{}_{}.vcf.gz'.format(b, b+0.99)),
                          '| sort -R | head -{}'.format(prm.CHK_SZ // len(bins)),
                          '> chunk{}.vcf'.format(b)
                          ])
@@ -181,14 +178,74 @@ def rename_samples(file_in: str, file_out:str, wd: str, suffix:str) -> None:
     # delete_file(os.path.join(wd, 'tmp.samples.set_names.txt'))
 
 
-if __name__ == '__main__':
-    pass
-    # os.chdir(prm.WD + '/gt')
-    # print(os.getcwd())
-    # mkdir(os.path.join(prm.DATA_PATH,
-    #                    'gt',
-    #                    'stratified'))
-    # stratified_aaf_sampling(prm.PATH_IN,
-    #                         os.path.join(prm.DATA_PATH,
-    #                                      'gt',
-    #                                      'stratified'))
+def extract_header(f_gz: str, f_head: str, wd: str) -> None:
+    """
+    Extract header from VCF to uncompressed VCF format (text file)
+    :param f_gz: input vcf.gz file name
+    :param f_head: output vcf file name
+    :param wd: path to working directory
+    :return: None
+    """
+    cmd = ' '.join(['bcftools',
+                    'view -h -Ov -o',
+                    f_head,
+                    f_gz
+                    ])
+    subprocess.run(cmd, shell=True, cwd=wd)
+    print('{}:\r\n File created? -> {}'.format(os.path.join(wd, f_head),
+                                               check_file_creation(wd, f_head)))
+
+
+def chunk_markers(f_gz: str, chk_sz: int, wd: str) -> None:
+    """
+
+    :param f_gz:
+    :param chk_sz:
+    :param wd:
+    :return:
+    """
+    cmd = ' '.join(['bcftools',
+                    'view -H',
+                    f_gz,
+                    '| sort -R | head -{}'.format(str(chk_sz)),
+                    '> chunk_{}.vcf'.format(str(chk_sz))
+                    ])
+    subprocess.run(cmd, shell=True, cwd=wd)
+    print('{}:\r\n File created? -> {}'.format(os.path.join(wd,
+                                                            'chunk_{}.vcf'.format(str(chk_sz)),
+                                               check_file_creation(wd,
+                                                                   'chunk_{}.vcf'.format(str(chk_sz))))))
+
+
+def concatenate(flist_in: list, f_out: FilePath, wd: str):
+    """
+
+    :param flist_in:
+    :param f_out:
+    :return:
+    """
+    cmd = ' '.join(['cat',
+                    ' '.join([f for f in flist_in]),
+                    '>',
+                    f_out
+                    ])
+    subprocess.run(cmd, shell=True, cwd=wd)
+    print('{}:\r\n File created? -> {}'.format(os.path.join(wd, f_out),
+                                               check_file_creation(wd, f_out)))
+
+
+def get_first_pos(f: FilePath, wd: str):
+    """
+    Return position of the first variant in the file
+    :param f:
+    :param wd:
+    :return:
+    """
+    cmd = ' '.join(['bcftools query -f',
+                    '"%CHROM:%POS\n"',
+                    f,
+                    '| ghead -1'
+                    ])
+    process = subprocess.run(cmd, shell=True, cwd=wd, capture_output=True)
+    return process.stdout
+

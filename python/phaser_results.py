@@ -10,14 +10,14 @@ from persotools.files import delete_file
 
 '''
 Phaser C++ code run on pooled samples for 10000 stratified markers.
-Imputation on GL filled with adaptative values.
+Imputation on GL filled with adaptive values.
 1 file per sample as output, with 1 relevant column
 Files location:
 /proj/snic2019-8-164/private/Phaser/Camille_out6
 
 1) Select the relevant column for each sample: bcftools view -Oz -o <file_out> -s<ID_SAMPLE> <file_in> 
 2) Merge the columns in 1 vcf.gz file named: prm.POOLED['gt-only']
-3) Copy the remote directory to local directory gl/gl_adaptative/phaser
+3) Copy the remote directory to local directory gl/gl_adaptive/phaser
 4) Plot results
 '''
 
@@ -33,7 +33,7 @@ remote_fname = 'IMP.chr20.pooled.snps.gl.chunk10000.full_{}.genos.vcf.gz'
 # Read and index samples IDs from the file send
 inputpath = pathlib.PurePath('/home/camille/1000Genomes/data/chunk10000_stratifiedAAF_20190822')
 inputfile = 'IMP.chr20.pooled.snps.gl.chunk10000.vcf.gz'
-outputpath = pathlib.PurePath(localpath, 'data', 'gl', 'gl_adaptative', 'phaser')
+outputpath = pathlib.PurePath(localpath, 'data', 'gl', 'gl_adaptive', 'phaser')
 sampleslist = VCF(str(pathlib.PurePath(inputpath, inputfile))).samples
 sampleslist = list([s.strip('_IMP') for s in sampleslist])
 # e.g. HG01125_IMP to HG01125, no suffix in remote folder
@@ -80,7 +80,7 @@ if remote:
 if local:
     print('\nLocal processing in {}'.format(localpath))
     mkphaser = ' '.join(['cd',
-                         os.path.join(str(localpath), 'data', 'gl', 'gl_adaptative'),
+                         os.path.join(str(localpath), 'data', 'gl', 'gl_adaptive'),
                          '&&'])
                          # 'mkdir phaser'])
     scp = ' '.join(['scp',

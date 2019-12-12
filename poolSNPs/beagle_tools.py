@@ -136,6 +136,8 @@ def beagle_haplo_to_geno() -> None:
 
 def beagle_phasing(dic: dict, path_gt_files: str, cd: str) -> None:
     print('\n\nBEAGLE ROUND#1'.ljust(80, '.'))
+    os.chdir(cd)
+    print('Directory: ', cd)
 
     if dic.name == 'raw':
         delete_file(dic['b1r'] + '.vcf.gz')
@@ -195,13 +197,16 @@ def switch_off_markers(dic: Dict[str, str], cd: str, rm_snp: str) -> str:
     path_out = os.path.join(cd, 'rm_20:{}'.format(rm_snp))
     cmd = ' '.join(['bcftools view -e POS={}'.format(rm_snp),
                     '-Oz -o',
-                    os.path.join(path_out, dic['b1'] + '.vcf.gz'),
-                    dic['b1'] + '.vcf.gz'
+                    # os.path.join(path_out, dic['b1'] + '.vcf.gz'),
+                    # dic['b1'] + '.vcf.gz'
+                    os.path.join(path_out, dic['imp']),
+                    dic['imp']
                     ])
 
     subprocess.run(cmd, shell=True, cwd=cd)
 
-    pybcf.index(dic['b1'] + '.vcf.gz', path_out)
+    # pybcf.index(dic['b1'] + '.vcf.gz', path_out)
+    pybcf.index(dic['imp'], path_out)
 
     return path_out
 
@@ -211,13 +216,16 @@ def keep_single_sample(dic: Dict[str, str], cd: str, sample_name: str) -> str:
     path_out = os.path.join(cd, 'keeponly_{}'.format(sample_name))
     cmd = ' '.join(['bcftools view -s {}'.format(sample_name),
                     '-Oz -o',
-                    os.path.join(path_out, dic['b1'] + '.vcf.gz'),
-                    dic['b1'] + '.vcf.gz'
+                    # os.path.join(path_out, dic['b1'] + '.vcf.gz'),
+                    # dic['b1'] + '.vcf.gz'
+                    os.path.join(path_out, dic['imp']),
+                    dic['imp']
                     ])
 
     subprocess.run(cmd, shell=True, cwd=cd)
 
-    pybcf.index(dic['b1'] + '.vcf.gz', path_out)
+    # pybcf.index(dic['b1'] + '.vcf.gz', path_out)
+    pybcf.index(dic['imp'], path_out)
 
     return path_out
 
@@ -227,13 +235,16 @@ def all_snps_all_samples(dic: Dict[str, str], cd: str) -> str:
     path_out = os.path.join(cd, 'all_snps_all_samples')
     cmd = ' '.join(['bcftools view',
                     '-Oz -o',
-                    os.path.join(path_out, dic['b1'] + '.vcf.gz'),
-                    dic['b1'] + '.vcf.gz'
+                    # os.path.join(path_out, dic['b1'] + '.vcf.gz'),
+                    # dic['b1'] + '.vcf.gz'
+                    os.path.join(path_out, dic['imp']),
+                    dic['imp']
                     ])
 
     subprocess.run(cmd, shell=True, cwd=cd)
 
-    pybcf.index(dic['b1'] + '.vcf.gz', path_out)
+    # pybcf.index(dic['b1'] + '.vcf.gz', path_out)
+    pybcf.index(dic['imp'], path_out)
 
     return path_out
 
@@ -314,15 +325,35 @@ def clean_imputed_directory(cd: str) -> bool:
     return True
 
 
-def merge_files(flist: list, f_out: str, cd: str):
-    mkdir('./single_samples_merged')
-    os.chdir(os.path.join(cd, 'single_samples_merged'))
-    files = ' '.join(flist)
-    cmd = ' '.join(['bcftools merge',
+def move_file_to(f_in: str, f_out: str, cd: str):
+    # cd: path to out directory
+    cmd = ' '.join(['bcftools view',
                     '-Oz -o',
                     f_out,
-                    files
+                    f_in
                     ])
+    print(cmd)
+    subprocess.run(cmd, shell=True, cwd=cd)
+    pybcf.index(f_out, cd)
+
+    return check_file_creation(os.getcwd(), f_out)
+
+
+def merge_files(pattern: str, f_out: str, cd: str):
+    mkdir(os.path.join(cd, 'single_samples_merged'))
+    os.chdir(os.path.join(cd, 'single_samples_merged'))
+    # with open('files2merge.txt', mode='w+', encoding='utf-8') as f:
+    #     for line in flist:
+    #         f.write(line)
+    #         f.write('\n')
+    # files = ' '.join(flist)
+    cmd = ' '.join(['bcftools merge',
+                    pattern,
+                    '-Oz -o',
+                    f_out,
+                    #files
+                    ])
+    print(cmd)
     subprocess.run(cmd, shell=True, cwd=os.getcwd())
     pybcf.index(f_out, os.getcwd())
 

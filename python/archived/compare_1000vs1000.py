@@ -1,5 +1,7 @@
-from scripts.python.results import *
-from scripts.poolSNPs import parameters as prm
+import itertools
+from scripts.VCFPooling.poolSNPs.alleles import alleles_tools as alltls
+from scripts.VCFPooling.poolSNPs.results import *
+from scripts.VCFPooling.poolSNPs import parameters as prm
 from persotools.files import *
 from persotools.debugging import *
 
@@ -33,7 +35,7 @@ def plot_test(df_maf, col_set):
 
     lin_maf, ax_lin = plt.subplots()
     for a, k_set in enumerate(col_set):
-        colors = tuple(numpy.random.rand(4))
+        colors = tuple(np.random.rand(4))
         df_maf.plot.line(x='maf',
                          y='preimp_' + k_set,
                          ax = ax_lin,
@@ -87,10 +89,8 @@ if __name__ == '__main__':
 
         ### PROCESSING
         print('Build datasets'.ljust(80, '.'))
-        rawvcf = alltls.PandasVCF(B1, indextype=idt)
-        poolvcf =alltls.PandasVCF(POOL, indextype=idt)
-        raw0, raw1 = rawvcf.vcf2dframe()
-        pool0, pool1 = poolvcf.vcf2dframe()
+        raw0, raw1 = alltls.vcf2dframe(VCF(B1), r_size)
+        pool0, pool1 = alltls.vcf2dframe(VCF(POOL), ms_size)
 
         raw0 = raw0.join(mafs, how='inner').drop('maf', axis=1)
         raw1 = raw1.join(mafs, how='inner').drop('maf', axis=1)

@@ -9,32 +9,34 @@ from scripts.VCFPooling.poolSNPs import parameters as prm
 from persotools.files import *
 
 """
-Plot AAF values after imputation (computed with Beagle)
-vs. AAF values in the original dataset (theoretical).
+Plot correlation between AAF after imputation (computed with Phaser)
+and AAF in the original dataset (theoretical).
 Compare effects of imputation:
-- GT serves as baseline for comparison
-- adaptive GL values for filling in missing genotypes
+- GT from Beagle serves as baseline for comparison
+- varying GL values for filling in missing genotypes
 """
 
+
 print('Configure working directory'.ljust(80, '.'))
-# chunk10000_20190725 settings gave the best results for Beagle
+# chunk10000_20190822 settings gave the best results for Phaser
 dirs = {'default': os.path.join(prm.WD, 'gt', 'stratified', 'all_snps_all_samples'),
-        'adaptive': os.path.join(prm.WD, 'gl', 'gl_adaptive', 'chunk10000_20190725')}
+        'adaptive': os.path.join(prm.WD, 'gl', 'gl_adaptive', 'phaser')}
 os.chdir(dirs['adaptive'])
 
 print('Load files path locations'.ljust(80, '.'))
 paths = {'preimp_gt_default': os.path.join(dirs['default'], prm.POOLED['b1']) + '.vcf.gz',
          'postimp_gt_default': os.path.join(dirs['default'], prm.POOLED['gtonly']) + '.vcf.gz',
-         'preimp_gl_adaptive': os.path.join(dirs['adaptive'], prm.POOLED['b1']) + '.vcf.gz',
-         'postimp_gl_adaptive': os.path.join(dirs['adaptive'], prm.POOLED['gtonly']) + '.vcf.gz'
+         'preimp_gl_adaptive': os.path.join(os.path.dirname(dirs['adaptive']), prm.POOLED['b1'] + '.vcf.gz'),
+         'postimp_gl_adaptive': os.path.join(dirs['adaptive'], prm.POOLED['gtonly'] + '.vcf.gz')
          }
 
 print('Concatenate together AAF from files to compare'.ljust(80, '.'))
 basefile = os.path.join(prm.PATH_GT_FILES, 'IMP.chr20.pooled.snps.gt.chunk{}.vcf.gz'.format(prm.CHK_SZ))
-pdvcfbase = alltls.PandasVCF(basefile, indextype='id')
+pdvcfbase = alltls.PandasVCF(basefile, indextype='chrom:pos')
 afinfo = pdvcfbase.af_info.to_frame()
 
-compaafs = alltls.PanelVCF(**paths).join(idt='id')
+compaafs = alltls.PanelVCF(**paths).join(idt='chrom:pos')
+print(compaafs)
 
 dfplot = afinfo.join(compaafs, how='inner')
 dfplot.sort_values(by='af_info', inplace=True)

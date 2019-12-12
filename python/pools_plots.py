@@ -235,11 +235,11 @@ if __name__ == '__main__':
     if prm.GTGL == 'GT':
         cd = prm.PATH_GT_FILES
     if prm.GTGL == 'GL':
-        if prm.unknown_gl != 'adaptative':
+        if prm.unknown_gl != 'adaptive':
             cd = os.path.join(prm.WD, 'gl', 'gl_' + '_'.join(np.around(prm.unknown_gl, decimals=2).astype(str)))
         else:
             # cd = os.path.join(prm.WD, 'gl')
-            cd = os.path.join(prm.WD, 'gl', 'gl_adaptative')
+            cd = os.path.join(prm.WD, 'gl', 'gl_adaptive')
 
     print('Load parameters in {}'.format(cd).ljust(80, '.'))
     sorting = True  # sort data sets by AAF and population values

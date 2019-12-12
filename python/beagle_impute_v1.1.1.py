@@ -4,6 +4,8 @@ import numpy as np
 from cyvcf2 import VCF
 from itertools import starmap, repeat
 import shutil
+import multiprocessing as mp
+import argparse
 
 from scripts.VCFPooling.poolSNPs import parameters as prm
 from scripts.VCFPooling.poolSNPs import beagle_tools as bgltls
@@ -30,7 +32,19 @@ Steps:
 * (transfer to local computer: different script)
 '''
 
-### PARAMETERS
+# TODO: implement command-line argument parsing for number of cores to use and number of samples to process individually
+# i.e. argparse
+
+### COMMAND-LINE PARSING AND PARAMETERS
+parser = argparse.ArgumentParser(description='Run imputation with Beagle for single sample,'
+                                             'one by one and parallelized.')
+parser.add_argument('cores', metavar='c', type=int, nargs='?', help='Number of cores to use', default=None)
+parser.add_argument('idv_nb', metavar='n', type=int, nargs='?', help='Number of samples to impute', default=None)
+argsin = parser.parse_args(parser)
+
+nb_cores = os.cpu_count() if argsin.cores is None else argsin.cores
+nb_idv = prm.NB_IMP if argsin.idv_nb is None else argsin.idv_nb
+
 chk_sz = prm.CHK_SZ
 path_gt_files = prm.PATH_GT_FILES
 path_gl_files = prm.PATH_GL_FILES
@@ -89,30 +103,23 @@ Important note!
 
 In python 3.x, map creates an iterable. Iterables are evaluated lazily - that is,
 only the elements you iterate over (such as looping over them) are actually evaluated.
-If don't iterate over any values, none of the values get evaluated.
-In the any case, however, any iterates over the entire result map, so the whole thing gets evaluated.
-
-Alternative: queue module?
+--> Use all(iterable) or list(iterable) to evaluate 
 """
 ### REFINE SAMPLES OR MARKERS TO IMPUTE
-idv_to_keep: List[str] = VCF(os.path.join(path_gt_files, raw['imp'])).samples[0:3]
-# .samples[0:1] gets only the first sample into a list i.e. ['NA18960']
-# .samples[0] gets only the first sample as a string i.e. 'NA18960'
+idv_to_keep: List[str] = VCF(os.path.join(path_gt_files, raw['imp'])).samples[0:nb_idv]
 print(idv_to_keep)
 args = list(zip(repeat(pooled, len(idv_to_keep)),
                 repeat(cd, len(idv_to_keep)),
                 idv_to_keep))
-path_out = list(starmap(bgltls.keep_single_sample, args))
-"""
+with mp.Pool(processes=nb_cores) as mpool:
+    path_out = list(mpool.starmap(bgltls.keep_single_sample, args))
 ### BEAGLE ROUND#1: (GL to GT and) PHASING
 # TODO: bgltls.beagle_phasing(raw, path_gt_files, cd)
 args = list(zip(repeat(pooled, len(path_out)),
                 repeat(path_gt_files, len(path_out)),
                 path_out))
-_ = list(starmap(bgltls.beagle_phasing, args))
-
-# for arg in args:  # REF-file access competition/restricted? use a queuing system with a simple for loop?
-#    bgltls.beagle_phasing(*arg)
+with mp.Pool(processes=nb_cores) as mpool:
+    _ = list(mpool.starmap(bgltls.beagle_phasing, args))
 
 ### CONFORM-GT
 # conform-gt algo should be used if REF and IMP datasets contain different sets of markers
@@ -120,15 +127,15 @@ _ = list(starmap(bgltls.beagle_phasing, args))
 args = list(zip(repeat(pooled, len(path_out)),
                 repeat(raw, len(path_out)),
                 path_out))
-_ = all(starmap(bgltls.conform_gt, args))
+with mp.Pool(processes=nb_cores) as mpool:
+    _ = all(mpool.starmap(bgltls.conform_gt, args))
 
 ### BEAGLE (ROUND#2): IMPUTING
 args = list(zip(repeat(pooled, len(path_out)),
                 repeat(raw, len(path_out)),
                 path_out))
-_ = all(starmap(bgltls.beagle_imputing, args))
-# for arg in args:
-#     bgltls.beagle_imputing(*arg)  # _ = all(starmap(
+with mp.Pool(processes=nb_cores) as mpool:
+    _ = all(mpool.starmap(bgltls.beagle_imputing, args))
 
 # error: /bin/sh: 1: bgzip: not found
 # bgzip is in the tabix package (not to confound with bzip2)
@@ -138,11 +145,11 @@ _ = all(starmap(bgltls.beagle_imputing, args))
 ### FIX DS AND GP FORMAT FIELDS, SORT OUT GT
 args = list(zip(repeat(pooled, len(path_out)),
                 path_out))
-_ = all(starmap(bgltls.reformat_fields, args))
-
-_ = all(map(bgltls.clean_imputed_directory, path_out))
+with mp.Pool(processes=nb_cores) as mpool:
+    _ = all(mpool.starmap(bgltls.reformat_fields, args))
+    _ = all(mpool.map(bgltls.clean_imputed_directory, path_out))
 _ = bgltls.clean_imputed_directory(cd)
-"""
+
 ### MERGE UNIT FILES TOGETHER AND CLEAN DIRECTORIES
 mkdir(os.path.join(cd, 'single_samples_merged'))
 files2merge = []

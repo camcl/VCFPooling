@@ -24,7 +24,6 @@ def plot_heat_map(dtfr, figname, figsize, sorting, title='{}', rightYaxis=False)
     :param rightYaxis: boolean for plotting a second y-axis or not
     :return:
     """
-    #TODO: colorbar's parameters to tune
     plt.rcParams["figure.figsize"] = figsize
 
     try:
@@ -87,112 +86,8 @@ def plot_heat_map(dtfr, figname, figsize, sorting, title='{}', rightYaxis=False)
                 dpi='figure')
 
 
-def boxplot_densities(set_errors):
-    pd.set_option('precision', 25)
-    plt.rcParams["figure.figsize"] = [20, 20]
-    plt.rcParams["figure.autolayout"] = True
-    errbox, axs = plt.subplots(3, 2)
-
-    import sys
-    sys.stdout = open('.log', 'w')
-
-    pos = 0
-    for k in ['pooled', 'missing']:
-        df = set_errors[k]['grid']
-        pop_err = df.groupby(axis=1, level='Population').mean()
-        lev_err = alltls.rmse_df(df)
-        lev_err.drop(['id', 'af_info'], axis=1, inplace=True)
-        lev_err.boxplot(by='aaf_bin',
-                        ax=axs[pos, 0],
-                        showmeans=True,
-                        showfliers=False)
-        plt.suptitle("")
-        axs[pos, 0].set_title('rmse for the {} data set'.format(k))
-
-        print('\r\nNumber of missing genotypes in the "{}" dataset:'.format(k))
-        print('Mean Error: {}'.format(set_errors[k]['mean']))
-
-        axs[pos, 1].set_xlim(left=-1.0, right=1.0)
-        pop_err.plot.density(ax=axs[pos, 1],
-                             legend=False)
-        pop_skw = skew(pop_err.values, axis=0, bias=True)
-        axs[pos, 1].set_title('Error density distributions for the {} data set'.format(k))
-        pos += 1
-    handles, labels = axs[1, 1].get_legend_handles_labels()
-    detailed_labels = [pop + ', skewness = ' + str(sk) for pop, sk in zip(labels, pop_skw)]
-    axs[1, 1].legend(handles,
-                     detailed_labels,
-                     loc='center left',
-                     bbox_to_anchor=(1.05, 0.5),
-                     borderaxespad=0,
-                     frameon=True)
-    plt.savefig('root.mean.square.error.box.density.chunk{}.png'.format(prm.CHK_SZ), dpi='figure')
-
-
-def plot_aaf_evol(err_dic, path_all, typ='line'):
-    bin_aaf = prm.BIN_AAF
-
-    plt.rcParams["figure.figsize"] = [12, 6]
-    plt.rcParams["figure.autolayout"] = True
-
-    pdvcf = alltls.PandasVCF(path_all, indextype='chrom:pos')
-    df_aaf = pdvcf.concatcols([pdvcf.af_info, pdvcf.aaf])
-
-    if prm.SUBSET:
-        df_aaf = df_aaf.iloc[:prm.SUBCHUNK]
-
-    for k_set in err_dic.keys():
-        list_aaf = alltls.compute_aaf_evol(k_set)
-        df_aaf = df_aaf.join(list_aaf)
-
-    df_aaf.sort_values(by='af_info', axis=0, inplace=True)
-
-    if bin_aaf:
-        df_aaf = df_aaf.join([pdvcf.aaf_binned(b=prm.INTER)])
-
-    lin_aaf, ax_lin = plt.subplots()
-    a = 0
-    colors = ['b', 'g', 'r']
-    for k_set in err_dic.keys():
-        if typ == 'line':
-            df_aaf.plot.line(x='af_info',
-                             y='preimp_' + k_set,
-                             ax = ax_lin,
-                             linestyle='--',
-                             color=colors[a])
-            df_aaf.plot.line(x='af_info',
-                             y='postimp_' + k_set,
-                             ax=ax_lin,
-                             linestyle='-',
-                             color=colors[a])
-        if typ == 'scatter':
-            df_aaf.plot.line(x='af_info',
-                             y='preimp_' + k_set,
-                             ax=ax_lin,
-                             marker='v',
-                             color=colors[a])
-            df_aaf.plot.line(x='af_info',
-                             y='postimp_' + k_set,
-                             ax=ax_lin,
-                             marker='o',
-                             color=colors[a])
-        plt.xlabel('Theoretical AAF')
-        plt.ylabel('Dataset AAF')
-        plt.plot(range(2), linestyle='-', color='k')
-        delta_post = df_aaf['postimp_' + k_set].sub(df_aaf['af_info'])
-        err_post = alltls.rmse_df(delta_post.to_frame(), kind='mse')
-        plt.text(0.65, 0.25-0.1*a, 'MSE postimp_' + k_set + ' = ' + str(err_post))
-        plt.legend()
-        a += 1
-
-    plt.title('AAF evolution through processing of data sets', loc='center')
-    plt.suptitle("")
-    plt.savefig('af_info_evol.{}.chunk{}.png'.format(typ, prm.CHK_SZ),
-                orientation='landscape',
-                dpi='figure')
-
-
 def plot_aaf_twist(setname: str, setdf: pd.DataFrame, vcfpath: str):
+    # TODO: Refactor: not any longer needed if overlay in plot_aaf_ scripts
     """
     Plot aaf before/after pooling.
     Plot error after pooling vs. aaf
@@ -266,107 +161,8 @@ def plot_aaf_twist(setname: str, setdf: pd.DataFrame, vcfpath: str):
     plt.show()
 
 
-def plot_err_vs_het(dset, err_set, file_in, err_kind='rmse', low_aaf=False, save=True, ax=None):
-
-    het = alltls.per_site_heteroz(file_in)
-    ogn = 'imputed' if file_in.find('beagle') is not -1 else 'true'
-    nb_samples = len(VCF(file_in).samples)
-
-    if ax is None:
-        fig, ax = plt.subplots()
-
-    # Create rmse DataFrame with MultiIndex
-    s = alltls.rmse_df(err_set, kind=err_kind, ax=1) # ax=1: apply along columns
-    df = pd.DataFrame(data=s.values, index=err_set.index, columns=[err_kind])
-    df.reset_index(level=['af_info', 'aaf_bin'], drop=False, inplace=True)
-
-    # heterozygosity in the final input file
-    htzSer = pd.Series(het[:,-1].astype(float), index=het[:, 0])
-    htzPct = htzSer.apply(lambda h: h * 100 / nb_samples).rename('het')
-    df['het'] = htzPct
-
-    if not low_aaf:
-        ax = df.plot.scatter('het', err_kind, c='af_info', cmap=matplotlib.cm.viridis, ax=ax)
-    else:
-        df_low = df.query('aaf_bin <= 2')
-        ax = df_low.plot.scatter('het', err_kind, c='af_info', cmap=matplotlib.cm.PuBu, ax=ax)
-    ax.set_title('{} vs. {} heterozygosity in {} dataset'.format(err_kind.upper(), ogn, dset))
-
-    if save:
-        ax = None
-        # plt.axhline(y=site_err,
-        #             linestyle='dashed',
-        #             color='k',
-        #             label='mean error')
-        plt.savefig('{}.heterozygosity.{}.chunk{}.png'.format(err_kind, dset, prm.CHK_SZ),
-                    dpi='figure')
-
-    return ax
-
-
-def multiplot_err_het(err):
-
-    plt.rcParams["figure.figsize"] = [12, 6]
-    low_aaf, axm = plt.subplots(3, 2)
-    j = 0
-    for k in ['missing', 'pooled']:
-        i = 0
-        ek = err[k].reset_index(level=['af_info'], drop=False, inplace=False)
-        low_err = ek.query('aaf_bin < 3', inplace=False)
-        # print('Marker with maximum error: ', low_err.mean(axis=1).idxmax(axis=0))
-        # print(low_err.query('aaf_bin == 2', inplace=False).mean(axis=1).describe())
-        # print(low_err.query('aaf_bin == 1', inplace=False).mean(axis=1).describe())
-        low_err.set_index('af_info', drop=True, append=True, inplace=True)
-        file1 = (prm.POOLED['b2'] if k == 'pooled' else prm.MISSING['b2']) + '.vcf.gz'
-        axm[i,j] = plot_err_vs_het(k,
-                                   low_err,
-                                   file1,
-                                   err_kind='mse',
-                                   low_aaf=True,
-                                   save=False,
-                                   ax=axm[i,j])
-        i += 1
-        file2 = prm.RAW['imp']
-        axm[i, j] = plot_err_vs_het(k,
-                                    low_err,
-                                    file2,
-                                    err_kind='rmse',
-                                    low_aaf=True,
-                                    save=False,
-                                    ax=axm[i,j])
-        i += 1
-        axm[i, j] = plot_err_vs_het(k,
-                                    low_err,
-                                    file2,
-                                    err_kind='mse',
-                                    low_aaf=True,
-                                    save=False,
-                                    ax=axm[i,j])
-        j += 1
-    plt.savefig('root.mean.square.error.aaf.low.chunk{}.png'.format(prm.CHK_SZ), dpi='figure')
-
-
-def plot_err_vs_miss(k, err_set, err_kind='rmse'):
-
-    nb_samples = err_set.shape[1]
-    site_err = alltls.rmse_df(err_set, kind=err_kind, ax=1).rename(err_kind).to_frame()
-    site_err.reindex(index=err_set.index, copy=False)
-    site_err.reset_index(level=['af_info'], drop=False, inplace=True)
-    site_err['af_info'].astype(float, copy=False)
-
-    # missing data from the preimputed dataset
-    misNp = alltls.count_missing_alleles('IMP.chr20.{}.snps.chunk{}.vcf.gz'.format(k, prm.CHK_SZ))
-    misSer = pd.Series(misNp[:, -1], index=misNp[:, 0]).astype(float, copy=True)
-    misPct = misSer.apply(lambda h: h * 100 / nb_samples).rename('miss').to_frame()
-
-    site_err = site_err.join(misPct, on='id')
-    site_err.plot.scatter('miss', err_kind, c='af_info', cmap=matplotlib.cm.viridis)
-    plt.title('Imputation error vs. missing data rate in {} data set'.format(k))
-    plt.savefig('rmse.missing.data.{}.chunk{}.png'.format(k, prm.CHK_SZ),
-                dpi='figure')
-
-
 def plot_aaf_vs_miss():
+    #todo: transform into a separate script?
     """
     Relevant for GT only
     :param k:
@@ -429,7 +225,3 @@ def plot_aaf_gl():
     plt.plot(f, aa(f), 'r-', label='AA')
     plt.legend()
     plt.show()
-
-
-if __name__ == '__main__':
-    plot_aaf_vs_miss()
