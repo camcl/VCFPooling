@@ -137,6 +137,7 @@ def beagle_haplo_to_geno() -> None:
 def beagle_phasing(dic: dict, path_gt_files: str, cd: str) -> None:
     print('\n\nBEAGLE ROUND#1'.ljust(80, '.'))
     os.chdir(cd)
+    print('Directory: ', cd)
 
     if dic.name == 'raw':
         delete_file(dic['b1r'] + '.vcf.gz')
@@ -324,14 +325,33 @@ def clean_imputed_directory(cd: str) -> bool:
     return True
 
 
-def merge_files(flist: list, f_out: str, cd: str):
-    mkdir('./single_samples_merged')
-    os.chdir(os.path.join(cd, 'single_samples_merged'))
-    files = ' '.join(flist)
-    cmd = ' '.join(['bcftools merge',
+def move_file_to(f_in: str, f_out: str, cd: str):
+    # cd: path to out directory
+    cmd = ' '.join(['bcftools view',
                     '-Oz -o',
                     f_out,
-                    files
+                    f_in
+                    ])
+    print(cmd)
+    subprocess.run(cmd, shell=True, cwd=cd)
+    pybcf.index(f_out, cd)
+
+    return check_file_creation(os.getcwd(), f_out)
+
+
+def merge_files(pattern: str, f_out: str, cd: str):
+    mkdir(os.path.join(cd, 'single_samples_merged'))
+    os.chdir(os.path.join(cd, 'single_samples_merged'))
+    # with open('files2merge.txt', mode='w+', encoding='utf-8') as f:
+    #     for line in flist:
+    #         f.write(line)
+    #         f.write('\n')
+    # files = ' '.join(flist)
+    cmd = ' '.join(['bcftools merge',
+                    pattern,
+                    '-Oz -o',
+                    f_out,
+                    #files
                     ])
     print(cmd)
     subprocess.run(cmd, shell=True, cwd=os.getcwd())
