@@ -1,12 +1,9 @@
-import os
-import sys
-sys.path.append(os.path.dirname(__file__))
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-print(sys.path)
+import os, sys, importlib
+
+home_dir = os.path.expanduser("~")
+proj_dir = os.path.join(home_dir, '1000Genomes')
+sys.path.insert(0, proj_dir)
 
 # __all__ = ["alleles",
 #            "pool",
-#            "beagle_impute_v0.x.py",
-#            "beagle_tools",
-#            "bcftools",
-#            "pools_plots"]
+#            "pybcf"]

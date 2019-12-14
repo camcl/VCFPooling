@@ -45,6 +45,7 @@ GLtype = NewType('GLtype', Tuple[float, float, float])
 GTtype = NewType('GTtype', Tuple[int, int, bool])
 
 ### tree struct
+# make the home path machine independent (no reconfiguring needed when running from server)
 HOME = str(Path.home())
 # TODO: replace all occurrences of /home/camille by prm.HOME
 ROOT = os.path.join(HOME, '1000Genomes')
@@ -136,7 +137,7 @@ INTER = np.arange(0, 1, 0.1)
 
 
 ### PRINTING
-print('*'.ljust(80, '*'))
+print('\n'.ljust(80, '*'))
 print('Parameters configured:')
 print('working directory: ', WD)
 print('number of markers to extract and process: ', CHK_SZ)
@@ -148,5 +149,4 @@ print('Path to GL files: ', PATH_GL_FILES)
 print('binarize MAFs: ', BIN_AAF)
 if GTGL == 'GL':
     print('values for missing GLs: ', unknown_gl)
-print('*'.ljust(80, '*'))
-print('\r\n')
+print('\r\n'.rjust(80, '*'))

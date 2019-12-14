@@ -11,21 +11,24 @@ Copy the local directories tree and chosen files to the Uppmax server.
 To be run from local, NOT from Uppmax server.
 calling environment's ssh configuration settings (~/.ssh/config)
 '''
+# TODO: create function for single file transfer?
 
 # Steps
-create_rep = False
+create_rep = True
 add_venv = True
 add_file = False
 
 # $HOME paths settings
 cwd = os.getcwd()
 local = pathlib.PurePath('/home/camille/1000Genomes')
-littlelocal = pathlib.PurePath('/home/camille/PycharmProjects/1000G/')
+littlelocal = pathlib.PurePath('/home/camille/PycharmProjects/1000Genomes/')
 
+print('\n'.ljust(80, '*'))
+print('Creating local light repository and transfer it to the remote server')
 if create_rep:
     ext_out = shutil.ignore_patterns('*.vcf', 'IMP*.gz', 'REF*.gz', 'REF*.csi', 'IMP*.csi',
                                      '*.png', '*.pdf',
-                                     '*ppmax*', '*review*', '*simpool*', '*archive*',
+                                     '*python*', '*review*', '*simpool*', '*archive*',
                                      '*venv*')
     try:
         tree = shutil.copytree(local,
@@ -38,7 +41,7 @@ if create_rep:
 
     sshtools.ssh_recursive_transfer(sshtools.host,
                                     str(littlelocal) + '/scripts',
-                                    str(sshtools.rackham) + '/1000G',
+                                    str(sshtools.rackham) + '/1000Genomes',
                                     username=sshtools.user,
                                     password=sshtools.pwd)
 
@@ -60,24 +63,25 @@ if create_rep:
 
     with sshtools.ssh_connect(host=sshtools.host, user=sshtools.user, connect_kwargs={'password': sshtools.pwd}) as client:
         ls = client.run('ls', pty=True)
-        size_out = client.run('du -sh {}/1000G'.format(sshtools.rackham))
+        size_out = client.run('du -sh {}/1000Genomes'.format(sshtools.rackham))
 
     print('\n')
     print('Bytes in --> ', size_in)
     print('\n')
     print('Bytes out --> ', size_out)
 
-print(add_venv)
-print(os.path.exists(pathlib.PurePath(sshtools.rackham, '/1000G/venv')))
-if add_venv and os.path.exists(pathlib.PurePath(sshtools.rackham, '/1000G/venv')):
+print('\n'.ljust(80, '*'))
+print('Adding venv: {}'.format(add_venv))
+print(os.path.exists(pathlib.PurePath(sshtools.rackham, '/1000Genomes/venv3.6')))
+if add_venv and os.path.exists(pathlib.PurePath(sshtools.rackham, '/1000G/venv3.6')):
     print('Add persotools library')
     sshtools.ssh_recursive_transfer(sshtools.host,
                                     '/home/camille/PycharmProjects/lib/persotools',
-                                    str(sshtools.rackham) + '/1000G/venv/lib/python3.6/site-packages',
+                                    str(sshtools.rackham) + '/1000Genomes/venv3.6/lib/python3.6/site-packages',
                                     username=sshtools.user,
                                     password=sshtools.pwd)
     sshtools.ssh_recursive_transfer(sshtools.host,
                                     '/home/camille/1000Genomes/scripts/__init__.py',
-                                    str(sshtools.rackham) + '/1000G/venv/lib/python3.6/site-packages/scripts',
+                                    str(sshtools.rackham) + '/1000Genomes/venv3.6/lib/python3.6/site-packages/scripts',
                                     username=sshtools.user,
                                     password=sshtools.pwd)

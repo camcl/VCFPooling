@@ -1,11 +1,15 @@
-import os
-from typing import  *
+import sys, os
+from typing import *
 import numpy as np
 from cyvcf2 import VCF
 from itertools import starmap, repeat
 import shutil
 import multiprocessing as mp
 import argparse
+
+home_dir = os.path.expanduser("~")
+proj_dir = os.path.join(home_dir, '1000Genomes')
+sys.path.insert(0, proj_dir)
 
 from scripts.VCFPooling.poolSNPs import parameters as prm
 from scripts.VCFPooling.poolSNPs import beagle_tools as bgltls
@@ -17,33 +21,37 @@ from persotools.struct import NamedDict
 
 '''
 Run bcftools manipulations for preprocessing the files which are used for Beagle imputation.
-Run Beagle.
+Run Beagle. 
 
 v1.1: run imputation for single sample, one by one. (Compare with imputation on all together)
-v1.1.1: implement multiprocessing
+v1.1.1: implement multiprocessing and command-line launching. To be run from a remote server
+
+Calling from command-line: $ python3 beagle_impute_v1.1.1.py 4 8
 
 Steps:
-* (transfer codes: different script)
+* (transfer codes: other script to run locally)
 * (transfer raw and pooled files to the server (adaptive GL schemes only): different script)
 * split into reference panel (REF) and study population (IMP)
 * split IMP into individual files
 * phase and imput every individual file
 * merge imputed files
-* (transfer to local computer: different script)
+* (transfer merged imputed files to local computer: other script to run locally)
 '''
-
-# TODO: implement command-line argument parsing for number of cores to use and number of samples to process individually
-# i.e. argparse
 
 ### COMMAND-LINE PARSING AND PARAMETERS
 parser = argparse.ArgumentParser(description='Run imputation with Beagle for single sample,'
                                              'one by one and parallelized.')
-parser.add_argument('cores', metavar='c', type=int, nargs='?', help='Number of cores to use', default=None)
-parser.add_argument('idv_nb', metavar='n', type=int, nargs='?', help='Number of samples to impute', default=None)
-argsin = parser.parse_args(parser)
+parser.add_argument('cores', metavar='nc', type=int, nargs='?', help='Number of cores to use', default=None)
+parser.add_argument('idv_nb', metavar='ni', type=int, nargs='?', help='Number of samples to impute', default=None)
+argsin = parser.parse_args()
 
 nb_cores = os.cpu_count() if argsin.cores is None else argsin.cores
 nb_idv = prm.NB_IMP if argsin.idv_nb is None else argsin.idv_nb
+
+print('\n'.ljust(80, '*'))
+print('Number of cpu to be used = {}'.format(nb_cores))
+print('Number of samples to be imputed = {}'.format(nb_idv))
+print('\n'.rjust(80, '*'))
 
 chk_sz = prm.CHK_SZ
 path_gt_files = prm.PATH_GT_FILES
@@ -62,7 +70,7 @@ os.chdir(cd)
 raw = NamedDict('raw', list(prm.RAW.keys()), list(prm.RAW.values()))
 pooled = NamedDict('pooled', list(prm.POOLED.keys()), list(prm.POOLED.values()))
 
-print('Start processing files for running BEAGLE'.ljust(80, '.'))
+print('\nStart processing files for running BEAGLE'.ljust(80, '.'))
 """
 ### BGZIP ALL
 bgltls.bgzip_working_files(pooled, path_gt_files, path_gl_files, cd)
