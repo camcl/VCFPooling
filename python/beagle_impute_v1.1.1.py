@@ -71,7 +71,7 @@ raw = NamedDict('raw', list(prm.RAW.keys()), list(prm.RAW.values()))
 pooled = NamedDict('pooled', list(prm.POOLED.keys()), list(prm.POOLED.values()))
 
 print('\nStart processing files for running BEAGLE'.ljust(80, '.'))
-"""
+
 ### BGZIP ALL
 bgltls.bgzip_working_files(pooled, path_gt_files, path_gl_files, cd)
 
@@ -105,7 +105,7 @@ if prm.GTGL == 'G':
     pybcf.sort(raw['ref'], cd)
     pybcf.index(raw['ref'], cd)
     delete_file(raw['ref'][:-3])
-"""
+
 """
 Important note!
 
@@ -122,7 +122,7 @@ args = list(zip(repeat(pooled, len(idv_to_keep)),
 with mp.Pool(processes=nb_cores) as mpool:
     path_out = list(mpool.starmap(bgltls.keep_single_sample, args))
 ### BEAGLE ROUND#1: (GL to GT and) PHASING
-# TODO: bgltls.beagle_phasing(raw, path_gt_files, cd)
+bgltls.beagle_phasing(raw, path_gt_files, cd)
 args = list(zip(repeat(pooled, len(path_out)),
                 repeat(path_gt_files, len(path_out)),
                 path_out))
