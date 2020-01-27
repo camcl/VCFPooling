@@ -118,39 +118,33 @@ class VariantChunkGenerator(VariantCallGenerator):
         self.path = vcfpath
         self.fmt = format
         self.chksz = chunksize
-        self.chrom = [*pysam.VariantFile(self.path).header.contigs][0] # extract chrom, works if only 1 chrom in the file
+        self.chrom = [*pysam.VariantFile(self.path).header.contigs][0]
+        # extract chrom, works if only 1 chrom in the file
         self.pack = True
-        self.newpos = 1 # for valid self.newpos - 1 at the start of the first chunk
+        self.newpos = 1  # for valid self.newpos - 1 at the start of the first chunk
 
-    def chunk(self):
-        """Generate sequences of `chunk_size` elements from `iterable`."""
+    def chunk(self, chunksize: int, newpos: int):
+        """Build generators of variants calls"""
         iterator = pysam.VariantFile(self.path)
         try:
-            for i, v in enumerate(iterator.fetch(contig=self.chrom, start=self.newpos - 1, reopen=False)):
-                # self.newpos - 1: avoids first variant truncation in the next chunk
+            for i, v in enumerate(iterator.fetch(contig=self.chrom, start=newpos - 1, reopen=False)):
+                # newpos - 1: avoids first variant truncation in the next chunk
                 var = v
-                if i == self.chksz:
-                    self.newpos = var.pos
+                if i == chunksize:
                     break
                 yield var
-            if var.pos != self.newpos:  # reached EOF
-                self.pack = False
 
         except StopIteration:
-            self.newpos = None
-            self.pack = False
+            print('Could not build chunk')
 
-        finally:
-            print(self.pack)
-
-    def incrementer(self):
+    def incrementer(self, chunksize: int):
         """update position and packing bool"""
         iterator = pysam.VariantFile(self.path)
         try:
             for i, v in enumerate(iterator.fetch(contig=self.chrom, start=self.newpos - 1, reopen=False)):
                 # self.newpos - 1: avoids first variant truncation in the next chunk
                 var = v
-                if i == self.chksz:
+                if i == chunksize:
                     self.newpos = var.pos
                     break
             if var.pos != self.newpos:  # reached EOF
@@ -163,14 +157,13 @@ class VariantChunkGenerator(VariantCallGenerator):
         finally:
             return self.newpos, self.pack
 
-
     def chunkpacker(self):
-        while self.pack and self.newpos < 58364149:
-            chk = self.chunk()  # function output and included sttributes updates NOT unpacked hence NOT updated
-            self.newpos, self.pack = self.incrementer()
-            print(self.newpos, self.pack)
+        while self.pack:
+            chk = self.chunk(self.chksz, self.newpos)
+            # function output and included sttributes updates NOT unpacked hence NOT updated
+            self.newpos, self.pack = self.incrementer(self.chksz)
             yield chk
-
+            print(self.newpos, self.pack)
 
 
 class PandasVCF(object):
