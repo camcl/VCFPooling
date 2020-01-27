@@ -108,6 +108,7 @@ ArrayLike = NewType('ArrayLike', Union[Sequence, List, Set, Tuple, Iterable, np.
 
 #TODO: implement method for extracting GP field
 #TODO: coming later: evaluate phase/switch rate
+#TODO: entropy measure for GL
 
 
 class Quality(object):

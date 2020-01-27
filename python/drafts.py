@@ -8,6 +8,9 @@ import itertools
 from scripts.VCFPooling.poolSNPs.alleles import alleles_tools as alltls
 from typing import *
 
+from cyvcf2 import VCF
+from pdbio.vcfdataframe import VcfDataFrame
+import pysam
 
 warnings.simplefilter('ignore')
 
@@ -27,20 +30,26 @@ def grouper_it(n, iterable):
         yield itertools.chain((first_el,), chunk_it)
 
 
-os.chdir('./data/tests-beagle')
+os.chdir('/home/camille/1000Genomes/data/gl/gl_adaptive/all_snps_all_samples')
 print(os.getcwd())
-
-#print(dcount.groupby(by='bin_maf', axis=0)['bin_maf'].count())
-# dcount.plot.hist(by='maf_bin')
-# plt.show()
 
 
 gl1000 = 'IMP.chr20.pooled.snps.gl.chunk1000.vcf.gz'
 gt1000 = 'IMP.chr20.pooled.snps.gt.chunk1000.vcf.gz'
+gl10000 = 'IMP.chr20.pooled.snps.gl.chunk1000.vcf.gz'
+gt10000 = 'IMP.chr20.pooled.snps.gt.chunk1000.vcf.gz'
+gtgl10000 = 'IMP.chr20.pooled.beagle2.gl.chunk10000.vcf.gz'
 
 
+def cyvcf2_iter():
+    return VCF(gtgl10000)
 
-_x = np.arange(0, 1, 0.02)
+
+def pdbio_df():
+    return VcfDataFrame(path=gtgl10000)
+
+def pysam_iter(fpath):
+    return pysam.VariantFile(fpath)
 
 
 def f1(x):
@@ -49,16 +58,6 @@ def f1(x):
 
 def f2(x):
     return 0.5 + (math.exp(-x-0.5) - 0.5)**3
-
-
-_y1 = list(map(f1, _x))
-_y2 = list(map(f2, _x))
-
-
-fig, ax = plt.subplots()
-ax.plot(_x.tolist(), _y1, c='g')
-ax.plot(_x.tolist(), _y2, c='b')
-ax.plot(_x.tolist(), _x.tolist(), c='k')
 
 
 def my_tuple(a: int, b: int, c:int) -> Tuple[int]:
@@ -78,13 +77,57 @@ if __name__ == '__main__':
     t47_5 = my_tuple(4, 7, -5)
     print(my_tuple.__annotations__)
 
-    print(alltls.SigmoidInterpolator)
-    print(type(alltls.SigmoidInterpolator))
-
-
     s1 = Shadok('shadok1')
     print(s1.__dict__)
     s1.assign_task('pumping')
     print(s1.__dict__)
     print(s1.name)
     print(s1.state)
+
+    """
+        #CHROM       POS  ...                     HG01500                     HG01058
+0       20     60826  ...                     0,-5,-5                     0,-5,-5
+1       20     61044  ...                     0,-5,-5                     0,-5,-5
+2       20     61271  ...                     0,-5,-5                     0,-5,-5
+3       20     61279  ...                     0,-5,-5                     0,-5,-5
+4       20     61409  ...                     0,-5,-5                     0,-5,-5
+..     ...       ...  ...                         ...                         ...
+995     20  62596412  ...   -0.6994,-0.27014,-0.57948                     0,-5,-5
+996     20  62692060  ...    -0.60879,-0.2944,-0.6087    -0.60879,-0.2944,-0.6087
+997     20  62778921  ...   -0.60879,-0.2944,-0.60879   -0.60879,-0.2944,-0.60879
+998     20  62846376  ...  -0.62567,-0.29106,-0.59926  -0.62567,-0.29106,-0.59926
+999     20  62855194  ...  -0.62567,-0.29106,-0.59926  -0.62567,-0.29106,-0.59926
+[1000 rows x 249 columns]
+    #CHROM       POS  ...                     HG01500                     HG01058
+0       20     60826  ...                     0,-5,-5                     0,-5,-5
+1       20     61044  ...                     0,-5,-5                     0,-5,-5
+2       20     61271  ...                     0,-5,-5                     0,-5,-5
+3       20     61279  ...                     0,-5,-5                     0,-5,-5
+4       20     61409  ...                     0,-5,-5                     0,-5,-5
+..     ...       ...  ...                         ...                         ...
+995     20  62596412  ...   -0.6994,-0.27014,-0.57948                     0,-5,-5
+996     20  62692060  ...    -0.60879,-0.2944,-0.6087    -0.60879,-0.2944,-0.6087
+997     20  62778921  ...   -0.60879,-0.2944,-0.60879   -0.60879,-0.2944,-0.60879
+998     20  62846376  ...  -0.62567,-0.29106,-0.59926  -0.62567,-0.29106,-0.59926
+999     20  62855194  ...  -0.62567,-0.29106,-0.59926  -0.62567,-0.29106,-0.59926
+[1000 rows x 249 columns]
+    """
+
+    myvcf = pysam_iter(gtgl10000)
+    for v in myvcf:
+        var = v
+        break
+
+    print(var.samples.items())
+    for k, g in var.samples.items():
+        break
+        print(k, g['GP'])
+
+    mygt = pysam_iter('/home/camille/1000Genomes/data/gt/' + gt10000)
+    print(list(mygt.header.samples))
+    missing = np.vectorize(lambda x: np.nan if x is None else x)
+    for v in mygt:
+        break
+        genotypes = np.array([g['GT'] for g in v.samples.values()])
+        tri = missing(genotypes.astype(float)).sum(axis=-1)
+        print(np.nan_to_num(tri, nan=-1))
