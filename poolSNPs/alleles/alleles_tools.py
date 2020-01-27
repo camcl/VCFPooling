@@ -104,7 +104,7 @@ class VariantCallGenerator(object):
             yield [g[self.fmt] for g in var.samples.values()]
 
 
-class VariantChunkGenerator(VariantCallGenerator):
+class VariantChunkGenerator(object):
     """
     Generates chunks of single-type formatted calls of variants
     """
@@ -385,7 +385,7 @@ class PandasMixedVCF(object):
         return pd.Index(data=vars, dtype=str, name='variants')
 
     @property
-    def phases(self) -> pd.Series:
+    def phases(self) -> pd.DataFrame:
         # TODO: if fmt GT
         vcfobj = self.load()
         vars = self.variants
@@ -743,4 +743,13 @@ if __name__ == '__main__':
     os.chdir('/home/camille/1000Genomes/data/gl/gl_adaptive/all_snps_all_samples')
     fpath = 'IMP.chr20.pooled.beagle2.gl.chunk10000.vcf.gz'
     mydf = PandasMixedVCF(fpath)
-    print(mydf.load.df.head())
+
+    gtframe = PandasMixedVCF('IMP.chr20.pooled.beagle2.gl.chunk10000.corr.vcf.gz', format='GP')
+    varonly = VariantCallGenerator('IMP.chr20.pooled.beagle2.gl.chunk10000.corr.vcf.gz', format='GP')
+    varchunk = VariantChunkGenerator('IMP.chr20.pooled.beagle2.gl.chunk10000.corr.vcf.gz',
+                                     format='GP',
+                                     chunksize=1000)
+
+    chunkpack = varchunk.chunkpacker()
+    for i, chk in enumerate(chunkpack):
+        print(i, len([*chk]))

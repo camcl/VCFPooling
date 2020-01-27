@@ -87,12 +87,3 @@ if __name__ == '__main__':
     imp10000 = 'IMP.chr20.pooled.imputed.gt.chunk10000.vcf.gz'
     glpath = '/home/camille/1000Genomes/data/gl/gl_adaptive/all_snps_all_samples/'
     div2 = Diversity(glpath + imp10000, format='GT').markers_diversity()
-
-    gtframe = alltls.PandasMixedVCF(glpath + 'IMP.chr20.pooled.beagle2.gl.chunk10000.corr.vcf.gz', format='GP')
-    varonly = alltls.VariantCallGenerator(glpath + 'IMP.chr20.pooled.beagle2.gl.chunk10000.corr.vcf.gz', format='GP')
-    varchunk = alltls.VariantChunkGenerator(glpath + 'IMP.chr20.pooled.beagle2.gl.chunk10000.corr.vcf.gz',
-                                           format='GP',
-                                           chunksize=1000)
-
-    import pysam
-    vfile = pysam.VariantFile(glpath + 'IMP.chr20.pooled.beagle2.gl.chunk10000.corr.vcf.gz')
