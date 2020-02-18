@@ -32,7 +32,7 @@ def normalize(v: np.ndarray) -> np.ndarray:
 
 def shannons_index(a: np.ndarray) -> float:
     """
-
+    see scipy.stats.entropy
     """
     hfunc = np.vectorize(lambda x: -x * np.log2(x) if x != 0.0 else 0)
     h = np.sum(hfunc(a), axis=0)

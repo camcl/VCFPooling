@@ -94,9 +94,10 @@ The nltk metrics package also provides for calculating and printing confusion ma
 import os
 import numpy as np
 import pandas as pd
-from scipy.stats import pearsonr, zscore
+from scipy.stats import pearsonr, zscore, entropy
 from sklearn import metrics
 from typing import *
+from collections import Counter
 
 from scripts.VCFPooling.poolSNPs import parameters as prm
 from scripts.VCFPooling.poolSNPs import utils
@@ -111,7 +112,7 @@ ArrayLike = NewType('ArrayLike', Union[Sequence, List, Set, Tuple, Iterable, np.
 #TODO: entropy measure for GL
 
 
-class Quality(object):
+class QualityGT(object):
     """
     Implement different methods for assessing imputation performance:
     * accuracy and recall per variant per genotype (cross-table)
@@ -138,6 +139,10 @@ class Quality(object):
         else:
             self._axis = None
 
+    @staticmethod
+    def square(x):
+        return x ** 2
+
     def pearsoncorrelation(self) -> pd.Series:
         """
         Compute Pearson's correlation coefficient between true and imputed genotypes.
@@ -151,7 +156,9 @@ class Quality(object):
         scorer = lambda t: pearsonr(t[0], t[1])[0]  # keeps only correlation, not p-value
         score = list(map(scorer, zip(true, imputed)))
         # astype(str) casts Series type to discrete classes
-        return pd.Series(score, index=self.trueobj.variants, name='r_squared')
+        rsqr = pd.Series(score, index=self.trueobj.variants, name='r_squared').apply(self.square)
+        # squared correlation
+        return rsqr
 
     def diff(self) -> pd.DataFrame:
         """
@@ -170,11 +177,13 @@ class Quality(object):
         :return:
         """
         absdiff = self.diff()
-        scorer = lambda x: 1.0 - np.linalg.norm(x)
+        normer = lambda x: np.linalg.norm(x)
         # scipy.stats.zscore?
         # np.mean?
         # np.linalg.norm --> accuracy = recall
-        score = np.apply_along_axis(scorer, 1, absdiff)
+        normdiff = zscore(absdiff, axis=1)
+        score = np.mean(absdiff, axis=1)
+        norm = np.apply_along_axis(normer, 1, absdiff)
         return pd.Series(score, index=self.trueobj.variants, name='concordance')
 
     @staticmethod
@@ -272,3 +281,74 @@ class Quality(object):
         score = list(map(scorer, zip(true, imputed)))
         # astype(str) casts Series type to discrete classes
         return pd.Series(score, index=self.trueobj.variants, name='f1_score')
+
+
+class QualityGL(object):
+    """
+    Implement cross-entropy method for assessing imputation performance from GL
+    """
+    def __init__(self, truefile: FilePath, imputedfile: FilePath, ax: object, fmt: str = 'GP', idx: str = 'id'):
+        self.trueobj = alltls.PandasMixedVCF(truefile, format='GL', indextype=idx)
+        self.imputedobj = alltls.PandasMixedVCF(imputedfile, format=fmt, indextype=idx)
+        self._axis = ax
+        #TODO: index properties and verification
+
+    @property
+    def axis(self):
+        return self._axis
+
+    @axis.setter
+    def set_axis(self, ax):
+        if ax == 0 or ax == 'variants':
+            self._axis = 0
+        elif ax == 1 or ax == 'samples':
+            self._axis = 1
+        else:
+            self._axis = None
+
+    @staticmethod
+    def intergl_entropy(g_true: pd.Series, g_pred: pd.Series) -> pd.Series:
+        """
+        Compute entropy from two GL series over a sample as
+        E = -sum(p_true * log(p_imputed), sum over the 3 GL values at every mmarker
+        """
+        g_true = pd.Series(g_true)
+        g_pred = pd.Series(g_pred)  # comes as tuples of str
+        sumlog = lambda x, y: -np.sum(np.multiply(x, np.log(np.asarray(y, dtype=float))))  # GP are not logged
+        return g_true.combine(g_pred, sumlog)
+
+    @property
+    def cross_entropy(self) -> pd.Series:
+        """
+        For genotypes likelihoods
+        Entropy for the genotypes, aCROSS two populations.
+        Not confuse with intrapop entropy
+        entropy = alpha * sum(p_true * log(p_imputed) for every GL for every sample) at 1 marker
+        :return:
+        """
+        true = self.trueobj.genotypes()
+        imputed = self.imputedobj.genotypes()
+        entro = true.combine(imputed, self.intergl_entropy)  # might output many NaNs
+        entro.fillna(-5.0, inplace=True)
+        score = entro.mean(axis=1)
+        return pd.Series(score, index=self.trueobj.variants, name='cross_entropy')
+
+
+if __name__ == '__main__':
+    import matplotlib.pyplot as plt
+    # Example with results from Phaser and Beagle on 10000 markers
+    paths = {'phaser': {
+        'true': '/home/camille/1000Genomes/data/gt/stratified/IMP.chr20.snps.gt.chunk10000.vcf.gz',
+        'imputed': '/home/camille/1000Genomes/data/gl/gl_adaptive/phaser/IMP.chr20.pooled.imputed.gt.chunk10000.vcf.gz'},
+        'beagle': {
+            'true': '/home/camille/1000Genomes/data/gl/IMP.chr20.snps.gl.chunk10000.vcf',
+            'imputed': '/home/camille/1000Genomes/data/gl/gl_adaptive/chunk10000_20190725/IMP.chr20.pooled.beagle2.gl.chunk10000.corr.vcf.gz'}
+    }
+
+    qgl = QualityGL(paths['beagle']['true'], paths['beagle']['imputed'], 0)
+    mess = qgl.cross_entropy
+    dfaf = alltls.PandasVCF('/home/camille/1000Genomes/data/gt/stratified/IMP.chr20.snps.gt.chunk10000.vcf.gz')
+    dfmess = mess.to_frame()
+    dfmess = dfmess.join(dfaf.af_info)
+    dfmess.plot.scatter('af_info', 'cross_entropy')
+    plt.show()

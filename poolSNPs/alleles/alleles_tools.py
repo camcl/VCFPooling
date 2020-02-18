@@ -296,7 +296,10 @@ class PandasVCF(object):
         vars = self.variants
         arr = np.zeros((len(vars),), dtype=float)
         for i, var in enumerate(vcfobj):
-            arr[i] = var.num_het / var.num_called
+            try:
+                arr[i] = var.num_het / var.num_called
+            except ZeroDivisionError:
+                arr[i] = 0.0
 
         return pd.Series(arr, index=vars, name='het_rate')
 
@@ -306,7 +309,10 @@ class PandasVCF(object):
         vars = self.variants
         arr = np.zeros((len(vars),), dtype=float)
         for i, var in enumerate(vcfobj):
-            arr[i] = var.num_hom_alt / var.num_called
+            try:
+                arr[i] = var.num_hom_alt / var.num_called
+            except ZeroDivisionError:
+                arr[i] = 0.0
 
         return pd.Series(arr, index=vars, name='hom_alt_rate')
 
@@ -316,7 +322,10 @@ class PandasVCF(object):
         vars = self.variants
         arr = np.zeros((len(vars),), dtype=float)
         for i, var in enumerate(vcfobj):
-            arr[i] = var.num_hom_ref / var.num_called
+            try:
+                arr[i] = var.num_hom_ref / var.num_called
+            except ZeroDivisionError:
+                arr[i] = 0.0
 
         return pd.Series(arr, index=vars, name='hom_ref_rate')
 
@@ -658,18 +667,24 @@ def repr_gl_array(arr):
     return strg
 
 
-def bin_gl_converter(v_in, log=True):
+def bin_loggl_converter(v_in):
     # v_in: cyvcf2 variant
     g_in = v_in.genotypes
     g_out = np.apply_along_axis(map_gt_gl, 1, g_in)
     logzero = np.vectorize(lambda x: -5.0 if x <= pow(10, -5) else math.log10(x))
-    if log:
-        g_out = logzero(g_out)
-        # g_out = np.apply_along_axis(logzero, axis=0, arr=g_out)
+    # Beagles needs log-GL
+    g_out = logzero(g_out)
     return g_out
 
 
-def fmt_gl_variant(v_in, glfunc=bin_gl_converter):
+def bin_gl_converter(v_in):
+    # v_in: cyvcf2 variant
+    g_in = v_in.genotypes
+    g_out = np.apply_along_axis(map_gt_gl, 1, g_in)
+    return g_out
+
+
+def fmt_gl_variant(v_in, glfunc=bin_loggl_converter):
     info = ';'.join([kv for kv in ['='.join([str(k), str(v)]) for k, v in v_in.INFO]])
     gl = repr_gl_array(np.array(list(map(glfunc, [v_in]))))
     toshow = np.asarray([v_in.CHROM,
@@ -687,7 +702,10 @@ def fmt_gl_variant(v_in, glfunc=bin_gl_converter):
     return towrite
 
 
-def file_likelihood_converter(f_in, f_out, func=bin_gl_converter):
+def file_likelihood_converter(f_in, f_out, func=bin_loggl_converter):
+    """
+    output shoulb written as uncom,pressed vcf!
+    """
     str_header = '##FORMAT=<ID=GL,Number=G,Type=Float,Description="three log10-scaled likelihoods for RR,RA,AA genotypes">'
     dic_header = {'ID': 'GL',
                   'Number': 'G',
@@ -740,6 +758,11 @@ def make_index(raw_data, src=None, idt='id'):
 
 
 if __name__ == '__main__':
+    # create GL encoded file from raw GT
+    vcfin = '/home/camille/1000Genomes/data/gt/stratified/IMP.chr20.snps.gt.chunk10000.vcf.gz'
+    vcfout = '/home/camille/1000Genomes/data/gl/IMP.chr20.snps.gl.chunk10000.vcf'
+    file_likelihood_converter(vcfin, vcfout, func=bin_gl_converter)  # easier for cross entropies not to log gl
+
     os.chdir('/home/camille/1000Genomes/data/gl/gl_adaptive/all_snps_all_samples')
     fpath = 'IMP.chr20.pooled.beagle2.gl.chunk10000.vcf.gz'
     mydf = PandasMixedVCF(fpath)

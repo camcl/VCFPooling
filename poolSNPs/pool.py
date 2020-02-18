@@ -9,7 +9,7 @@ from cyvcf2 import VCF, Writer, Variant
 
 from scripts.VCFPooling.poolSNPs import parameters as prm
 from scripts.VCFPooling.poolSNPs.alleles import alleles_tools as alltls
-from scripts.VCFPooling.poolSNPs.alleles import frequency_distribution as allfqc
+from scripts.VCFPooling.python.archived import frequency_distribution as allfqc
 from scripts.VCFPooling.poolSNPs import pybcf
 
 from persotools.files import *
