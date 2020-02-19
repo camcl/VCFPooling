@@ -182,7 +182,7 @@ class QualityGT(object):
         # np.mean?
         # np.linalg.norm --> accuracy = recall
         normdiff = zscore(absdiff, axis=1)
-        score = np.mean(absdiff, axis=1)
+        score = 1.0 - np.mean(absdiff, axis=1)
         norm = np.apply_along_axis(normer, 1, absdiff)
         return pd.Series(score, index=self.trueobj.variants, name='concordance')
 
