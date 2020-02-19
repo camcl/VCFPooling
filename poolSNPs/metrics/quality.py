@@ -306,16 +306,38 @@ class QualityGL(object):
         else:
             self._axis = None
 
-    @staticmethod
-    def intergl_entropy(g_true: pd.Series, g_pred: pd.Series) -> pd.Series:
+    def logfill(self, x):
         """
-        Compute entropy from two GL series over a sample as
+        Adjust values for cross-entropy calculation
+        Ex. rs1836444  -0.0  inf  NaN -> rs1836444  0.0  5.0  0.0
+        """
+        if x == -0.0 or x == np.nan:
+            return 0.0
+        elif x == np.inf:
+            return 5.0
+        else:
+            return x
+
+    def intergl_entropy(self, g_true: pd.Series, g_pred: pd.Series) -> pd.Series:
+        """
+        Compute entropy from two GL series for a sample as
         E = -sum(p_true * log(p_imputed), sum over the 3 GL values at every mmarker
+        p_imputed set to 10^-5 if equal to 0.0
         """
         g_true = pd.Series(g_true)
         g_pred = pd.Series(g_pred)  # comes as tuples of str
-        sumlog = lambda x, y: -np.sum(np.multiply(x, np.log(np.asarray(y, dtype=float))))  # GP are not logged
-        return g_true.combine(g_pred, sumlog)
+        dftrue = pd.DataFrame.from_records(g_true.values,
+                                           index=g_true.index,
+                                           columns=['RR', 'RA', 'AA']).astype(float)
+        dfpred = pd.DataFrame.from_records(g_pred.values,
+                                           index=g_pred.index,
+                                           columns=['RR', 'RA', 'AA']).astype(float)
+        prodlog = lambda x, y: -np.multiply(np.asarray(x, dtype=float),
+                                            np.log(np.asarray(y, dtype=float))
+                                            )
+        # GP are not logged
+        g_entro = dftrue.combine(dfpred, prodlog).applymap(self.logfill).fillna(0.0)
+        return g_entro.sum(axis=1).rename(g_true.name)
 
     @property
     def cross_entropy(self) -> pd.Series:
@@ -328,8 +350,8 @@ class QualityGL(object):
         """
         true = self.trueobj.genotypes()
         imputed = self.imputedobj.genotypes()
-        entro = true.combine(imputed, self.intergl_entropy)  # might output many NaNs
-        entro.fillna(-5.0, inplace=True)
+        entro = true.combine(imputed, self.intergl_entropy)
+        print(entro)
         score = entro.mean(axis=1)
         return pd.Series(score, index=self.trueobj.variants, name='cross_entropy')
 
@@ -346,9 +368,10 @@ if __name__ == '__main__':
     }
 
     qgl = QualityGL(paths['beagle']['true'], paths['beagle']['imputed'], 0)
+
     mess = qgl.cross_entropy
     dfaf = alltls.PandasVCF('/home/camille/1000Genomes/data/gt/stratified/IMP.chr20.snps.gt.chunk10000.vcf.gz')
     dfmess = mess.to_frame()
     dfmess = dfmess.join(dfaf.af_info)
-    dfmess.plot.scatter('af_info', 'cross_entropy')
+    dfmess.plot.scatter('af_info', 'cross_entropy', s=0.7)
     plt.show()

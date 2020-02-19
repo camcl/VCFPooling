@@ -721,10 +721,12 @@ def file_likelihood_converter(f_in, f_out, func=bin_loggl_converter):
         except KeyError:
             pass
 
+    print('Writing metadata of {}'.format(f_out).ljust(80, '.'))
     w1 = Writer(f_out, vcf_in)
     w1.write_header()
     w1.close()
 
+    print('Writing data in {}'.format(f_out).ljust(80, '.'))
     with open(f_out, 'ab') as w2:
         for var_in in vcf_in:
             stream = fmt_gl_variant(var_in, glfunc=func).encode()
