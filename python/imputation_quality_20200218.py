@@ -33,10 +33,10 @@ paths = {'phaser': {
     'imputed': '/home/camille/1000Genomes/data/gl/gl_adaptive/phaser/IMP.chr20.pooled.imputed.gl.chunk10000.vcf'},
     'beagle': {
         'true': '/home/camille/1000Genomes/data/gt/stratified/IMP.chr20.snps.gt.chunk10000.vcf.gz',
-        'imputed': '/home/camille/1000Genomes/data/gl/gl_adaptive/chunk10000_20190725/IMP.chr20.pooled.imputed.gt.chunk10000.vcf.gz'},
+        'imputed': '/home/camille/1000Genomes/data/gl/gl_adaptive/chunk10000_20190822/IMP.chr20.pooled.imputed.gt.chunk10000.vcf.gz'},
     'beaglegl': {
         'true': '/home/camille/1000Genomes/data/gl/IMP.chr20.snps.gl.chunk10000.vcf',
-        'imputed': '/home/camille/1000Genomes/data/gl/gl_adaptive/chunk10000_20190725/IMP.chr20.pooled.beagle2.gl.chunk10000.corr.vcf.gz'}
+        'imputed': '/home/camille/1000Genomes/data/gl/gl_adaptive/chunk10000_20190822/IMP.chr20.pooled.beagle2.gl.chunk10000.corr.vcf.gz'}
 }
 
 # Convert GT files to GL (Phaser)
@@ -50,12 +50,6 @@ messbeagle = qbeaglegl.cross_entropy
 
 qphasergl = quality.QualityGL(paths['phasergl']['true'], paths['phasergl']['imputed'], 0, fmt='GL', idx='chrom:pos')
 messphaser = qphasergl.cross_entropy
-
-# dfaf = alltls.PandasVCF(paths['beagle']['true'])
-# dfmess = mess.to_frame()
-# dfmess = dfmess.join(dfaf.af_info)
-# dfmess.plot.scatter('af_info', 'cross_entropy')
-# plt.show()
 
 qphaser = quality.QualityGT(*paths['phaser'].values(), 0, idx='chrom:pos')
 tabphaser = pd.concat([qphaser.concordance(),

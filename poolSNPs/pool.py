@@ -6,6 +6,7 @@ import time
 import math
 from scipy.stats import bernoulli as bn
 from cyvcf2 import VCF, Writer, Variant
+import pysam
 
 from scripts.VCFPooling.poolSNPs import parameters as prm
 from scripts.VCFPooling.poolSNPs.alleles import alleles_tools as alltls
@@ -183,9 +184,7 @@ class SNPsPool(np.ndarray):
             return pools_
             # return just for being able to print the list if wished
 
-    def set_line_values(self, samples: list, variant: Variant,
-                        sig: object = None,
-                        params: List[float] = [], interp: object = None) -> None:
+    def set_line_values(self, samples: list, variant: Variant) -> None:
         # TODO: refactor with property decorator
         """
         Attach sigmoid-transformed alternate allele frequencies to the current variant.
@@ -200,12 +199,8 @@ class SNPsPool(np.ndarray):
         self.__setattr__('samples', samples)
         self.__setattr__('var_pos', str(variant.POS))
         self.__setattr__('aaf', variant.aaf)
-        if sig is not None:
-            self.__setattr__('aat', sig.call_sigmoid(params, self.aaf))
-            self.__setattr__('aat_', sig.call_sigmoid_derivative(interp, self.aaf))
-        else:
-            self.__setattr__('aat', np.nan)
-            self.__setattr__('aat_', np.nan)
+        self.__setattr__('aat', np.nan)
+        self.__setattr__('aat_', np.nan)
 
     def get_call(self) -> np.ndarray:
         """
@@ -477,6 +472,7 @@ class SNPsPool(np.ndarray):
 
 def process_file(data: VCF, groups: list, simul: str) -> None:
     #TODO: clean/refactor execution comments like processed file name
+    # TODO: should be useable in chunkvcf.py
     """
     Computes and rewrites genotypes of all individuals for all samples from input files
     :param data: cyvcf2 object reader pointing on a VCF-file
@@ -509,23 +505,17 @@ def process_file(data: VCF, groups: list, simul: str) -> None:
                                           n, m,
                                           rr, ra, aa in df.itertuples(index=False, name=None))
 
-        sig = allfqc.SigmoidInterpolator(os.path.join(prm.PATH_GT_FILES, prm.RAW['gz'].replace('gl', 'gt')),
-                                         os.path.join(prm.PATH_GT_FILES, prm.POOLED['gz'].replace('gl', 'gt')))
-        params = sig.get_sigmoid_params()
-        interp = sig.interpolate_derivative()
-
     else:  # prm.GTGL == 'GT' or fixed GL
         w = Writer(prm.PATH_OUT[simul], data)
         w.set_threads(4)
         df2dict = None
-        sig = None
         params = None
         interp = None
 
     tm = time.time()
     # for n, variant in enumerate(data('20:59973567-59973568')):
     for n, variant in enumerate(data):
-        process_line(groups, simul, w, variant, df2dict, sig, params, interp)
+        process_line(groups, simul, w, variant, df2dict, params)
         if n % 1000 == 0:
             print('{} variants processed in {:06.2f} sec'.format(n+1, time.time()-tm).ljust(80, '.'))
         # if n+1 == 1000:
@@ -540,7 +530,7 @@ def process_file(data: VCF, groups: list, simul: str) -> None:
 
 
 def process_line(groups: list, simul: str, w: Writer, v: Variant, dict_gl: dict,
-                 sig: object, params: List[float], interp: object, write: bool = True) -> None:
+                write: bool = True) -> None:
     #TODO: comments to add
     """
     From currently pointed variant object:
@@ -560,7 +550,7 @@ def process_line(groups: list, simul: str, w: Writer, v: Variant, dict_gl: dict,
         i = 1
         for p in sets:
             i += 1
-            p.set_line_values(SAMPLES, var, sig, params, interp)
+            p.set_line_values(SAMPLES, var)
             if prm.GTGL == 'GL' and prm.unknown_gl == 'adaptive':
                     pooled_samples = p.decode_genotypes_gl(pooled_samples,
                                                            dict_gl)
@@ -615,6 +605,7 @@ def init_chunk(WD: str, path_in: str, chunk: bool = True, strat: bool = False) -
     :return: list of 16-sized groups of samples i.e. pools
     """
     raw = VCF(os.path.join(prm.WD, 'gt', path_in), threads=nb_cores)  # VCF iterator object
+    #TODO: raw = pysam.VariantFile(os.path.join(prm.WD, 'gt', path_in))
     splits = split_pools(raw.samples, 16, seed=123)  # list of lists
     with open(os.path.join(prm.WD, 'gt', 'ALL.chr20.snps.allID.txt'), 'w') as f:
         for s in splits[0]:
@@ -696,6 +687,7 @@ def run(splits: list, sim: str) -> None:
     :return:
     """
     vcf = VCF(os.path.join(prm.PATH_GT_FILES, prm.CHKFILE), threads=nb_cores)
+    #TODO: vcf = pysam.VariantFile(os.path.join(prm.PATH_GT_FILES, prm.CHKFILE))
     print('File to write to --> ', prm.PATH_OUT[sim])
     start = time.time()
     process_file(vcf, splits, sim)
@@ -704,6 +696,7 @@ def run(splits: list, sim: str) -> None:
 
 
 def write_truncate_vcf(path_in: str, path_out: str, trunc: int) -> int:
+    #TODO: w = to deprecate
     """
 
     :param path_in:
@@ -721,6 +714,7 @@ def write_truncate_vcf(path_in: str, path_out: str, trunc: int) -> int:
 
 
 def subset_chunked_vcf(wd: str, src: str, path_out: str, chz_sz: int, trc: int) -> None:
+    #TODO: w = to deprecate
     """
     
     :param wd:

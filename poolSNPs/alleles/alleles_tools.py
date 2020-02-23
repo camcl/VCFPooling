@@ -769,12 +769,3 @@ if __name__ == '__main__':
     fpath = 'IMP.chr20.pooled.beagle2.gl.chunk10000.vcf.gz'
     mydf = PandasMixedVCF(fpath)
 
-    gtframe = PandasMixedVCF('IMP.chr20.pooled.beagle2.gl.chunk10000.corr.vcf.gz', format='GP')
-    varonly = VariantCallGenerator('IMP.chr20.pooled.beagle2.gl.chunk10000.corr.vcf.gz', format='GP')
-    varchunk = VariantChunkGenerator('IMP.chr20.pooled.beagle2.gl.chunk10000.corr.vcf.gz',
-                                     format='GP',
-                                     chunksize=1000)
-
-    chunkpack = varchunk.chunkpacker()
-    for i, chk in enumerate(chunkpack):
-        print(i, len([*chk]))

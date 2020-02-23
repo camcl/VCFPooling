@@ -351,7 +351,6 @@ class QualityGL(object):
         true = self.trueobj.genotypes()
         imputed = self.imputedobj.genotypes()
         entro = true.combine(imputed, self.intergl_entropy)
-        print(entro)
         score = entro.mean(axis=1)
         return pd.Series(score, index=self.trueobj.variants, name='cross_entropy')
 
