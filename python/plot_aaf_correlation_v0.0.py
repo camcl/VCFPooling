@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from cyvcf2 import VCF
 
 from scripts.VCFPooling.poolSNPs.alleles import alleles_tools as alltls
-from scripts.VCFPooling.poolSNPs.alleles import alleles_plots as allplt
+from scripts.VCFPooling.poolSNPs import chunkvcf as chkvcf
 from scripts.VCFPooling.poolSNPs import parameters as prm
 from persotools.files import *
 

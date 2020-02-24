@@ -185,22 +185,30 @@ class SNPsPool(np.ndarray):
             # return just for being able to print the list if wished
 
     def set_line_values(self, samples: list, variant: Variant) -> None:
-        # TODO: refactor with property decorator
         """
         Attach sigmoid-transformed alternate allele frequencies to the current variant.
         :param samples: samples identifiers from the VCF-file
         :param variant: variant identifier from the VCF-file
-        :param sig: sigmoid object computed from another set of pooled genotype data
-        :param params: parameters to pass for the sigmoid approximation
-        :param interp: interpolated sigmoid object for sigmoid approximation
         :return: variant object with attributes attached, e.g. twisted alternate allele frequency
         """
         self.__setattr__('variant', variant.genotypes)
         self.__setattr__('samples', samples)
         self.__setattr__('var_pos', str(variant.POS))
         self.__setattr__('aaf', variant.aaf)
-        self.__setattr__('aat', np.nan)
-        self.__setattr__('aat_', np.nan)
+
+    def set_record_att(self, samples: list, variant: pysam.VariantRecord) -> None:
+        """
+        pysam translation of set_lines_values
+        :param samples: samples identifiers from the VCF-file
+        :param variant: variant identifier from the VCF-file
+        :return: variant object with attributes attached, e.g. twisted alternate allele frequency
+        """
+        self.__setattr__('variant', variant.samples.values()['GT'])
+        self.__setattr__('samples', samples.keys())
+        self.__setattr__('var_pos', str(variant.pos))
+        gt = np.array(variant.samples.values()['GT']).flatten()
+        aaf = gt.sum() / len(samples.keys())
+        self.__setattr__('aaf', aaf)
 
     def get_call(self) -> np.ndarray:
         """
@@ -509,13 +517,11 @@ def process_file(data: VCF, groups: list, simul: str) -> None:
         w = Writer(prm.PATH_OUT[simul], data)
         w.set_threads(4)
         df2dict = None
-        params = None
-        interp = None
 
     tm = time.time()
     # for n, variant in enumerate(data('20:59973567-59973568')):
     for n, variant in enumerate(data):
-        process_line(groups, simul, w, variant, df2dict, params)
+        process_line(groups, simul, w, variant, df2dict)
         if n % 1000 == 0:
             print('{} variants processed in {:06.2f} sec'.format(n+1, time.time()-tm).ljust(80, '.'))
         # if n+1 == 1000:
@@ -546,7 +552,7 @@ def process_line(groups: list, simul: str, w: Writer, v: Variant, dict_gl: dict,
     for gp in groups[0]:
         sets.append(SNPsPool().set_subset(gp))
 
-    if simul == 'pooled':  # sig might be not None if adaptive GL
+    if simul == 'pooled':
         i = 1
         for p in sets:
             i += 1
