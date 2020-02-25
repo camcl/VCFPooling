@@ -5,6 +5,7 @@ import pandas as pd
 import cyvcf2
 import pysam
 from itertools import starmap, repeat
+import math
 import shutil
 import multiprocessing as mp
 import argparse
@@ -19,6 +20,7 @@ from scripts.VCFPooling.poolSNPs import parameters as prm
 from scripts.VCFPooling.poolSNPs import pybcf
 from scripts.VCFPooling.poolSNPs import pool
 from scripts.VCFPooling.poolSNPs import dataframe as vcfdf
+from scripts.VCFPooling.poolSNPs.alleles import alleles_tools as alltls
 
 from persotools.files import delete_file, mkdir, FilePath
 from persotools.struct import NamedDict
@@ -246,7 +248,7 @@ class CyvcfVariantChunkGenerator(object):
         self.pack = True
         self.newpos = 1  # for valid self.newpos - 1 at the start of the first chunk
 
-    def chunk(self, chunksize: int, newpos: int):
+    def chunker(self, chunksize: int, newpos: int):
         """Build generators of variants calls"""
         iterator = cyvcf2.VCF(self.path)
         try:
@@ -282,7 +284,7 @@ class CyvcfVariantChunkGenerator(object):
 
     def chunkpacker(self):
         while self.pack:
-            chk = self.chunk(self.chksz, self.newpos)
+            chk = self.chunker(self.chksz, self.newpos)
             # function output and included sttributes updates NOT unpacked hence NOT updated
             self.newpos, self.pack = self.incrementer(self.chksz)
             yield chk
@@ -311,7 +313,7 @@ class CyvcfChunkHandler(object):
     * write back to vcf: 1 vcf in, 1 vcf out
     """
     def __init__(self, mainpath: FilePath, groups: list = None, gdict: dict = None, fileout: FilePath = None,
-                 packedchunk: CyvcfVariantChunkGenerator.chunk = None):
+                 packedchunk: CyvcfVariantChunkGenerator.chunker = None):
         self.mainf = cyvcf2.VCF(mainpath)
         if packedchunk is not None:
             self.data = packedchunk
@@ -336,27 +338,32 @@ class CyvcfChunkHandler(object):
                       'Description': 'three log10-scaled likelihoods for RR,RA,AA genotypes'}
         self.mainf.add_format_to_header(dic_header)
 
-    def process(self):
+    def write_header(self):
         self.add_format_to_header()
-        if self.filout is None:
-            w = cyvcf2.Writer('dummy_file.vcf', self.mainf)
-        else:
-            w = cyvcf2.Writer(self.filout, self.mainf)
+        fout = cyvcf2.Writer(self.filout, self.mainf)
+        fout.write_header()
+        fout.close()
 
+    def process(self):
+        if False:  # write GT only format
+            fout = cyvcf2.Writer(self.filout, self.mainf, mode='w')
+        else:  # write other formats
+            self.write_header()
+            fout = open(self.filout, 'ab')
         for rec in self.data:
             var = rec
-            pool.process_line(self.groups, 'pooled', w, var, self.gdict, write=False)
+            # pool.process_line(self.groups, 'pooled', fout, var, self.gdict, write=True)
+            cvp = CyvcfVariantPooler(self.groups, 'pooled', fout, var, self.gdict, write=True)
+            cvp.simulate_pooling()
+            cvp.write_variant()
+            break
+        fout.close()
 
-    def writechunk(self):
+    def write_chunk(self):
         """
         :param data: variant generator
         """
-        fout = cyvcf2.Writer(self.filout, cyvcf2.VCF(self.mainf))
-        data = self.process()
-        for rec in data:
-            var = rec
-            print([v['GT'] for v in var.samples.values()])
-            fout.write(rec)
+        fout = cyvcf2.Writer(self.filout, self.mainf)
         fout.close()
 
 
@@ -369,25 +376,23 @@ class CyvcfVariantPooler(object):
     """
     Class translation of pool.process_line
     """
-    def __init__(self, groups: list, simul: str, format: str,
-                 w: pysam.VariantFile, v: pysam.VariantRecord,
-                 dict_gl: dict,  write: bool = True):
+    def __init__(self, groups: list, simul: str,
+                 w: cyvcf2.Writer, v: cyvcf2.Variant,
+                 gdict: dict,  write: bool = True) -> None:
         self.groups = groups
         self.simul = simul
-        self.fmt = format
         self.writer = w
         self.record = v
-        self.lookup = dict_gl
+        self.lookup = gdict
         self._write = write
-        self.samples = self.record.samples.keys()
-        self.genotypes = np.asarray(self.record.samples.values()[self.fmt])
-        self.pooled_record = self.record.copy()
-        self.blocks = []
-        for gp in groups[0]:
-            self.blocks.append(pool.SNPsPool().set_subset(gp))
+        self.samples = cyvcf2.VCF(self.writer.name).samples
+        self.genotypes = np.asarray(self.record.genotypes)
+        self.pooled_record = self.record
+        self.blocks = [pool.SNPsPool().set_subset(np.asarray(gp)) for gp in self.groups[0]]
+        # for gp in groups[0]:
+        #     self.blocks.append(pool.SNPsPool().set_subset(gp))
 
     def simulate_pooling(self):
-        self.pooled_record.format = prm.GTGL
         for p in self.blocks:
             p.set_line_values(self.samples, self.record)
             if prm.GTGL == 'GL' and prm.unknown_gl == 'adaptive':
@@ -396,13 +401,45 @@ class CyvcfVariantPooler(object):
                 self.pooled_record = p.decode_genotypes_gt(self.genotypes)
 
     def simulate_rdmissing(self):
-        pass
+        for p in self.blocks:
+            p.set_line_values(self.samples, self.record)
+            dlt = pool.random_delete(activate=True)
+            idx = np.argwhere(np.isin(self.samples, p))
+            if dlt:
+                if prm.GTGL == 'GL' and prm.unknown_gl == 'adaptive':
+                    self.pooled_record = self.pooled_record.astype(float)  # avoid truncating GL
+                    np.put(self.pooled_record, idx, np.asarray([1 / 3, 1 / 3, 1 / 3]))
+                else:
+                    np.put(self.pooled_record, idx, np.asarray([-1, -1, 0]))
 
     def write_variant(self):
-        pass
+        if prm.GTGL == 'GL' and prm.unknown_gl == 'adaptive':
+            # cyvcf2.Variant.genotypes does not handle GL-format
+            # customize line format for GL
+            logzero = np.vectorize(lambda x: -5.0 if x <= pow(10, -5) else math.log10(x))
+            info = ';'.join([kv for kv in ['='.join([str(k), str(v)]) for k, v in self.record.INFO]])
+            gl = alltls.repr_gl_array(logzero(self.pooled_record))
+            toshow = np.asarray([self.record.CHROM,
+                                 self.record.POS,
+                                 self.record.ID,
+                                 ''.join(self.record.REF),
+                                 ''.join(self.record.ALT),
+                                 self.record.QUAL if not None else '.',
+                                 'PASS' if self.record.FILTER is None else self.record.FILTER,
+                                 info,
+                                 'GL',
+                                 gl],
+                                dtype=str)
+            towrite = '\t'.join(toshow) + '\n'
+            stream = towrite.encode()
+            self.writer.write(stream)  # cyvcf2.Writer.variant_from_string() does not write anything
+        else:
+            # cyvcf2.Variant.genotypes does handle GT-format
+            self.record.genotypes = self.pooled_record.tolist()
+            self.writer.write_record(self.record)
 
 
-def cyvcf_parallel_pooling(pth: FilePath, chkdata: CyvcfVariantChunkGenerator.chunk, groups: list, gdict: dict) -> None:
+def cyvcf_parallel_pooling(pth: FilePath, chkdata: CyvcfVariantChunkGenerator.chunker, groups: list, gdict: dict) -> None:
     handler = CyvcfChunkHandler(pth, chkdata)
     handler.process(splits, df2dict)
 
@@ -468,6 +505,6 @@ if __name__ == '__main__':
                      repeat(df2dict, len(indices)),
                      files1))
     os.chdir(prm.TMP_DATA_PATH)
-    # cch = _cyvcfchunkhandler_process(*args1[0])  # processes 1 chunked file
-    with mp.Pool(processes=os.cpu_count()) as mpool:
-         _ = all(mpool.starmap(_cyvcfchunkhandler_process, args1))
+    cch = _cyvcfchunkhandler_process(*args1[0])  # processes 1 chunked file
+    # with mp.Pool(processes=os.cpu_count()//4) as mpool:
+    #      _ = all(mpool.starmap(_cyvcfchunkhandler_process, args1))

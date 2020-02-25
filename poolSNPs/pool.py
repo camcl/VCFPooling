@@ -577,7 +577,6 @@ def process_line(groups: list, simul: str, w: Writer, v: Variant, dict_gl: dict,
                     np.put(pooled_samples, idx, np.asarray([1/3, 1/3, 1/3]))
                 else:
                     np.put(pooled_samples, idx, np.asarray([-1, -1, 0]))
-    print(pooled_samples)
     if write:
         if prm.GTGL == 'GL' and prm.unknown_gl == 'adaptive':
             # cyvcf2.Variant.genotypes does not handle GL-format
@@ -596,9 +595,9 @@ def process_line(groups: list, simul: str, w: Writer, v: Variant, dict_gl: dict,
                                  'GL',
                                  gl],
                                 dtype=str)
-            towrite = '\t'.join(toshow) + '\n'
+            towrite = '\t'.join(toshow)  + '\n'
             stream = towrite.encode()
-            w.variant_from_string(stream)
+            w.write(stream)  # cyvcf2.Writer.variant_from_string() does not write anything
         else:
             # cyvcf2.Variant.genotypes does handle GT-format
             var.genotypes = pooled_samples.tolist()
