@@ -31,7 +31,7 @@ Steps:
 * Merge pooled chunks back to read-for-use compressed VCF file
 
 Usage: 
-$ python3 parallel_20200222.py 2 /home/camille/1000Genomes/data/gt/ALL.chr20.snps.gt.chunk10000.vcf.gz /home/camille/1000Genomes/data/gl/gl_adaptive/parallel_pooling/ALL.chr20.pooled.snps.gl.chunk10000.vcf.gz
+$ python3 parallel_20200222.py /home/camille/1000Genomes/data/gt/ALL.chr20.snps.gt.chunk10000.vcf.gz /home/camille/1000Genomes/data/gl/gl_adaptive/parallel_pooling/ALL.chr20.pooled.snps.gl.chunk10000.vcf.gz 2
 '''
 
 ### COMMAND-LINE PARSING AND PARAMETERS
