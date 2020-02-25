@@ -52,6 +52,7 @@ ROOT = os.path.join(HOME, '1000Genomes')
 
 ### all
 DATA_PATH = os.path.join(ROOT, 'data')
+TMP_DATA_PATH = os.path.join(ROOT, 'tmp_data')
 PLOTS_PATH = os.path.join(ROOT, 'plots')
 SCRIPTS_PATH = os.path.join(ROOT, 'scripts')
 

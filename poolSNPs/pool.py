@@ -114,6 +114,7 @@ class SNPsPool(np.ndarray):
         id = 'U' + str(cls.id_len)
         cls.pools_nb = pools_nb
         cls.pools_size = pools_size
+        cls.block = None
         return np.empty_like(super(SNPsPool, cls).__new__(cls, shape),
                              dtype=id)
 
@@ -145,6 +146,7 @@ class SNPsPool(np.ndarray):
         """
         self.__setattr__('subset', subset)  # from split_pools
         sub = self.__getattribute__('subset')
+        self.block = subset
         try:
             for i in range(self.shape[0]):
                 self[i, :] = sub[:self.shape[1]]
@@ -166,7 +168,7 @@ class SNPsPool(np.ndarray):
         Flatten the matrix of pooled samples identifiers.
         :return: flattened array of samples identifiers or genotypes.
         """
-        ids = self.flatten()  # .reshape(1, self.size)
+        ids = self.block.flatten()  # .reshape(1, self.size)
         return ids
 
     def pools_list(self) -> List[str]:
@@ -259,7 +261,7 @@ class SNPsPool(np.ndarray):
     def decode_genotypes_gt(self, samples_gt: np.ndarray) -> np.ndarray:
         """
         Recomputes true genotypes of samples with/without pooling/missing data
-        :param pooled_samples: Variant.genotypes (unpooled samples' true genotypes with phase)
+        :param samples_gt: Variant.genotypes (unpooled samples' true genotypes with phase)
         :return: individual samples genotypes (true genotype with phase)
         """
         pooled: np.ndarray = self.pool_genotypes()  # pooled[:, :, -1]: bool = phase of the genotype
@@ -521,7 +523,7 @@ def process_file(data: VCF, groups: list, simul: str) -> None:
     tm = time.time()
     # for n, variant in enumerate(data('20:59973567-59973568')):
     for n, variant in enumerate(data):
-        process_line(groups, simul, w, variant, df2dict)
+        process_line(groups, simul, w, variant, df2dict, write=False)
         if n % 1000 == 0:
             print('{} variants processed in {:06.2f} sec'.format(n+1, time.time()-tm).ljust(80, '.'))
         # if n+1 == 1000:
@@ -546,10 +548,11 @@ def process_line(groups: list, simul: str, w: Writer, v: Variant, dict_gl: dict,
     :param w: cyvcf2.cyvcf2.Writer object
     :return: variant object with pooled values for GT/GL
     """
-    var = v # copy the variant object to make it readable several times
+    var = v  # copy the variant object to make it readable several times
     pooled_samples = np.asarray(var.genotypes)
     sets = []
     for gp in groups[0]:
+        gp = np.asarray(gp)
         sets.append(SNPsPool().set_subset(gp))
 
     if simul == 'pooled':
@@ -574,7 +577,7 @@ def process_line(groups: list, simul: str, w: Writer, v: Variant, dict_gl: dict,
                     np.put(pooled_samples, idx, np.asarray([1/3, 1/3, 1/3]))
                 else:
                     np.put(pooled_samples, idx, np.asarray([-1, -1, 0]))
-
+    print(pooled_samples)
     if write:
         if prm.GTGL == 'GL' and prm.unknown_gl == 'adaptive':
             # cyvcf2.Variant.genotypes does not handle GL-format
