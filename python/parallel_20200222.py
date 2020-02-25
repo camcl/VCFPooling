@@ -56,7 +56,7 @@ print('Output file = {}'.format(argsin.pathout))
 print('\n'.rjust(80, '*'))
 
 ### SPLIT MAIN VCF-FILE INTO PACKS
-os.chdir(tmp_pathh)
+os.chdir(tmp_path)
 fingz = argsin.pathin  # '/home/camille/1000Genomes/data/gt/ALL.chr20.snps.gt.chunk10000.vcf.gz'
 basin = os.path.basename(fingz).rstrip('.gz')
 basout = os.path.basename(argsin.pathout)
