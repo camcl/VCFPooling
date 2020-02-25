@@ -366,10 +366,17 @@ class CyvcfChunkHandler(object):
         fout = cyvcf2.Writer(self.filout, self.mainf)
         fout.close()
 
+    def bgzip_index_chunk(self):
+        pybcf.bgzip(self.filout, self.filout + '.gz', os.getcwd())
+        pybcf.index(self.filout + '.gz', os.getcwd())
+        # clean uncompressed vcf file
+        delete_file(self.filout)
+
 
 def _cyvcfchunkhandler_process(*arglist):
     cch = CyvcfChunkHandler(*arglist)
     cch.process()
+    cch.bgzip_index_chunk()
 
 
 class CyvcfVariantPooler(object):
@@ -439,9 +446,10 @@ class CyvcfVariantPooler(object):
             self.writer.write_record(self.record)
 
 
-def cyvcf_parallel_pooling(pth: FilePath, chkdata: CyvcfVariantChunkGenerator.chunker, groups: list, gdict: dict) -> None:
+def cyvcf_parallel_pooling(pth: FilePath, chkdata: CyvcfVariantChunkGenerator.chunker,
+                           groups: list, gdict: dict) -> None:
     handler = CyvcfChunkHandler(pth, chkdata)
-    handler.process(splits, df2dict)
+    handler.process(groups, gdict)
 
 
 if __name__ == '__main__':
@@ -505,6 +513,13 @@ if __name__ == '__main__':
                      repeat(df2dict, len(indices)),
                      files1))
     os.chdir(prm.TMP_DATA_PATH)
-    cch = _cyvcfchunkhandler_process(*args1[0])  # processes 1 chunked file
-    # with mp.Pool(processes=os.cpu_count()//4) as mpool:
-    #      _ = all(mpool.starmap(_cyvcfchunkhandler_process, args1))
+    # cch = _cyvcfchunkhandler_process(*args1[0])  # processes 1 chunked file
+    with mp.Pool(processes=os.cpu_count()//2) as mpool:
+         _ = all(mpool.starmap(_cyvcfchunkhandler_process, args1))
+
+    files2 = ['{}.gz'.format(f1) for f1 in files1]
+    pybcf.concat(files2, 'ALL.chr20.snps.gt.chunk10000.vcf', prm.TMP_DATA_PATH)
+    pybcf.sort('ALL.chr20.snps.gt.chunk10000.vcf', prm.TMP_DATA_PATH)
+    pybcf.bgzip('ALL.chr20.snps.gt.chunk10000.vcf', 'ALL.chr20.snps.gt.chunk10000.vcf.gz', prm.TMP_DATA_PATH)
+    pybcf.index('ALL.chr20.snps.gt.chunk10000.vcf.gz', prm.TMP_DATA_PATH)
+    delete_file('ALL.chr20.snps.gt.chunk10000.vcf')

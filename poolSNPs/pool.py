@@ -631,8 +631,8 @@ def init_chunk(WD: str, path_in: str, chunk: bool = True, strat: bool = False) -
 
             print('Sampling markers'.ljust(80, '.'))
             pybcf.chunk_markers(prm.SRCFILE, prm.CHK_SZ, WD)
-            pybcf.concatenate(['headers.ALL.chr20.snps.gt.vcf', 'chunk_{}.vcf '.format(str(prm.CHK_SZ))],
-                              'TMP.chr20.snps.gt.chunk.vcf', WD)
+            pybcf.cat(['headers.ALL.chr20.snps.gt.vcf', 'chunk_{}.vcf '.format(str(prm.CHK_SZ))],
+                      'TMP.chr20.snps.gt.chunk.vcf', WD)
 
             print('BGzipping chunk file'.ljust(80, '.'))
             pybcf.bgzip('TMP.chr20.snps.gt.chunk.vcf', prm.CHKFILE, WD)
