@@ -598,7 +598,7 @@ def process_line(groups: list, simul: str, w: Writer, v: Variant, dict_gl: dict,
                                 dtype=str)
             towrite = '\t'.join(toshow) + '\n'
             stream = towrite.encode()
-            w.write(stream)
+            w.variant_from_string(stream)
         else:
             # cyvcf2.Variant.genotypes does handle GT-format
             var.genotypes = pooled_samples.tolist()
