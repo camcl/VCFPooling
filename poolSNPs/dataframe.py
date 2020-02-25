@@ -7,9 +7,9 @@ import collections
 from scipy.stats import *
 import math
 
-import scripts.VCFPooling.poolSNPs.parameters as prm
-import scripts.VCFPooling.poolSNPs.chunkvcf as chkvcf
-import scripts.VCFPooling.poolSNPs.alleles.alleles_tools as alltls
+from scripts.VCFPooling.poolSNPs import parameters as prm
+from scripts.VCFPooling.poolSNPs import chunkvcf as chkvcf
+from scripts.VCFPooling.poolSNPs.alleles import alleles_tools as alltls
 from persotools.files import *
 
 """

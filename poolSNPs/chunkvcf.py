@@ -290,19 +290,12 @@ class CyvcfVariantChunkGenerator(object):
             yield chk
             # print(self.newpos, self.pack)
 
-    def chunkwriter(self, chki: int = None, prefix=None, bgz: bool = False):
+    def chunkwriter(self, chki: int, pathout: FilePath):
         data = [*self.chunkpacker()][chki]
-        baspath = os.path.basename(self.path).rstrip('.gz')
-        pathout = os.path.join(prm.TMP_DATA_PATH,
-                               '{}{}.{}'.format(prefix, chki, baspath))
         w = cyvcf2.Writer(pathout, cyvcf2.VCF(self.path))
         for var in data:
             w.write_record(var)
         w.close()
-        if bgz:
-            pybcf.bgzip('{}{}.{}'.format(prefix, chki, baspath),
-                        '{}{}.{}'.format(prefix, chki, baspath) + '.gz',
-                        prm.TMP_DATA_PATH)
 
 
 class CyvcfChunkHandler(object):
@@ -373,7 +366,7 @@ class CyvcfChunkHandler(object):
         delete_file(self.filout)
 
 
-def _cyvcfchunkhandler_process(*arglist):
+def cyvcfchunkhandler_process(*arglist):
     cch = CyvcfChunkHandler(*arglist)
     cch.process()
     cch.bgzip_index_chunk()
@@ -453,6 +446,8 @@ def cyvcf_parallel_pooling(pth: FilePath, chkdata: CyvcfVariantChunkGenerator.ch
 
 
 if __name__ == '__main__':
+    import time
+
     os.chdir('/home/camille/1000Genomes/data/gl/gl_adaptive/all_snps_all_samples')
     gtglpth = 'IMP.chr20.pooled.beagle2.gl.chunk10000.corr.vcf.gz'
     gtpth = '/home/camille/1000Genomes/data/gt/ALL.chr20.snps.gt.chunk10000.vcf.gz'
@@ -480,14 +475,14 @@ if __name__ == '__main__':
     raw = cyvcf2.VCF(os.path.join(prm.WD, 'gt', prm.SRCFILE))  # VCF iterator object
     splits = pool.split_pools(raw.samples, 16, seed=123)  # list of lists
 
-    chunkpack = pysamchunk.chunkpacker()
-    for i, chk in enumerate(chunkpack):
-        break
-        # print(i, len([*chk]))  # empties chk!
-        print('\r\n', i)
-        chki = PysamChunkHandler(mainpth, chk)
-        chki.writechunk('chktest{}.vcf'.format(i), chki.data)
-        break
+    # chunkpack = pysamchunk.chunkpacker()
+    # for i, chk in enumerate(chunkpack):
+    #     break
+    #     # print(i, len([*chk]))  # empties chk!
+    #     print('\r\n', i)
+    #     chki = PysamChunkHandler(mainpth, chk)
+    #     chki.writechunk('chktest{}.vcf'.format(i), chki.data)
+    #     break
 
     cyvcfpack = cyvcfchunk.chunkpacker()
     # for i, chk in enumerate(cyvcfpack):
@@ -499,12 +494,17 @@ if __name__ == '__main__':
     # cyvcfhandler.process()  # processes 1 chunk
 
     # must write chunks to files before further processing
+    start = time.time()
     prename = 'pack'
     indices = np.arange(len([*cyvcfpack]))
+    baspath = os.path.basename(gtpth).rstrip('.gz')
+    files0 = [os.path.join(prm.TMP_DATA_PATH,
+                           '{}{}.{}'.format(prename, chki, baspath)) for chki in indices]
     args0 = list(zip(indices,
-                     repeat(prename, len(indices))))
-    # with mp.Pool(processes=os.cpu_count()) as mpool:
-    #    _ = all(mpool.starmap(CyvcfVariantChunkGenerator(gtpth, chunksize=1000).chunkwriter, args0))
+                     files0))
+    with mp.Pool(processes=os.cpu_count()) as mpool:
+       _ = all(mpool.starmap(CyvcfVariantChunkGenerator(gtpth, chunksize=1000).chunkwriter, args0))
+    print('\r\nTime elapsed --> ', time.time() - start)  # 12.965112209320068
 
     files0 = os.listdir(prm.TMP_DATA_PATH)
     files1 = ['pooled.{}'.format(f0) for f0 in files0]
@@ -513,9 +513,9 @@ if __name__ == '__main__':
                      repeat(df2dict, len(indices)),
                      files1))
     os.chdir(prm.TMP_DATA_PATH)
-    # cch = _cyvcfchunkhandler_process(*args1[0])  # processes 1 chunked file
+    # cch = cyvcfchunkhandler_process(*args1[0])  # processes 1 chunked file
     with mp.Pool(processes=os.cpu_count()//2) as mpool:
-         _ = all(mpool.starmap(_cyvcfchunkhandler_process, args1))
+         _ = all(mpool.starmap(cyvcfchunkhandler_process, args1))
 
     files2 = ['{}.gz'.format(f1) for f1 in files1]
     pybcf.concat(files2, 'ALL.chr20.snps.gt.chunk10000.vcf', prm.TMP_DATA_PATH)
@@ -523,3 +523,5 @@ if __name__ == '__main__':
     pybcf.bgzip('ALL.chr20.snps.gt.chunk10000.vcf', 'ALL.chr20.snps.gt.chunk10000.vcf.gz', prm.TMP_DATA_PATH)
     pybcf.index('ALL.chr20.snps.gt.chunk10000.vcf.gz', prm.TMP_DATA_PATH)
     delete_file('ALL.chr20.snps.gt.chunk10000.vcf')
+    print('\r\nTime elapsed --> ', time.time() - start)  # 19.328217029571533
+
