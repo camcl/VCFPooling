@@ -157,7 +157,9 @@ def beagle_phasing(dic: dict, path_gt_files: str, cd: str) -> None:
                            + os.path.join(path_gt_files, dic['ref'].replace('.gl', '.gt')),
                            'impute=false',
                            'gprobs=true',
-                           'out=' + dic['b1r']
+                           'out=' + dic['b1r'],
+                           'map=' + os.path.join(os.path.expanduser('~'),
+                                                 '1000Genomes/data/plink.GRCh37.map/plink.chr20.GRCh37.map')
                            ])
 
         subprocess.run(bgl1gt, shell=True, cwd=cd)
@@ -173,7 +175,9 @@ def beagle_phasing(dic: dict, path_gt_files: str, cd: str) -> None:
                              '{}='.format('gtgl') + dic['imp'],
                              'impute=false',
                              'gprobs=true',
-                             'out=' + 'temp.b1'
+                             'out=' + 'temp.b1',
+                             'map=' + os.path.join(os.path.expanduser('~'),
+                                                   '1000Genomes/data/plink.GRCh37.map/plink.chr20.GRCh37.map')
                              ])
 
         bgl1gt = ' '.join(['java -Xss5m -jar {}'.format(prm.BEAGLE_JAR),
@@ -181,7 +185,9 @@ def beagle_phasing(dic: dict, path_gt_files: str, cd: str) -> None:
                            + '{}'.format('temp.b1.vcf.gz' if prm.GTGL == 'GL' else dic['imp']),
                            'impute=false',
                            'gprobs=true',
-                           'out=' + dic['b1']
+                           'out=' + dic['b1'],
+                           'map=' + os.path.join(os.path.expanduser('~'),
+                                                 '1000Genomes/data/plink.GRCh37.map/plink.chr20.GRCh37.map')
                            ])
 
         if prm.GTGL == 'GL':
@@ -281,7 +287,9 @@ def beagle_imputing(dic_study: dict, dicref: dict, cd: str) -> bool:
                                                dicref['b1r']),
                      'impute=true',
                      'gprobs=true',
-                     'out=' + dic_study['b2']
+                     'out=' + dic_study['b2'],
+                     'map=' + os.path.join(os.path.expanduser('~'),
+                                           '1000Genomes/data/plink.GRCh37.map/plink.chr20.GRCh37.map')
                      ])
 
     subprocess.run(bgl2, shell=True, cwd=cd)
