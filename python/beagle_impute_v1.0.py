@@ -30,13 +30,13 @@ if prm.GTGL == 'GL':
     if prm.unknown_gl != 'adaptive':
         cd = os.path.join(path_gl_files, 'gl_' + '_'.join(np.around(prm.unknown_gl, decimals=2).astype(str)))
     else:
-        cd = os.path.join(path_gl_files, 'gl_adaptive')
+        cd = os.path.join(path_gl_files, 'gl_adaptive', 'parallel_pooling')
     mkdir(cd)
 os.chdir(cd)
 
 raw = NamedDict('raw', list(prm.RAW.keys()), list(prm.RAW.values()))
 pooled = NamedDict('pooled', list(prm.POOLED.keys()), list(prm.POOLED.values()))
-missing = NamedDict('missing', list(prm.MISSING.keys()), list(prm.MISSING.values()))
+# missing = NamedDict('missing', list(prm.MISSING.keys()), list(prm.MISSING.values()))
 subset = prm.SUBSET
 # if susbset get the first 1000 lines to recreate ech method file:
 # pooled, missing etc
@@ -46,19 +46,20 @@ print('Start processing files for running BEAGLE'.ljust(80, '.'))
 
 if subset:
     print('Subset main set in {}'.format(os.getcwd()).ljust(80, '.'))
-    for dic in [pooled, missing, raw]:
+    for dic in [pooled, raw]:
         for k, v in dic.items():
             dic[k] = v.replace('chunk' + str(chk_sz), 'chunk' + str(trc))
 
 ### BGZIP GT (AND GL) FILES OUTPUT FROM POOLING + DECODING
-for dic in [pooled, missing]:
+for dic in [pooled]:  # [pooled, missing]
+    break
     bgltls.bgzip_working_files(dic, path_gt_files, path_gl_files, cd)
 
 ### REF/IMP SAMPLING
 bgltls.create_ref_imp_lists(cd, sizeref=prm.NB_REF, sizeimp=prm.NB_IMP)
 
 for (folder, dic) in tuple([(cd, pooled),
-                            (cd, missing),
+                            #(cd, missing),
                             (path_gt_files, raw)]):
     bgltls.partition_imp((folder, dic), total_ref=False)
 
@@ -66,8 +67,7 @@ bgltls.partition_ref(raw, path_gt_files)
 
 for (folder, f) in tuple([(path_gt_files, raw['imp'].replace('.gl', '.gt')),
                           (path_gt_files, raw['ref'].replace('.gl', '.gt')),
-                          (cd, pooled['imp']),
-                          (cd, missing['imp'])]):
+                          (cd, pooled['imp'])]):
     pybcf.sort(f, folder)
     pybcf.index(f, folder)
 
@@ -75,7 +75,7 @@ if prm.GTGL == 'GT':
     bgltls.partition_ref(pooled, path_gt_files)
 
 ### GL CONVERSION FOR IMP/REF
-if prm.GTGL == 'GL':
+if prm.GTGL == 'dummy':  # 'GL':
     print('GT to GL in {}'.format(os.getcwd()).ljust(80, '.'))
     alltls.file_likelihood_converter(os.path.join(path_gt_files,
                                                   raw['ref'].replace('.gl', '.gt')),
@@ -88,12 +88,14 @@ if prm.GTGL == 'GL':
     delete_file(raw['ref'][:-3])
 
 ### BEAGLE ROUND#1: (GL to GT and) PHASING
-for dic in [raw, pooled, missing]:
+for dic in [raw, pooled]:  # [raw, pooled, missing]
     bgltls.beagle_haplo_to_geno()
     bgltls.beagle_phasing(dic, path_gt_files, cd)
 
 ### REFINE SAMPLES OR MARKERS TO IMPUTE
-for dic in [pooled, missing]:
+for dic in [pooled]:  # [pooled, missing]
+    path_out = cd
+    break
     snp_to_rm: List[str] = []
     idv_to_keep: List[str] = []
     if len(snp_to_rm) > 0:
@@ -112,15 +114,15 @@ for dic in [pooled, missing]:
 ### CONFORM-GT
 # conform-gt algo should be used if REF and IMP datasets contain different sets of markers
 # chrom-POS: min and max from the original file
-for dic in [pooled, missing]:
+for dic in [pooled]:  # [pooled, missing]
     _ = bgltls.conform_gt(dic, raw, path_out)
 
 ### BEAGLE (ROUND#2): IMPUTING
-for dic in [pooled, missing]:
+for dic in [pooled]:  # [pooled, missing]
     _ = bgltls.beagle_imputing(dic, raw, path_out)
 
 ### FIX DS AND GP FORMAT FIELDS, SORT OUT GT
-for dic in [pooled, missing]:
+for dic in [pooled]:  # [pooled, missing]
     _ = bgltls.reformat_fields(dic, path_out)
 
 _ = bgltls.clean_imputed_directory(path_out)

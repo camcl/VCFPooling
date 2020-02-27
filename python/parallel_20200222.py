@@ -45,7 +45,7 @@ argsin = parser.parse_args()
 
 nb_cores = os.cpu_count() if argsin.cores is None else argsin.cores
 try:
-    tmp_pathh = os.environ['SNIC_TMP']
+    tmp_path = os.environ['SNIC_TMP']
 except KeyError:
     tmp_path = prm.TMP_DATA_PATH
 
