@@ -1,7 +1,6 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 #TODO: Rename files with core + extension (.vcf.gz, .vcf, .csv, ...)
-#TODO: files_root as parameter and create the whole tree structure (independant from ~PycharmProject/1000Genomes
 """
 Parameters for running pooling + decoding on a dataset:
 - path to file to process
@@ -75,7 +74,7 @@ MSS = [False, True]
 POOL = [True, False]
 CHKFILE = 'ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(CHK_SZ)
 
-unknown_gl = [1/3, 1/3, 1/3]
+# unknown_gl = [1/3, 1/3, 1/3]
 # unknown_gl = [0.2, 0.4, 0.4]
 # unknown_gl = [0.02, 0.49, 0.49]
 # unknown_gl = [0.02, 0.59, 0.39]
@@ -85,10 +84,10 @@ unknown_gl = [1/3, 1/3, 1/3]
 unknown_gl = 'adaptive'
 
 
-
 ### beagle.py
 BEAGLE_JAR = os.path.join(SCRIPTS_PATH, 'beagle.11Mar19.69c.jar')
 CFGT_JAR = os.path.join(SCRIPTS_PATH, 'conform-gt.jar')
+MAP_FILE = os.path.join(DATA_PATH, 'plink.GRCh37.map', 'plink.chr20.GRCh37.map')
 
 RAW = {'vcf':'ALL.chr20.snps.{}.chunk{}.vcf'.format('gt', CHK_SZ),
        'gz':'ALL.chr20.snps.{}.chunk{}.vcf.gz'.format('gt', CHK_SZ),
@@ -100,7 +99,7 @@ RAW = {'vcf':'ALL.chr20.snps.{}.chunk{}.vcf'.format('gt', CHK_SZ),
 POOLED = {'vcf':'ALL.chr20.pooled.snps.{}.chunk{}.vcf'.format(GTGL.lower(), CHK_SZ),
           'gz':'ALL.chr20.pooled.snps.{}.chunk{}.vcf.gz'.format(GTGL.lower(), CHK_SZ),
           'imp': 'IMP.chr20.pooled.snps.{}.chunk{}.vcf.gz'.format(GTGL.lower(), CHK_SZ),
-          'ref': 'REF.chr20.pooled.snps.{}.chunk{}.vcf.gz'.format(GTGL.lower(), CHK_SZ), # for MAF/AAF comparisons
+          'ref': 'REF.chr20.pooled.snps.{}.chunk{}.vcf.gz'.format(GTGL.lower(), CHK_SZ),  # for MAF/AAF comparisons
           'b1':'IMP.chr20.pooled.beagle1.chunk{}'.format(CHK_SZ),
           'b2':'IMP.chr20.pooled.beagle2.{}.chunk{}'.format(GTGL.lower(), CHK_SZ),
           'corr':'IMP.chr20.pooled.beagle2.{}.chunk{}.corr'.format(GTGL.lower(), CHK_SZ),
