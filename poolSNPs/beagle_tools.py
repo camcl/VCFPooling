@@ -158,8 +158,8 @@ def beagle_phasing(dic: dict, path_gt_files: str, cd: str) -> None:
                            'impute=false',
                            'gprobs=true',
                            'out=' + dic['b1r'],
-                           'map=' + os.path.join(os.path.expanduser('~'),
-                                                 '1000Genomes/data/plink.GRCh37.map/plink.chr20.GRCh37.map')
+                           # 'map=' + os.path.join(os.path.expanduser('~'),
+                           #                       '1000Genomes/data/plink.GRCh37.map/plink.chr20.GRCh37.map')
                            ])
 
         subprocess.run(bgl1gt, shell=True, cwd=cd)
@@ -176,8 +176,8 @@ def beagle_phasing(dic: dict, path_gt_files: str, cd: str) -> None:
                              'impute=false',
                              'gprobs=true',
                              'out=' + 'temp.b1',
-                             'map=' + os.path.join(os.path.expanduser('~'),
-                                                   '1000Genomes/data/plink.GRCh37.map/plink.chr20.GRCh37.map')
+                             # 'map=' + os.path.join(os.path.expanduser('~'),
+                             #                       '1000Genomes/data/plink.GRCh37.map/plink.chr20.GRCh37.map')
                              ])
 
         bgl1gt = ' '.join(['java -Xss5m -jar {}'.format(prm.BEAGLE_JAR),
@@ -186,8 +186,8 @@ def beagle_phasing(dic: dict, path_gt_files: str, cd: str) -> None:
                            'impute=false',
                            'gprobs=true',
                            'out=' + dic['b1'],
-                           'map=' + os.path.join(os.path.expanduser('~'),
-                                                 '1000Genomes/data/plink.GRCh37.map/plink.chr20.GRCh37.map')
+                           # 'map=' + os.path.join(os.path.expanduser('~'),
+                           #                       '1000Genomes/data/plink.GRCh37.map/plink.chr20.GRCh37.map')
                            ])
 
         if prm.GTGL == 'GL':
@@ -288,8 +288,8 @@ def beagle_imputing(dic_study: dict, dicref: dict, cd: str) -> bool:
                      'impute=true',
                      'gprobs=true',
                      'out=' + dic_study['b2'],
-                     'map=' + os.path.join(os.path.expanduser('~'),
-                                           '1000Genomes/data/plink.GRCh37.map/plink.chr20.GRCh37.map')
+                     # 'map=' + os.path.join(os.path.expanduser('~'),
+                     #                       '1000Genomes/data/plink.GRCh37.map/plink.chr20.GRCh37.map')
                      ])
 
     subprocess.run(bgl2, shell=True, cwd=cd)
