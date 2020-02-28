@@ -12,8 +12,6 @@ from scripts.VCFPooling.poolSNPs import dataframe as vcfdf
 
 from persotools.files import *
 
-prm.info()  # print config infos
-
 """
 Tools for manipulating and processing variants from VCF files.
 """
@@ -403,6 +401,8 @@ def make_index(raw_data, src=None, idt='id'):
 
 
 if __name__ == '__main__':
+    prm.info()  # print config infos
+
     # create GL encoded file from raw GT
     vcfin = '/home/camille/1000Genomes/data/gt/stratified/IMP.chr20.snps.gt.chunk10000.vcf.gz'
     vcfout = '/home/camille/1000Genomes/data/gl/IMP.chr20.snps.gl.chunk10000.vcf'

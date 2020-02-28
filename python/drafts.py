@@ -11,6 +11,7 @@ from cyvcf2 import VCF
 import pysam
 from scripts.VCFPooling.poolSNPs import _mylog
 from scripts.VCFPooling.poolSNPs import _mypath
+from scripts.VCFPooling.poolSNPs import parameters as prm
 from scripts.VCFPooling.poolSNPs.alleles import alleles_tools as alltls
 
 warnings.simplefilter('ignore')
@@ -72,6 +73,8 @@ class Shadok(object):
 
 
 if __name__ == '__main__':
+    prm.info()  # print config infos
+
     import timeit
     start_time = timeit.default_timer()
 
