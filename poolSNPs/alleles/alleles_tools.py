@@ -12,6 +12,8 @@ from scripts.VCFPooling.poolSNPs import dataframe as vcfdf
 
 from persotools.files import *
 
+prm.info()  # print config infos
+
 """
 Tools for manipulating and processing variants from VCF files.
 """

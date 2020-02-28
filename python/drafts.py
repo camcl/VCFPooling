@@ -11,11 +11,10 @@ from cyvcf2 import VCF
 import pysam
 from scripts.VCFPooling.poolSNPs import _mylog
 from scripts.VCFPooling.poolSNPs import _mypath
+from scripts.VCFPooling.poolSNPs.alleles import alleles_tools as alltls
 
 warnings.simplefilter('ignore')
 _mylog.stdout(__file__)
-
-from scripts.VCFPooling.poolSNPs.alleles import alleles_tools as alltls
 
 
 start = time.time()

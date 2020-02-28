@@ -89,6 +89,8 @@ BEAGLE_JAR = os.path.join(SCRIPTS_PATH, 'beagle.11Mar19.69c.jar')
 CFGT_JAR = os.path.join(SCRIPTS_PATH, 'conform-gt.jar')
 MAP_FILE = os.path.join(DATA_PATH, 'plink.GRCh37.map', 'plink.chr20.GRCh37.map')
 
+#TODO: rename beagle2.corr to imputed.gtdsgp
+#TODO: rename IMP to STU and REF to PAN
 RAW = {'vcf':'ALL.chr20.snps.{}.chunk{}.vcf'.format('gt', CHK_SZ),
        'gz':'ALL.chr20.snps.{}.chunk{}.vcf.gz'.format('gt', CHK_SZ),
        'ref': 'REF.chr20.snps.{}.chunk{}.vcf.gz'.format('gt', CHK_SZ),
@@ -137,16 +139,17 @@ INTER = np.arange(0, 1, 0.1)
 
 
 ### PRINTING
-print('\n'.ljust(80, '*'))
-print('Parameters configured:')
-print('working directory: ', WD)
-print('number of markers to extract and process: ', CHK_SZ)
-print('number of pools: ', nb_samples // pools_size)
-print('subsetting the main data set at 10%: ', SUBSET)
-print('kind of genotype data: ', GTGL)
-print('Path to GT files: ', PATH_GT_FILES)
-print('Path to GL files: ', PATH_GL_FILES)
-print('binarize MAFs: ', BIN_AAF)
-if GTGL == 'GL':
-    print('values for missing GLs: ', unknown_gl)
-print('\r\n'.rjust(80, '*'))
+def info():
+    print('\n'.ljust(80, '*'))
+    print('Parameters configured:')
+    print('working directory: ', WD)
+    print('number of markers to extract and process: ', CHK_SZ)
+    print('number of pools: ', nb_samples // pools_size)
+    print('subsetting the main data set at 10%: ', SUBSET)
+    print('kind of genotype data: ', GTGL)
+    print('Path to GT files: ', PATH_GT_FILES)
+    print('Path to GL files: ', PATH_GL_FILES)
+    print('binarize MAFs: ', BIN_AAF)
+    if GTGL == 'GL':
+        print('values for missing GLs: ', unknown_gl)
+    print('\r\n'.rjust(80, '*'))
