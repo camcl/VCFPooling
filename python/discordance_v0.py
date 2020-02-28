@@ -5,6 +5,7 @@ from cyvcf2 import VCF
 import itertools
 
 from scripts.VCFPooling.poolSNPs.alleles import alleles_tools as alltls
+from scripts.VCFPooling.poolSNPs import dataframe as vcfdf
 from scripts.VCFPooling.poolSNPs import parameters as prm
 from scripts.VCFPooling.poolSNPs import utils
 from persotools.files import *
@@ -49,7 +50,7 @@ chk_sz = prm.CHK_SZ
 
 # Load AAFs
 print('Load aaf from {}'.format(ALL).ljust(80, '.'))
-pdvcf = alltls.PandasVCF(os.path.join(prm.PATH_GT_FILES, prm.CHKFILE), indextype='id')
+pdvcf = vcfdf.PandasVCF(os.path.join(prm.PATH_GT_FILES, prm.CHKFILE), indextype='id')
 aafs = pdvcf.concatcols([pdvcf.af_info, pdvcf.aaf])
 
 # Create line-index and column-index (multi-indexing)
@@ -57,7 +58,7 @@ print('Create multi-indices for the study population (IMP data sets)'.ljust(80, 
 aaf_idx, pop_idx = alltls.make_index(RAW)
 
 # Load data sets for each working directory
-vcfraw = alltls.PandasVCF(RAW, indextype='id')
+vcfraw = vcfdf.PandasVCF(RAW, indextype='id')
 raw0, raw1 = vcfraw.vcf2dframe()
 raw0, raw1 = utils.sort_datasets([raw0, raw1], pop_idx, aafs)
 samples = vcfraw.samples
@@ -71,7 +72,7 @@ for cd in vcfpathdic.keys():
     for name, dset in zip(setnames, vcfpathdic[cd]):
         if dset is not None:
             print('Error and discordance in {}'.format(dset).ljust(80, '.'))
-            vcfset = alltls.PandasVCF(dset)
+            vcfset = vcfdf.PandasVCF(dset)
             dset0, dset1 = vcfset.vcf2dframe()
             dset0, dset1 = utils.sort_datasets([dset0, dset1], pop_idx, aafs)
 

@@ -102,6 +102,8 @@ from collections import Counter
 from scripts.VCFPooling.poolSNPs import parameters as prm
 from scripts.VCFPooling.poolSNPs import utils
 from scripts.VCFPooling.poolSNPs.alleles import alleles_tools as alltls
+from scripts.VCFPooling.poolSNPs import dataframe as vcfdf
+
 from persotools.debugging import *
 from persotools.files import *
 
@@ -121,8 +123,8 @@ class QualityGT(object):
     * allele dosage
     """
     def __init__(self, truefile: FilePath, imputedfile: FilePath, ax: object, idx: str = 'id'):
-        self.trueobj = alltls.PandasVCF(truefile, indextype=idx)
-        self.imputedobj = alltls.PandasVCF(imputedfile, indextype=idx)
+        self.trueobj = vcfdf.PandasVCF(truefile, indextype=idx)
+        self.imputedobj = vcfdf.PandasVCF(imputedfile, indextype=idx)
         self._axis = ax
         #TODO: index properties and verification
 
@@ -369,7 +371,7 @@ if __name__ == '__main__':
     qgl = QualityGL(paths['beagle']['true'], paths['beagle']['imputed'], 0)
 
     mess = qgl.cross_entropy
-    dfaf = alltls.PandasVCF('/home/camille/1000Genomes/data/gt/stratified/IMP.chr20.snps.gt.chunk10000.vcf.gz')
+    dfaf = vcfdf.PandasVCF('/home/camille/1000Genomes/data/gt/stratified/IMP.chr20.snps.gt.chunk10000.vcf.gz')
     dfmess = mess.to_frame()
     dfmess = dfmess.join(dfaf.af_info)
     dfmess.plot.scatter('af_info', 'cross_entropy', s=0.7)

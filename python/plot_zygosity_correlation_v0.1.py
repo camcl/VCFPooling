@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from cyvcf2 import VCF
 
 from scripts.VCFPooling.poolSNPs.alleles import alleles_tools as alltls
+from scripts.VCFPooling.poolSNPs import dataframe as vcfdf
 from scripts.VCFPooling.poolSNPs import parameters as prm
 from persotools.files import *
 
@@ -90,12 +91,12 @@ if __name__ == '__main__':
     devol = []
 
     # Load AAFs
-    pdvcfall = alltls.PandasVCF(os.path.join(prm.PATH_GT_FILES,
+    pdvcfall = vcfdf.PandasVCF(os.path.join(prm.PATH_GT_FILES,
                                              'ALL.chr20.pooled.snps.gt.chunk{}.vcf.gz'.format(prm.CHK_SZ),
                                              indextype='id'))
     allaafs = pdvcfall.concatcols([pdvcfall.af_info, pdvcfall.aaf])
     afinfo = pdvcfall.af_info.to_frame()
-    pdvcfimp = alltls.PandasVCF(os.path.join(prm.PATH_GT_FILES,
+    pdvcfimp = vcfdf.PandasVCF(os.path.join(prm.PATH_GT_FILES,
                                              '/IMP.chr20.pooled.snps.gt.chunk{}.vcf.gz'.format(prm.CHK_SZ),
                                              idt='id'))
     impaafs = pdvcfimp.concatcols([pdvcfimp.af_info, pdvcfimp.aaf])
@@ -119,8 +120,8 @@ if __name__ == '__main__':
 
         ### PROCESSING
         print('Build datasets'.ljust(80, '.'))
-        rawvcf = alltls.PandasVCF(B1, indextype=idt)
-        poolvcf =alltls.PandasVCF(POOL, indextype=idt)
+        rawvcf = vcfdf.PandasVCF(B1, indextype=idt)
+        poolvcf = vcfdf.PandasVCF(POOL, indextype=idt)
         raw0, raw1 = rawvcf.vcf2dframe()
         pool0, pool1 = poolvcf.vcf2dframe()
         # raw0 = raw0.join(pool0.index.to_frame(), how='inner').iloc[:, :-1]

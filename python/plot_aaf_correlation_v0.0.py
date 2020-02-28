@@ -5,6 +5,7 @@ from cyvcf2 import VCF
 
 from scripts.VCFPooling.poolSNPs.alleles import alleles_tools as alltls
 from scripts.VCFPooling.poolSNPs import chunkvcf as chkvcf
+from scripts.VCFPooling.poolSNPs import dataframe as vcfdf
 from scripts.VCFPooling.poolSNPs import parameters as prm
 from persotools.files import *
 
@@ -30,10 +31,10 @@ paths = {'preimp_gt_missing': os.path.join(dirs['default_gt'], prm.MISSING['b1']
 
 print('Concatenate together AAF from files to compare'.ljust(80, '.'))
 basefile = os.path.join(prm.PATH_GT_FILES, 'IMP.chr20.pooled.snps.gt.chunk{}.vcf.gz'.format(prm.CHK_SZ))
-pdvcfbase = alltls.PandasVCF(basefile, indextype='id')
+pdvcfbase = vcfdf.PandasVCF(basefile, indextype='id')
 afinfo = pdvcfbase.af_info.to_frame()
 
-compaafs = alltls.PanelVCF(**paths).join(idt='id')
+compaafs = vcfdf.PanelVCF(**paths).join(idt='id')
 
 dfplot = afinfo.join(compaafs, how='inner')
 dfplot.sort_values(by='af_info', inplace=True)

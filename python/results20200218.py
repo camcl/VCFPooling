@@ -6,6 +6,7 @@ import pandas as pd
 from cyvcf2 import VCF
 
 from scripts.VCFPooling.poolSNPs.alleles import alleles_tools as alltls
+from scripts.VCFPooling.poolSNPs import dataframe as vcfdf
 from scripts.VCFPooling.poolSNPs.metrics import quality
 from scripts.VCFPooling.poolSNPs import parameters as prm
 
@@ -26,8 +27,8 @@ paths = {'gt': {
     'pooled': '/home/camille/1000Genomes/data/gt/stratified//IMP.chr20.pooled.snps.gt.chunk10000.vcf.gz'}
 }
 
-dftrue = alltls.PandasVCF(paths['gt']['true'])
-dfpool = alltls.PandasVCF(paths['gt']['pooled'])
+dftrue = vcfdf.PandasVCF(paths['gt']['true'])
+dfpool = vcfdf.PandasVCF(paths['gt']['pooled'])
 
 df1 = dftrue.concatcols([dftrue.af_info, dftrue.missing_rate, dftrue.aaf])
 df2 = dfpool.concatcols([dfpool.af_info, dfpool.missing_rate, dfpool.aaf])
