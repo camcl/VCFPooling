@@ -19,7 +19,6 @@ nb_cores = os.cpu_count()
 from scripts.VCFPooling.poolSNPs import parameters as prm
 from scripts.VCFPooling.poolSNPs import pybcf
 from scripts.VCFPooling.poolSNPs import pool
-from scripts.VCFPooling.poolSNPs import dataframe as vcfdf
 from scripts.VCFPooling.poolSNPs.alleles import alleles_tools as alltls
 
 from persotools.files import delete_file, mkdir, FilePath
@@ -275,7 +274,7 @@ class CyvcfVariantChunkGenerator(object):
         finally:
             return self.newpos, self.pack
 
-    def chunkpacker(self) -> Generator[cyvcf2.VCF]:
+    def chunkpacker(self) -> Iterator[cyvcf2.VCF]:
         while self.pack:
             chk = self._chunker(self.chksz, self.newpos)
             # function output and included sttributes updates NOT unpacked hence NOT updated
@@ -450,11 +449,9 @@ if __name__ == '__main__':
     gtglpth = 'IMP.chr20.pooled.beagle2.gl.chunk10000.corr.vcf.gz'
     gtpth = '/home/camille/1000Genomes/data/gt/ALL.chr20.snps.gt.chunk10000.vcf.gz'
 
-    pysamobj = vcfdf.PandasMixedVCF(gtglpth, format='GP')
     pysamvar = PysamVariantCallGenerator(gtglpth, format='GP')
     pysamchunk = PysamVariantChunkGenerator(gtglpth, format='GP', chunksize=1000)
 
-    cyvcfobj = vcfdf.PandasVCF(gtpth)
     cyvcfvar = CyvcfVariantCallGenerator(gtpth)
     cyvcfchunk = CyvcfVariantChunkGenerator(gtpth, chunksize=1000)
 
