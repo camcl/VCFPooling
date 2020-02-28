@@ -17,6 +17,7 @@ from collections import Counter
 from scripts.VCFPooling.poolSNPs import parameters as prm
 from scripts.VCFPooling.poolSNPs import utils
 from scripts.VCFPooling.poolSNPs.alleles import alleles_tools as alltls
+from scripts.VCFPooling.poolSNPs import dataframe as vcfdf
 from persotools.debugging import *
 from persotools.files import *
 
@@ -63,7 +64,7 @@ class Diversity(object):
 
     """
     def __init__(self, filepath: FilePath, format: str = None, idx: str = 'id'):
-        self.obj = alltls.PandasMixedVCF(filepath, format=format, indextype=idx)
+        self.obj = vcfdf.PandasMixedVCF(filepath, format=format, indextype=idx)
         self.fmt = format
 
     def markers_diversity(self):

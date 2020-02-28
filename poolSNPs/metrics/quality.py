@@ -290,8 +290,8 @@ class QualityGL(object):
     Implement cross-entropy method for assessing imputation performance from GL
     """
     def __init__(self, truefile: FilePath, imputedfile: FilePath, ax: object, fmt: str = 'GP', idx: str = 'id'):
-        self.trueobj = alltls.PandasMixedVCF(truefile, format='GL', indextype=idx)
-        self.imputedobj = alltls.PandasMixedVCF(imputedfile, format=fmt, indextype=idx)
+        self.trueobj = vcfdf.PandasMixedVCF(truefile, format='GL', indextype=idx)
+        self.imputedobj = vcfdf.PandasMixedVCF(imputedfile, format=fmt, indextype=idx)
         self._axis = ax
         #TODO: index properties and verification
 
