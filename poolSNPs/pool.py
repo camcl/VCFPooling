@@ -348,6 +348,10 @@ class SNPsPool(np.ndarray):
                                                   arr=pooled[:, 4:, :-1]))
 
         rowcounts, colcounts = self.rowcolcounts(scores)
+        colcross = np.apply_along_axis(np.multiply, 1, self.design_matrix().transpose(), scores)  # (16, 8)
+        masks = np.ma.masked_where(self.design_matrix().transpose(), colcross)
+        # Returns and sorts genotypes of pools cross section for an individual
+        crosses = np.sort(colcross[masks.mask].reshape((self.size, 2)))  # (self.size, 2) = (16, 2) and 2 is the weight of the design
 
         nb_alt: int = alt_row + alt_col
         nb_ref: int = ref_row + ref_col
@@ -370,8 +374,12 @@ class SNPsPool(np.ndarray):
                 aa = np.array([0, 0, 1])
                 decoded_gl = np.tile(aa, self.size).reshape((1, self.size, 3))
             else:  # nb_alt >= 2 and nb_alt < 8: # nb_alt = 2*n with n > 1
-                unknown = dict_gl[tuple([*rowcounts, *colcounts, 1, 1])]  # 1,1 only cross-section that outputs unknown genotypes
-                decoded_gl = np.apply_along_axis(self.multidecoder_gl, -1, b, unknown)
+                # unknown = dict_gl[tuple([*rowcounts, *colcounts, 1, 1])]  # 1,1 only cross-section that outputs unknown genotypes
+                unknown = [dict_gl[tuple([*rowcounts, *colcounts, *crs])] for crs in crosses]
+                #TODO: deprecate multidecoder_gl?
+                decoded_gl = np.asarray(unknown)
+                print(decoded_gl.shape)
+                print(decoded_gl)
 
         np.put_along_axis(samples_gl,
                           np.broadcast_to(p, (self.size, 3)),
@@ -402,6 +410,7 @@ class SNPsPool(np.ndarray):
         colcounts[2] = np.sum(count_aa(a[4:]))
 
         return tuple(rowcounts), tuple(colcounts)
+
 
     @staticmethod
     def multidecoder_gt(a: np.ndarray) -> prm.GTtype:
@@ -523,7 +532,8 @@ def process_file(data: VCF, groups: list, simul: str) -> None:
     tm = time.time()
     # for n, variant in enumerate(data('20:59973567-59973568')):
     for n, variant in enumerate(data):
-        process_line(groups, simul, w, variant, df2dict, write=False)
+        print(variant)
+        process_line(groups, simul, w, variant, df2dict, write=True)
         if n % 1000 == 0:
             print('{} variants processed in {:06.2f} sec'.format(n+1, time.time()-tm).ljust(80, '.'))
         # if n+1 == 1000:

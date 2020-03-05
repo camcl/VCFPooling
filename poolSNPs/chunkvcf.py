@@ -6,9 +6,8 @@ import cyvcf2
 import pysam
 from itertools import starmap, repeat
 import math
-import shutil
 import multiprocessing as mp
-import argparse
+import time
 
 home_dir = os.path.expanduser("~")
 proj_dir = os.path.join(home_dir, '1000Genomes')
@@ -16,6 +15,7 @@ sys.path.insert(0, proj_dir)
 
 nb_cores = os.cpu_count()
 
+from scripts.VCFPooling.poolSNPs import _mytime
 from scripts.VCFPooling.poolSNPs import parameters as prm
 from scripts.VCFPooling.poolSNPs import pybcf
 from scripts.VCFPooling.poolSNPs import pool
@@ -371,9 +371,11 @@ def cyvcfchunkhandler_process(*arglist):
     """
     Wrap class and methods into a function useable as multiprocessing input object.
     """
+    start = time.time()
     cch = CyvcfChunkHandler(*arglist)
     cch.process()
     cch.bgzip_index_chunk()
+    print('cyvcfchunkhandler_process() --> {} sec'.format(time.time() - start))
 
 
 class CyvcfVariantPooler(object):
