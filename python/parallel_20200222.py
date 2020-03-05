@@ -24,6 +24,8 @@ from persotools.struct import NamedDict
 
 '''
 Parallelized file processing
+VCF-file to process should be not bigger than some dozen of thoudands of varaiants (e.g. 10,000 SNPs),
+otherwise cyvcf2 cannot read it.
 
 Steps:
 * Read main vcf and write chunks
@@ -51,13 +53,13 @@ except KeyError:
 
 print('\n'.ljust(80, '*'))
 print('Number of cpu to be used = {}'.format(nb_cores))
-print('Input file = {}'.format(argsin.pathin))
-print('Output file = {}'.format(argsin.pathout))
+print('Input file = {}'.format(os.path.expanduser(argsin.pathin)))
+print('Output file = {}'.format(os.path.expanduser(argsin.pathout)))
 print('\n'.rjust(80, '*'))
 
 ### SPLIT MAIN VCF-FILE INTO PACKS
 os.chdir(tmp_path)
-fingz = argsin.pathin  # '/home/camille/1000Genomes/data/gt/ALL.chr20.snps.gt.chunk10000.vcf.gz'
+fingz = os.path.expanduser(argsin.pathin)  # '/home/camille/1000Genomes/data/gt/ALL.chr20.snps.gt.chunk10000.vcf.gz'
 basin = os.path.basename(fingz).rstrip('.gz')
 basout = os.path.basename(argsin.pathout)
 
@@ -105,5 +107,5 @@ pybcf.sort(basin, tmp_path)
 pybcf.bgzip(basin, basout, tmp_path)
 pybcf.index(basout, tmp_path)
 delete_file(basin)
-shutil.copy(basout, argsin.pathout)
+shutil.copy(basout, os.path.expanduser(argsin.pathout))
 print('\r\nTime elapsed --> ', time.time() - start)  # 19.45
