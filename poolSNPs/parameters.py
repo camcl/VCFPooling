@@ -48,6 +48,7 @@ GTtype = NewType('GTtype', Tuple[int, int, bool])
 HOME = str(Path.home())
 # TODO: replace all occurrences of /home/camille by prm.HOME
 ROOT = os.path.join(HOME, '1000Genomes')
+SNIC_PROJ = '/crex/proj/snic2019-8-216'
 
 ### all
 DATA_PATH = os.path.join(ROOT, 'data')
@@ -153,3 +154,18 @@ def info():
     if GTGL == 'GL':
         print('values for missing GLs: ', unknown_gl)
     print('\r\n'.rjust(80, '*'))
+
+
+def getter() -> dict:
+    params = dict()
+    params.update([('HOME', HOME), ('ROOT', ROOT), ('SNIC_PROJ', SNIC_PROJ)])
+    params.update([('DATA_PATH', DATA_PATH), ('TMP_DATA_PATH', TMP_DATA_PATH),
+                   ('SCRIPTS_PATH', SCRIPTS_PATH), ('PLOTS_PATH', PLOTS_PATH)])
+    params.update([('WD', WD), ('PATH_GT_FILES', PATH_GT_FILES), ('PATH_GL_FILES', PATH_GL_FILES)])
+    params.update([('SRCFILE', SRCFILE), ('GTGL', GTGL), ('unknown_gl', unknown_gl)
+                   ('CHK_SZ', CHK_SZ), ('PATH_OUT', PATH_OUT), ('CHKFILE', CHKFILE)])
+    params.update([('BEAGLE_JAR', BEAGLE_JAR), ('CFGT_JAR', CFGT_JAR), ('MAP_FILE', MAP_FILE)])
+    params.update([('RAW', RAW), ('POOLED', POOLED), ('MISSING', MISSING)])
+    params.update([('NB_IMP', NB_IMP), ('NB_REF', NB_REF)])
+    params.update([('GLtype', GLtype), ('GTtype', GTtype)])
+    return params
