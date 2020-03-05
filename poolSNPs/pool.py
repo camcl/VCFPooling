@@ -378,8 +378,6 @@ class SNPsPool(np.ndarray):
                 unknown = [dict_gl[tuple([*rowcounts, *colcounts, *crs])] for crs in crosses]
                 #TODO: deprecate multidecoder_gl?
                 decoded_gl = np.asarray(unknown)
-                print(decoded_gl.shape)
-                print(decoded_gl)
 
         np.put_along_axis(samples_gl,
                           np.broadcast_to(p, (self.size, 3)),

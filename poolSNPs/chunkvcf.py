@@ -15,7 +15,6 @@ sys.path.insert(0, proj_dir)
 
 nb_cores = os.cpu_count()
 
-from scripts.VCFPooling.poolSNPs import _mytime
 from scripts.VCFPooling.poolSNPs import parameters as prm
 from scripts.VCFPooling.poolSNPs import pybcf
 from scripts.VCFPooling.poolSNPs import pool
