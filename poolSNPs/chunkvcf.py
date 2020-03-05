@@ -211,9 +211,9 @@ class CyvcfVariantCallGenerator(object):
         :param pos: access variants from pos position
         """
         if pos is None:
-            vcfobj = cyvcf2.VCF(self.path)
+            vcfobj = cyvcf2.VCF(self.path, lazy=True, threads=os.cpu_count())
         else:
-            f = cyvcf2.VCF(self.path)
+            f = cyvcf2.VCF(self.path, lazy=True, threads=os.cpu_count())
             vcfobj = f('{}:{}'.format(self.chrom, pos))
         return vcfobj
 
@@ -232,7 +232,7 @@ class CyvcfVariantChunkGenerator(object):
         """
         self.path = vcfpath
         self.chksz = chunksize
-        self.chrom = [*cyvcf2.VCF(self.path)][0].CHROM
+        self.chrom = [*cyvcf2.VCF(self.path, lazy=True, threads=os.cpu_count())][0].CHROM
         # extract chrom, works if only 1 chrom in the file
         self.pack = True
         self.newpos = 1  # for valid self.newpos - 1 at the start of the first chunk
@@ -242,7 +242,7 @@ class CyvcfVariantChunkGenerator(object):
         Build fixed-length generator of variants calls.
         Keep track of the position where chunking stops
         """
-        iterator = cyvcf2.VCF(self.path)
+        iterator = cyvcf2.VCF(self.path, lazy=True, threads=os.cpu_count())
         try:
             for i, v in enumerate(iterator('{}:{}'.format(self.chrom, newpos - 1))):
                 # newpos - 1: avoids first variant truncation in the next chunk
@@ -256,7 +256,7 @@ class CyvcfVariantChunkGenerator(object):
 
     def _incrementer(self, chunksize: int) -> Tuple[int, bool]:
         """update position and packing bool"""
-        iterator = cyvcf2.VCF(self.path)
+        iterator = cyvcf2.VCF(self.path, lazy=True, threads=os.cpu_count())
         try:
             for i, v in enumerate(iterator('{}:{}'.format(self.chrom, self.newpos - 1))):
                 # self.newpos - 1: avoids first variant truncation in the next chunk
@@ -287,7 +287,7 @@ class CyvcfVariantChunkGenerator(object):
         Write a packed chunk to its own file. Header of chunk file is copied from the parent file.
         """
         data = [*self.chunkpacker()][chki]
-        w = cyvcf2.Writer(pathout, cyvcf2.VCF(self.path))
+        w = cyvcf2.Writer(pathout, cyvcf2.VCF(self.path, lazy=True, threads=os.cpu_count()))
         for var in data:
             w.write_record(var)
         w.close()
@@ -307,7 +307,7 @@ class CyvcfChunkHandler(object):
         """
         :param fileout: path to an uncompressed VCF-file
         """
-        self.mainf = cyvcf2.VCF(mainpath)
+        self.mainf = cyvcf2.VCF(mainpath, lazy=True, threads=os.cpu_count())
         if packedchunk is not None:
             self.data = packedchunk
         else:
@@ -339,19 +339,21 @@ class CyvcfChunkHandler(object):
         fout.close()
 
     def process(self):
+        print('\r\nWriting metadata in {}'.format(self.filout).ljust(80, '.'))
         if False:  # write GT only format
             fout = cyvcf2.Writer(self.filout, self.mainf, mode='w')
         else:  # write other formats
             self.write_header()
             fout = open(self.filout, 'ab')
+        print('Pooling and writing data in {}'.format(self.filout).ljust(80, '.'))
         for rec in self.data:
             var = rec
-            # pool.process_line(self.groups, 'pooled', fout, var, self.gdict, write=True)
             cvp = CyvcfVariantPooler(self.groups, 'pooled', fout, var, self.gdict, write=True)
             cvp.simulate_pooling()
             cvp.write_variant()
             # break  process 1 variant only
         fout.close()
+        print('Writing data in {}: Done'.format(self.filout).rjust(80, '.'))
 
     def write_chunk(self) -> None:
         """implement if self.process yields a generator over the data to write"""
@@ -389,7 +391,7 @@ class CyvcfVariantPooler(object):
         self.record = v
         self.lookup = gdict
         self._write = write
-        self.samples = cyvcf2.VCF(self.writer.name).samples
+        self.samples = cyvcf2.VCF(self.writer.name, lazy=True, threads=os.cpu_count()).samples
         self.genotypes = np.asarray(self.record.genotypes)
         self.pooled_record = self.record
         self.blocks = [pool.SNPsPool().set_subset(np.asarray(gp)) for gp in self.groups[0]]
