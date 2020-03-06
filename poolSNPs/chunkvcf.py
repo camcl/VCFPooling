@@ -236,7 +236,7 @@ class CyvcfVariantChunkGenerator(object):
         self.pack = True
         self.newpos = 1  # for valid self.newpos - 1 at the start of the first chunk
 
-    def _chunker(self, chunksize: int, newpos: int) -> Iterator[cyvcf2.Variant]:
+    def _chunker(self, chunksize: int, newpos: int) -> Generator[cyvcf2.Variant, None, None]:
         """
         Build fixed-length generator of variants calls.
         Keep track of the position where chunking stops
@@ -273,7 +273,7 @@ class CyvcfVariantChunkGenerator(object):
         finally:
             return self.newpos, self.pack
 
-    def chunkpacker(self) -> Iterator[cyvcf2.VCF]:
+    def chunkpacker(self) -> Generator[cyvcf2.VCF, None, None]:
         while self.pack:
             chk = self._chunker(self.chksz, self.newpos)
             # function output and included sttributes updates NOT unpacked hence NOT updated
