@@ -60,6 +60,10 @@ SCRIPTS_PATH = os.path.join(ROOT, 'scripts')
 ### pool.py
 GTGL = 'GL'  # GT else: GL
 CHK_SZ = 10000
+if CHK_SZ is not None:
+    chk_name = '.chunk{}'.format(CHK_SZ)
+else:
+    chk_name = ''
 SUBCHUNK = 1000
 WD = os.path.join(DATA_PATH)
 
@@ -69,11 +73,11 @@ PATH_GL_FILES = os.path.join(DATA_PATH, 'gl')
 SRCFILE = 'ALL.chr20.snps.gt.vcf.gz'
 # PATH_OUT = ['ALL.chr20.pooled.snps.{}.chunk{}.vcf'.format(GTGL.lower(), CHK_SZ),
 #             'ALL.chr20.missing.snps.{}.chunk{}.vcf'.format(GTGL.lower(), CHK_SZ)]
-PATH_OUT = {'pooled': 'ALL.chr20.pooled.snps.{}.chunk{}.vcf'.format(GTGL.lower(), CHK_SZ),
-            'missing': 'ALL.chr20.missing.snps.{}.chunk{}.vcf'.format(GTGL.lower(), CHK_SZ)}
+PATH_OUT = {'pooled': 'ALL.chr20.pooled.snps.{}.chunk{}.vcf'.format(GTGL.lower(), chk_name),
+            'missing': 'ALL.chr20.missing.snps.{}.chunk{}.vcf'.format(GTGL.lower(), chk_name)}
 MSS = [False, True]
 POOL = [True, False]
-CHKFILE = 'ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(CHK_SZ)
+CHKFILE = 'ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(chk_name)
 
 # unknown_gl = [1/3, 1/3, 1/3]
 # unknown_gl = [0.2, 0.4, 0.4]
@@ -92,37 +96,38 @@ MAP_FILE = os.path.join(DATA_PATH, 'plink.GRCh37.map', 'plink.chr20.GRCh37.map')
 
 #TODO: rename beagle2.corr to imputed.gtdsgp
 #TODO: rename IMP to STU and REF to PAN
-RAW = {'vcf':'ALL.chr20.snps.{}.chunk{}.vcf'.format('gt', CHK_SZ),
-       'gz':'ALL.chr20.snps.{}.chunk{}.vcf.gz'.format('gt', CHK_SZ),
-       'ref': 'REF.chr20.snps.{}.chunk{}.vcf.gz'.format('gt', CHK_SZ),
-       'imp': 'IMP.chr20.snps.{}.chunk{}.vcf.gz'.format('gt', CHK_SZ),
-       'b1r':'REF.chr20.beagle1.chunk{}'.format(CHK_SZ),
-       'b1i':'IMP.chr20.beagle1.chunk{}'.format(CHK_SZ)}
 
-POOLED = {'vcf':'ALL.chr20.pooled.snps.{}.chunk{}.vcf'.format(GTGL.lower(), CHK_SZ),
-          'gz':'ALL.chr20.pooled.snps.{}.chunk{}.vcf.gz'.format(GTGL.lower(), CHK_SZ),
-          'imp': 'IMP.chr20.pooled.snps.{}.chunk{}.vcf.gz'.format(GTGL.lower(), CHK_SZ),
-          'ref': 'REF.chr20.pooled.snps.{}.chunk{}.vcf.gz'.format(GTGL.lower(), CHK_SZ),  # for MAF/AAF comparisons
-          'b1':'IMP.chr20.pooled.beagle1.chunk{}'.format(CHK_SZ),
-          'b2':'IMP.chr20.pooled.beagle2.{}.chunk{}'.format(GTGL.lower(), CHK_SZ),
-          'corr':'IMP.chr20.pooled.beagle2.{}.chunk{}.corr'.format(GTGL.lower(), CHK_SZ),
-          'cfgt': 'IMP.chr20.pooled.cfgt.chunk{}'.format(CHK_SZ),
-          'gtonly': 'IMP.chr20.pooled.imputed.gt.chunk{}'.format(CHK_SZ)}
+RAW = {'vcf':'ALL.chr20.snps.{}{}.vcf'.format('gt', chk_name),
+       'gz':'ALL.chr20.snps.{}{}.vcf.gz'.format('gt', chk_name),
+       'ref': 'REF.chr20.snps.{}{}.vcf.gz'.format('gt', chk_name),
+       'imp': 'IMP.chr20.snps.{}{}.vcf.gz'.format('gt', chk_name),
+       'b1r':'REF.chr20.beagle1{}'.format(chk_name),
+       'b1i':'IMP.chr20.beagle1{}'.format(chk_name)}
 
-MISSING = {'vcf':'ALL.chr20.missing.snps.{}.chunk{}.vcf'.format(GTGL.lower(), CHK_SZ),
-           'gz':'ALL.chr20.missing.snps.{}.chunk{}.vcf.gz'.format(GTGL.lower(), CHK_SZ),
-           'imp': 'IMP.chr20.missing.snps.{}.chunk{}.vcf.gz'.format(GTGL.lower(), CHK_SZ),
-           'b1':'IMP.chr20.missing.beagle1.chunk{}'.format(CHK_SZ),
-           'b2':'IMP.chr20.missing.beagle2.{}.chunk{}'.format(GTGL.lower(), CHK_SZ),
-           'corr': 'IMP.chr20.missing.beagle2.{}.chunk{}.corr'.format(GTGL.lower(), CHK_SZ),
-           'cfgt': 'IMP.chr20.missing.cfgt.chunk{}'.format(CHK_SZ),
-           'gtonly': 'IMP.chr20.missing.imputed.gt.chunk{}'.format(CHK_SZ)}
+POOLED = {'vcf':'ALL.chr20.pooled.snps.{}{}.vcf'.format(GTGL.lower(), chk_name),
+          'gz':'ALL.chr20.pooled.snps.{}{}.vcf.gz'.format(GTGL.lower(), chk_name),
+          'imp': 'IMP.chr20.pooled.snps.{}{}.vcf.gz'.format(GTGL.lower(), chk_name),
+          'ref': 'REF.chr20.pooled.snps.{}{}.vcf.gz'.format(GTGL.lower(), chk_name),  # for MAF/AAF comparisons
+          'b1':'IMP.chr20.pooled.beagle1{}'.format(chk_name),
+          'b2':'IMP.chr20.pooled.beagle2.{}{}'.format(GTGL.lower(), chk_name),
+          'corr':'IMP.chr20.pooled.beagle2.{}{}.corr'.format(GTGL.lower(), chk_name),
+          'cfgt': 'IMP.chr20.pooled.cfgt{}'.format(chk_name),
+          'gtonly': 'IMP.chr20.pooled.imputed.gt{}'.format(chk_name)}
+
+MISSING = {'vcf':'ALL.chr20.missing.snps.{}{}.vcf'.format(GTGL.lower(), chk_name),
+           'gz':'ALL.chr20.missing.snps.{}{}.vcf.gz'.format(GTGL.lower(), chk_name),
+           'imp': 'IMP.chr20.missing.snps.{}{}.vcf.gz'.format(GTGL.lower(), chk_name),
+           'b1':'IMP.chr20.missing.beagle1{}'.format(chk_name),
+           'b2':'IMP.chr20.missing.beagle2.{}{}'.format(GTGL.lower(), chk_name),
+           'corr': 'IMP.chr20.missing.beagle2.{}{}.corr'.format(GTGL.lower(), chk_name),
+           'cfgt': 'IMP.chr20.missing.cfgt{}'.format(chk_name),
+           'gtonly': 'IMP.chr20.missing.imputed.gt{}'.format(chk_name)}
 
 # To check: related individuals are removed from the file
 try:
     nb_samples = len(VCF(os.path.join(WD,
                                       'gt',
-                                      'ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(CHK_SZ))).samples)
+                                      'ALL.chr20.snps.gt{}.vcf.gz'.format(chk_name))).samples)
 except IOError:
     nb_samples = np.nan
 pools_size = 16
