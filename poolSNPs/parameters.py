@@ -67,7 +67,7 @@ else:
 SUBCHUNK = 1000
 WD = os.path.join(DATA_PATH)
 
-PATH_GT_FILES = os.path.join(DATA_PATH, 'gt', 'stratified')
+PATH_GT_FILES = os.path.join(DATA_PATH, 'gt')  #, 'stratified')
 PATH_GL_FILES = os.path.join(DATA_PATH, 'gl')
 
 SRCFILE = 'ALL.chr20.snps.gt.vcf.gz'
@@ -97,40 +97,39 @@ MAP_FILE = os.path.join(DATA_PATH, 'plink.GRCh37.map', 'plink.chr20.GRCh37.map')
 #TODO: rename beagle2.corr to imputed.gtdsgp
 #TODO: rename IMP to STU and REF to PAN
 
-RAW = {'vcf':'ALL.chr20.snps.{}{}.vcf'.format('gt', chk_name),
-       'gz':'ALL.chr20.snps.{}{}.vcf.gz'.format('gt', chk_name),
+RAW = {'vcf': 'ALL.chr20.snps.{}{}.vcf'.format('gt', chk_name),
+       'gz': 'ALL.chr20.snps.{}{}.vcf.gz'.format('gt', chk_name),
        'ref': 'REF.chr20.snps.{}{}.vcf.gz'.format('gt', chk_name),
        'imp': 'IMP.chr20.snps.{}{}.vcf.gz'.format('gt', chk_name),
-       'b1r':'REF.chr20.beagle1{}'.format(chk_name),
-       'b1i':'IMP.chr20.beagle1{}'.format(chk_name)}
+       'b1r': 'REF.chr20.beagle1{}'.format(chk_name),
+       'b1i': 'IMP.chr20.beagle1{}'.format(chk_name)}
 
-POOLED = {'vcf':'ALL.chr20.pooled.snps.{}{}.vcf'.format(GTGL.lower(), chk_name),
-          'gz':'ALL.chr20.pooled.snps.{}{}.vcf.gz'.format(GTGL.lower(), chk_name),
+POOLED = {'vcf': 'ALL.chr20.pooled.snps.{}{}.vcf'.format(GTGL.lower(), chk_name),
+          'gz': 'ALL.chr20.pooled.snps.{}{}.vcf.gz'.format(GTGL.lower(), chk_name),
           'imp': 'IMP.chr20.pooled.snps.{}{}.vcf.gz'.format(GTGL.lower(), chk_name),
           'ref': 'REF.chr20.pooled.snps.{}{}.vcf.gz'.format(GTGL.lower(), chk_name),  # for MAF/AAF comparisons
-          'b1':'IMP.chr20.pooled.beagle1{}'.format(chk_name),
-          'b2':'IMP.chr20.pooled.beagle2.{}{}'.format(GTGL.lower(), chk_name),
-          'corr':'IMP.chr20.pooled.beagle2.{}{}.corr'.format(GTGL.lower(), chk_name),
+          'b1': 'IMP.chr20.pooled.beagle1{}'.format(chk_name),
+          'b2': 'IMP.chr20.pooled.beagle2.{}{}'.format(GTGL.lower(), chk_name),
+          'corr': 'IMP.chr20.pooled.beagle2.{}{}.corr'.format(GTGL.lower(), chk_name),
           'cfgt': 'IMP.chr20.pooled.cfgt{}'.format(chk_name),
           'gtonly': 'IMP.chr20.pooled.imputed.gt{}'.format(chk_name)}
 
-MISSING = {'vcf':'ALL.chr20.missing.snps.{}{}.vcf'.format(GTGL.lower(), chk_name),
-           'gz':'ALL.chr20.missing.snps.{}{}.vcf.gz'.format(GTGL.lower(), chk_name),
+MISSING = {'vcf': 'ALL.chr20.missing.snps.{}{}.vcf'.format(GTGL.lower(), chk_name),
+           'gz': 'ALL.chr20.missing.snps.{}{}.vcf.gz'.format(GTGL.lower(), chk_name),
            'imp': 'IMP.chr20.missing.snps.{}{}.vcf.gz'.format(GTGL.lower(), chk_name),
-           'b1':'IMP.chr20.missing.beagle1{}'.format(chk_name),
-           'b2':'IMP.chr20.missing.beagle2.{}{}'.format(GTGL.lower(), chk_name),
+           'b1': 'IMP.chr20.missing.beagle1{}'.format(chk_name),
+           'b2': 'IMP.chr20.missing.beagle2.{}{}'.format(GTGL.lower(), chk_name),
            'corr': 'IMP.chr20.missing.beagle2.{}{}.corr'.format(GTGL.lower(), chk_name),
            'cfgt': 'IMP.chr20.missing.cfgt{}'.format(chk_name),
            'gtonly': 'IMP.chr20.missing.imputed.gt{}'.format(chk_name)}
 
 # To check: related individuals are removed from the file
-try:
-    nb_samples = len(VCF(os.path.join(WD,
-                                      'gt',
-                                      'ALL.chr20.snps.gt{}.vcf.gz'.format(chk_name))).samples)
-except IOError:
-    nb_samples = np.nan
+idv_nb = len(VCF(os.path.join(WD,
+                              'gt',
+                              'ALL.chr20.snps.gt{}.vcf.gz'.format(chk_name))).samples)
 pools_size = 16
+nb_pool, left = divmod(idv_nb, pools_size)
+nb_samples = nb_pool * pools_size
 # number of pools for the target set IMP
 pools_imp = ppcm(nb_samples, pools_size) // (10 * pools_size)
 # number of samples for the target/reference sets
