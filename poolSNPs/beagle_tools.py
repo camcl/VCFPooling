@@ -64,7 +64,9 @@ def create_ref_imp_lists(cd: str, sizeref: int = prm.NB_REF, sizeimp: int = prm.
     samples_files = ['cat {}/ALL.chr20.snps.allID.txt '.format(prm.WD + '/gt')
                      + '| head -{} > {}/ALL.chr20.snps.impID.txt'.format(sizeimp, prm.WD + '/gt'),
                      'cat {}/ALL.chr20.snps.allID.txt '.format(prm.WD + '/gt')
-                     + '| tail -{} > {}/ALL.chr20.snps.refID.txt'.format(sizeref, prm.WD + '/gt'),
+                     + '| head -{} | tail -{} > {}/ALL.chr20.snps.refID.txt'.format(sizeimp + sizeref,
+                                                                                    sizeref,
+                                                                                    prm.WD + '/gt'),
                      'dos2unix {}/ALL.chr20.snps.refID.txt'.format(prm.WD + '/gt'),
                      'dos2unix {}/ALL.chr20.snps.impID.txt'.format(prm.WD + '/gt')]
     for f in samples_files:
