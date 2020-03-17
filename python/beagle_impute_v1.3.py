@@ -104,7 +104,7 @@ Important note!
 
 In python 3.x, map creates an iterable. Iterables are evaluated lazily - that is,
 only the elements you iterate over (such as looping over them) are actually evaluated.
---> Use all(iterable) or list(iterable) to evaluate 
+--> Use all(iterable) or list(iterable) to evaluate
 """
 ### REFINE SAMPLES OR MARKERS TO IMPUTE
 idv_to_keep: List[str] = VCF(os.path.join(path_gt_files, raw['imp'])).samples

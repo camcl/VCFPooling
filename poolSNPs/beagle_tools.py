@@ -1,4 +1,5 @@
 import subprocess
+import shutil
 
 from typing import *
 
@@ -271,8 +272,11 @@ def conform_gt(dic: dict, dicraw: dict, cd: str) -> bool:
                                                   dicraw['b1r'] + '.vcf.gz')),
                      'out=' + dic['cfgt']
                      ])
-
-    subprocess.run(cfgt, shell=True, cwd=cd)
+    try:
+        subprocess.run(cfgt, shell=True, cwd=cd)
+        assert os.path.exists(dic['cfgt'] + '.vcf.gz')
+    except AssertionError:  # if duplicated markers, just copy phased file
+        shutil.copy(dic['b1'] + '.vcf.gz', dic['cfgt'] + '.vcf.gz')
     pybcf.index(dic['cfgt'] + '.vcf.gz', cd)
 
     return check_file_creation(cd, dic['cfgt'] + '.vcf.gz')
@@ -285,8 +289,8 @@ def beagle_imputing(dic_study: dict, dicref: dict, cd: str) -> bool:
 
     bgl2 = ' '.join(['java -Xss5m -jar {}'.format(prm.BEAGLE_JAR),  # -Xss5m option: fix StackOverFlow error of Java
                      'gt=' + dic_study['cfgt'] + '.vcf.gz',
-                     'ref={}/{}.vcf.gz'.format(os.path.dirname(cd),
-                                               dicref['b1r']),
+                     'ref={}'.format(os.path.join(cd,
+                                                  dicref['b1r'] + '.vcf.gz')),
                      'impute=true',
                      'gprobs=true',
                      'out=' + dic_study['b2'],
