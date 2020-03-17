@@ -26,7 +26,7 @@ Run Beagle.
 v1.3: run imputation for all samples and all markers together with command-line launching. 
 To be run on a remote server.
 
-Calling from command-line: $ python3 beagle_impute_v1.3.py chr20_20200303 4
+Calling from command-line: $ python3 beagle_impute_v1.3.py chr20_20200307 4
 
 Note regarding threading with Beagle (from 4.1 documentation):
 nthreads=[positive integer] specifies the number of threads of execution.  If no nthreads parameter  is  specified,
@@ -41,6 +41,7 @@ Steps:
 * merge imputed files
 * (transfer merged imputed files to local computer: other script to run locally)
 '''
+prm.info()
 
 ### COMMAND-LINE PARSING AND PARAMETERS
 parser = argparse.ArgumentParser(description='Run imputation with Beagle for single sample,'
@@ -77,7 +78,7 @@ pooled = NamedDict('pooled', list(prm.POOLED.keys()), list(prm.POOLED.values()))
 print('\nStart processing files for running BEAGLE'.ljust(80, '.'))
 
 ### BGZIP ALL
-bgltls.bgzip_working_files(pooled, path_gt_files, path_gl_files, cd)
+# bgltls.bgzip_working_files(pooled, path_gt_files, path_gl_files, cd)
 
 ### REF/IMP SAMPLING
 bgltls.create_ref_imp_lists(cd, sizeref=prm.NB_REF, sizeimp=prm.NB_IMP)
@@ -86,7 +87,8 @@ for (folder, dic) in tuple([(cd, pooled),
                             (path_gt_files, raw)]):
     bgltls.partition_imp((folder, dic), total_ref=False)
 
-bgltls.partition_ref(raw, path_gt_files)
+#bgltls.partition_ref(raw, path_gt_files)
+bgltls.partition_ref(raw, cd)
 
 for (folder, f) in tuple([(path_gt_files, raw['imp']),
                           (path_gt_files, raw['ref']),
@@ -96,19 +98,6 @@ for (folder, f) in tuple([(path_gt_files, raw['imp']),
 
 if prm.GTGL == 'GT':
     bgltls.partition_ref(pooled, path_gt_files)
-
-### GL CONVERSION FOR IMP/REF
-if prm.GTGL == 'G':
-    print('GT to GL in {}'.format(os.getcwd()).ljust(80, '.'))
-    alltls.file_likelihood_converter(os.path.join(path_gt_files,
-                                                  raw['ref'].replace('.gl', '.gt')),
-                                     raw['ref'][:-3])
-    delete_file(raw['ref'])
-    delete_file(raw['ref'] + '.csi')
-    pybcf.bgzip(raw['ref'][:-3], raw['ref'], cd)
-    pybcf.sort(raw['ref'], cd)
-    pybcf.index(raw['ref'], cd)
-    delete_file(raw['ref'][:-3])
 
 """
 Important note!
@@ -123,7 +112,7 @@ print('List of samples to be imputed --> {}'.format(idv_to_keep))
 path_out = cd
 
 ### BEAGLE ROUND#1: (GL to GT and) PHASING
-_ = bgltls.beagle_phasing(raw, path_gt_files, cd)
+_ = bgltls.beagle_phasing(raw, path_gt_files, path_out)
 _ = bgltls.beagle_phasing(pooled, path_gt_files, path_out)
 
 ### CONFORM-GT

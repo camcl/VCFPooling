@@ -267,8 +267,8 @@ def conform_gt(dic: dict, dicraw: dict, cd: str) -> bool:
     cfgt = ' '.join(['java -jar {}'.format(prm.CFGT_JAR),
                      '{}='.format('gt') + dic['b1'] + '.vcf.gz',
                      'chrom=20:60343-62965354',
-                     'ref={}/{}'.format(os.path.dirname(cd),
-                                        dicraw['b1r'] + '.vcf.gz'),
+                     'ref={}'.format(os.path.join(cd,
+                                                  dicraw['b1r'] + '.vcf.gz')),
                      'out=' + dic['cfgt']
                      ])
 
