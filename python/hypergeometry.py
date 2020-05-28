@@ -6,7 +6,6 @@ from itertools import starmap
 from functools import partial
 from cyvcf2 import VCF
 
-from scripts.VCFPooling.poolSNPs.alleles import alleles_tools as alltls
 from scripts.VCFPooling.poolSNPs import parameters as prm
 from persotools.files import *
 
@@ -33,12 +32,13 @@ than d B is
 N = 2496  # number of samples
 B = 156  # nb of blocks
 nB = 16  # nb of idv per block
-aaf = np.arange(0.0, 1.05, 0.05)
-maf = np.arange(0.0, 0.55, 0.05)
-lwf = np.arange(0.0, 0.1, 0.005)
+# aaf = np.arange(0.0, 1.05, 0.05)
+# maf = np.arange(0.0, 0.55, 0.05)
+lwf = np.arange(0.0, 0.15, 0.005)
+aaf = lwf
 carrier = np.vectorize(lambda x: 2 * x * (1-x) + x**2)
 acf = carrier(aaf)  # alternate allele carrier frequency
-mcf = carrier(maf)  # alternate allele carrier frequency
+# mcf = carrier(maf)  # minor allele carrier frequency
 lcf = carrier(lwf)  # carriersat low frequencies
 k = 1  # decoding power, number of carriers per pool
 
@@ -58,13 +58,25 @@ probs = cumul
 tweak = np.multiply(aaf, probs)
 print('tweaked AAF', tweak)
 
-plt.plot(acf, cumul)
-plt.xlabel("Alternate allele carrier frequency")
-plt.ylabel("Cumulated probabilty encountering x% alternate allele carriers")
-plt.title("Cumulative Distribution Function of a hypergeometric probability law")
-plt.show()
+# plt.plot(acf, cumul)
+# plt.xlabel("Alternate allele carrier frequency")
+# plt.ylabel("Cumulated probability encountering x% alternate allele carriers")
+# plt.title("Cumulative Distribution Function of a hypergeometric probability law")
+# plt.show()
 
 fig, ax = plt.subplots(2, 1)
 ax[0].plot(aaf, cumul)
-ax[1].plot(aaf, tweak)
+ax[1].plot(aaf, acf)
 plt.show()
+
+# Decodability (Pr(block decoded)) as a function of MAF
+# proba to have at most 1 minor allele carrier in the pool
+symfunc = np.vectorize(lambda x: x if x <= 0.5 else 1-x)
+symacf = symfunc(acf)
+symaaf = symfunc(aaf)
+symcum = symfunc(cumul)
+pr_decoded = pd.DataFrame(zip(symacf, symaaf, 1 - symcum), columns=['mcf', 'maf', 'proba_decoded'])
+print(pr_decoded)
+
+# pr_decoded.plot('maf', 'proba_decoded')
+# plt.show()
