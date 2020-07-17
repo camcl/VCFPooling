@@ -48,7 +48,7 @@ GTtype = NewType('GTtype', Tuple[int, int, bool])
 HOME = str(Path.home())
 # TODO: replace all occurrences of /home/camille by prm.HOME
 ROOT = os.path.join(HOME, '1000Genomes')
-SNIC_PROJ = '/crex/proj/snic2019-8-216'
+SNIC_PROJ = '/crex/proj/snic2019-8-216/private'
 
 ### all
 DATA_PATH = os.path.join(ROOT, 'data')
@@ -77,7 +77,7 @@ PATH_OUT = {'pooled': 'ALL.chr20.pooled.snps.{}.chunk{}.vcf'.format(GTGL.lower()
             'missing': 'ALL.chr20.missing.snps.{}.chunk{}.vcf'.format(GTGL.lower(), chk_name)}
 MSS = [False, True]
 POOL = [True, False]
-CHKFILE = 'ALL.chr20.snps.gt.chunk{}.vcf.gz'.format(chk_name)
+CHKFILE = 'ALL.chr20.snps.gt{}.vcf.gz'.format(chk_name)
 
 # unknown_gl = [1/3, 1/3, 1/3]
 # unknown_gl = [0.2, 0.4, 0.4]

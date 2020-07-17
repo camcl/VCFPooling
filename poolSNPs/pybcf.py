@@ -21,6 +21,7 @@ def bgzip(f_vcf: str, f_gz: str, wd: str) -> None:
     cmd = ' '.join(['bcftools',
                     'view -Oz -o',
                     f_gz,
+                    '--threads {}'.format(os.cpu_count()),
                     f_vcf
                     ])
     subprocess.run(cmd, shell=True, cwd=wd)
@@ -76,6 +77,7 @@ def sampling(f_gz: str, f_out: str, f_samp: str, wd: str) -> None:
                     'view -Oz -o',
                     f_out,
                     '-S {}'.format(f_samp),
+                    '--threads {}'.format(os.cpu_count()),
                     f_gz
                     ])
     subprocess.run(cmd, shell=True, cwd=wd)

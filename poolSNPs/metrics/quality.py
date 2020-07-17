@@ -153,6 +153,7 @@ class QualityGT(object):
         or global correlation (ax=None i.e. mean of flattened array)
         :return: correlation coefficients and p-value for each
         """
+        #TODO: replace by Allele Frequency correlation as described in Beagle09?
         true = self.trueobj.trinary_encoding().values
         imputed = self.imputedobj.trinary_encoding().values
         scorer = lambda t: pearsonr(t[0], t[1])[0]  # keeps only correlation, not p-value
@@ -199,6 +200,7 @@ class QualityGT(object):
         return np.multiply(a, freq).sum()
 
     def alleledosage(self) -> Tuple[pd.Series]:
+        # TODO: add  by Standardized Allele Frequency Error as described in Beagle09?
         """
         Compute mean genotype along the given axis. Equivalent to AAF computation.
         Makes sense only accross a population i.e. mean values along samples axis.

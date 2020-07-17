@@ -27,6 +27,9 @@ data = VCF(os.path.join(prm.WD, 'gt', prm.CHKFILE), threads=nb_cores)
 
 SAMPLES = data.samples
 
+# data = VCF(os.path.join('/home/camille/PoolImpHuman/data/20200603', "TEST.chr20.snps.gt.vcf.gz"))
+# SAMPLES = data.samples
+
 ### README
 
 """
@@ -136,30 +139,30 @@ class SNPsPool(np.ndarray):
                        [j+k*pools_size for k in range(pools_size)]] = 1
         return design
 
-    def set_subset(self, subset: np.ndarray) -> np.ndarray:
+    def set_subset(self, block: np.ndarray) -> np.ndarray:
         # TODO: refactor with more sel-explanatory name
         """
         Fills the pooling matrix according to the (default) design
         and the input list of samples.
-        :param subset: 1D-nparray-like object with the variables IDs
+        :param block: 1D-nparray-like object with the variables IDs
         :return: pooling matrix with samples' names.
         """
-        self.__setattr__('subset', subset)  # from split_pools
-        sub = self.__getattribute__('subset')
-        self.block = subset
-        try:
-            for i in range(self.shape[0]):
-                self[i, :] = sub[:self.shape[1]]
-                sub = sub[self.shape[1]:]
-        except Exception as exc:
-            if len(self.subset) > self.size:
-                raise ValueError('The input you gave is too long') from exc
-            if len(self.subset) < self.size:
-                raise ValueError('The input you gave is too short') from exc
-            if type(self.subset) != np.ndarray and type(self.subset) != list:
-                raise TypeError('The input is not a 1D-array-like') from exc
-            if len(self.subset) > 0 and type(self.subset[0]) != str:
-                raise TypeError('The input does not contain str-type elements') from exc
+        self.__setattr__('block', block)  # from split_pools
+        sub = self.__getattribute__('block')
+        self.block = block
+        # try:
+        #     for i in range(self.shape[0]):
+        #         self[i, :] = sub[:self.shape[1]]
+        #         sub = sub[self.shape[1]:]
+        # except Exception as exc:
+        #     if len(self.block) > self.size:
+        #         raise ValueError('The input you gave is too long') from exc
+        #     if len(self.block) < self.size:
+        #         raise ValueError('The input you gave is too short') from exc
+        #     if type(self.block) != np.ndarray and type(self.block) != list:
+        #         raise TypeError('The input is not a 1D-array-like') from exc
+        #     if len(self.block) > 0 and type(self.block[0]) != str:
+        #         raise TypeError('The input does not contain str-type elements') from exc
 
         return self
 
@@ -330,7 +333,7 @@ class SNPsPool(np.ndarray):
         samples_gl = samples_gl.astype(float)  # avoid truncating GL
         pooled: np.ndarray = self.pool_genotypes()  # outputs unphased genotypes
         scores: np.ndarray = np.apply_along_axis(sum, axis=-1, arr=pooled[:, :, :-1]).flatten()
-        p = np.argwhere(np.isin(self.samples, self.subset))
+        p = np.argwhere(np.isin(self.samples, self.block))
         count_alt: Callable[int] = lambda x: 1 if 1 in x else 0
         count_ref: Callable[int] = lambda x: 1 if 0 in x else 0
 
@@ -530,7 +533,7 @@ def process_file(data: VCF, groups: list, simul: str) -> None:
     tm = time.time()
     # for n, variant in enumerate(data('20:59973567-59973568')):
     for n, variant in enumerate(data):
-        print(variant)
+        # print(variant)
         process_line(groups, simul, w, variant, df2dict, write=True)
         if n % 1000 == 0:
             print('{} variants processed in {:06.2f} sec'.format(n+1, time.time()-tm).ljust(80, '.'))
@@ -603,7 +606,7 @@ def process_line(groups: list, simul: str, w: Writer, v: Variant, dict_gl: dict,
                                  'GL',
                                  gl],
                                 dtype=str)
-            towrite = '\t'.join(toshow)  + '\n'
+            towrite = '\t'.join(toshow) + '\n'
             stream = towrite.encode()
             w.write(stream)  # cyvcf2.Writer.variant_from_string() does not write anything
         else:

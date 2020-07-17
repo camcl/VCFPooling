@@ -1,6 +1,6 @@
 # PDC/PRACE Online Course: Writing Parallel Applications Using MPI
 
-See page at: https://pdc-support.github.io/introduction-to-mpi/index.html
+See [course page](https://github.com/PDC-support/introduction-to-mpi) 
 
 ### Environment preparation on Rackham at UPPMAX
 Connect to Rackham cluster. Following lines should be included in the sh file to be sbatched.

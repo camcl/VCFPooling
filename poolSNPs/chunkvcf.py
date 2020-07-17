@@ -182,7 +182,7 @@ class PysamVariantPooler(object):
         for p in self.blocks:
             p.set_line_values(self.samples, self.record)
             if prm.GTGL == 'GL' and prm.unknown_gl == 'adaptive':
-                self.pooled_record = p.decode_genotypes_gl(self.genotypes, self.lookup)
+                self.pooled_record = p.decode_genotypes_gp(self.genotypes, self.lookup)
             else:  # prm.GTGL == 'GT' or fixed GL
                 self.pooled_record = p.decode_genotypes_gt(self.genotypes)
 
@@ -366,17 +366,6 @@ class CyvcfChunkHandler(object):
         delete_file(self.filout)
 
 
-def cyvcfchunkhandler_process(*arglist):
-    """
-    Wrap class and methods into a function useable as multiprocessing input object.
-    """
-    start = time.time()
-    cch = CyvcfChunkHandler(*arglist)
-    cch.process()
-    cch.bgzip_index_chunk()
-    print('cyvcfchunkhandler_process() --> {} sec'.format(time.time() - start))
-
-
 class CyvcfVariantPooler(object):
     """
     Class translation of pool.process_line
@@ -401,7 +390,7 @@ class CyvcfVariantPooler(object):
         for p in self.blocks:
             p.set_line_values(self.samples, self.record)
             if prm.GTGL == 'GL' and prm.unknown_gl == 'adaptive':
-                self.pooled_record = p.decode_genotypes_gl(self.genotypes, self.lookup)
+                self.pooled_record = p.decode_genotypes_gp(self.genotypes, self.lookup)
             else:  # prm.GTGL == 'GT' or fixed GL
                 self.pooled_record = p.decode_genotypes_gt(self.genotypes)
 
@@ -442,6 +431,24 @@ class CyvcfVariantPooler(object):
             # cyvcf2.Variant.genotypes does handle GT-format
             self.record.genotypes = self.pooled_record.tolist()
             self.writer.write_record(self.record)
+
+
+def cyvcfchunkhandler_process(*arglist):
+    """
+    Wrap class and methods into a function useable as multiprocessing input object.
+    """
+    start = time.time()
+    cch = CyvcfChunkHandler(*arglist)
+    cch.process()
+    cch.bgzip_index_chunk()
+    print('cyvcfchunkhandler_process() --> {} sec'.format(time.time() - start))
+
+
+def pysamchunkhandler_process(*arglist):
+    """
+    See classes and pysam_pooler() in poolvcf.py
+    """
+    pass
 
 
 if __name__ == '__main__':
