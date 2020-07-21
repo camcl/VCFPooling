@@ -2,9 +2,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import subprocess
 
-from scripts.VCFPooling.poolSNPs.alleles import alleles_tools as alltls
 from scripts.VCFPooling.poolSNPs.metrics import quality
-from scripts.VCFPooling.poolSNPs import parameters as prm
 
 from persotools.files import *
 

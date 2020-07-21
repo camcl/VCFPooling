@@ -4,10 +4,9 @@ import numpy as np
 import pandas as pd
 import cyvcf2
 import pysam
-from itertools import starmap, repeat
+from itertools import repeat
 import math
 import multiprocessing as mp
-import time
 
 home_dir = os.path.expanduser("~")
 proj_dir = os.path.join(home_dir, '1000Genomes')
@@ -17,11 +16,10 @@ nb_cores = os.cpu_count()
 
 from scripts.VCFPooling.poolSNPs import parameters as prm
 from scripts.VCFPooling.poolSNPs import pybcf
-from scripts.VCFPooling.poolSNPs import pool
-from scripts.VCFPooling.poolSNPs.alleles import alleles_tools as alltls
+from scripts.VCFPooling.python.archived import pool
+from scripts.VCFPooling.python.archived.alleles import alleles_tools as alltls
 
-from persotools.files import delete_file, mkdir, FilePath
-from persotools.struct import NamedDict
+from persotools.files import delete_file, FilePath
 
 '''
 Classes for parallelized file processing: Read main VCF-file and write chunks from it

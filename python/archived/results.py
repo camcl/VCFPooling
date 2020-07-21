@@ -1,10 +1,5 @@
-from cyvcf2 import VCF
-from scipy.stats import *
-import numpy as np
 import pandas as pd
 
-from scripts.VCFPooling.poolSNPs.alleles import alleles_tools as alltls
-from scripts.VCFPooling.poolSNPs.alleles import alleles_plots as allplt
 from scripts.VCFPooling.poolSNPs import parameters as prm
 from scripts.VCFPooling.poolSNPs import utils
 from persotools.files import *

@@ -6,7 +6,7 @@ import fabric
 
 from typing import *
 
-from scripts.VCFPooling.poolSNPs.myssh import sshsession
+from scripts.VCFPooling.python.archived.myssh import sshsession
 
 '''
 Tools for:

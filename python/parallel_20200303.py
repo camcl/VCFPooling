@@ -1,9 +1,8 @@
 import sys, os
-from typing import *
 import numpy as np
 import pandas as pd
 import cyvcf2
-from itertools import starmap, repeat
+from itertools import repeat
 import shutil
 import multiprocessing as mp
 import argparse
@@ -15,12 +14,10 @@ sys.path.insert(0, proj_dir)
 
 from scripts.VCFPooling.poolSNPs import parameters as prm
 from scripts.VCFPooling.poolSNPs import chunkvcf as chkvcf
-from scripts.VCFPooling.poolSNPs import dataframe as vcfdf
-from scripts.VCFPooling.poolSNPs import pool
+from scripts.VCFPooling.python.archived import pool
 from scripts.VCFPooling.poolSNPs import pybcf
 
-from persotools.files import delete_file, mkdir
-from persotools.struct import NamedDict
+from persotools.files import delete_file
 
 '''
 Parallelized file processing

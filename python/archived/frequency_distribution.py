@@ -1,5 +1,4 @@
 import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import *
 from scipy.optimize import curve_fit, root
@@ -8,7 +7,7 @@ from typing import *
 import math
 
 from scripts.VCFPooling.poolSNPs import parameters as prm
-from scripts.VCFPooling.poolSNPs.alleles import alleles_tools as alltls
+from scripts.VCFPooling.python.archived.alleles import alleles_tools as alltls
 from persotools.files import *
 
 

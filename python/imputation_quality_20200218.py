@@ -1,13 +1,8 @@
 import matplotlib.pyplot as plt
-from mpl_toolkits.axes_grid1.inset_locator import inset_axes
-from scipy.stats import *
-import numpy as np
 import pandas as pd
-from cyvcf2 import VCF
 
-from scripts.VCFPooling.poolSNPs.alleles import alleles_tools as alltls
+from scripts.VCFPooling.python.archived.alleles import alleles_tools as alltls
 from scripts.VCFPooling.poolSNPs.metrics import quality
-from scripts.VCFPooling.poolSNPs import parameters as prm
 
 from persotools.files import *
 

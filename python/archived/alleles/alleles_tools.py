@@ -408,7 +408,7 @@ if __name__ == '__main__':
     vcfout = '/home/camille/1000Genomes/data/gl/IMP.chr20.snps.gl.chunk10000.vcf'
     file_likelihood_converter(vcfin, vcfout, func=bin_gl_converter)  # easier for cross entropies not to log gl
 
-    os.chdir('/home/camille/1000Genomes/data/gl/gl_adaptive/all_snps_all_samples')
+    os.chdir('/data/gl/gl_adaptive/all_snps_all_samples')
     fpath = 'IMP.chr20.pooled.beagle2.gl.chunk10000.vcf.gz'
     mydf = vcfdf.PandasMixedVCF(fpath)
 

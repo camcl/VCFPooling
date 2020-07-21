@@ -1,8 +1,5 @@
-import os
-import numpy as np
-from scripts.VCFPooling.poolSNPs.pooler import Design, Encoder
-from scripts.VCFPooling.poolSNPs import pydecoder
-from scripts.VCFPooling.poolSNPs.cydecoder import *
+from scripts.VCFPooling.poolSNPs.pooler import Encoder
+from scripts.VCFPooling.python.archived.cydecoder import *
 import timeit
 
 """

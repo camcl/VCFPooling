@@ -1,15 +1,9 @@
-from cyvcf2 import VCF, Writer
+from cyvcf2 import VCF
 import pysam
-import numpy as np
 import pandas as pd
-import subprocess
-import collections
 from scipy.stats import *
-import math
 
-from scripts.VCFPooling.poolSNPs import parameters as prm
 from scripts.VCFPooling.poolSNPs import chunkvcf as chkvcf
-from scripts.VCFPooling.poolSNPs.alleles import alleles_tools as alltls
 from persotools.files import *
 
 """

@@ -3,16 +3,13 @@ import time
 import warnings
 import numpy as np
 import math
-import matplotlib.pyplot as plt
 import itertools
 from typing import *
 
 from cyvcf2 import VCF
 import pysam
-from scripts.VCFPooling.poolSNPs import _mylog
-from scripts.VCFPooling.poolSNPs import _mypath
+from scripts.VCFPooling.python.archived import _mylog
 from scripts.VCFPooling.poolSNPs import parameters as prm
-from scripts.VCFPooling.poolSNPs.alleles import alleles_tools as alltls
 
 warnings.simplefilter('ignore')
 _mylog.stdout(__file__)

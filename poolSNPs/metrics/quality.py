@@ -91,20 +91,14 @@ The nltk metrics package also provides for calculating and printing confusion ma
  In particular, it wants two lists of labels (in the same order).
 """
 
-import os
 import numpy as np
 import pandas as pd
-from scipy.stats import pearsonr, zscore, entropy
+from scipy.stats import pearsonr, zscore
 from sklearn import metrics
 from typing import *
-from collections import Counter
 
-from scripts.VCFPooling.poolSNPs import parameters as prm
-from scripts.VCFPooling.poolSNPs import utils
-from scripts.VCFPooling.poolSNPs.alleles import alleles_tools as alltls
 from scripts.VCFPooling.poolSNPs import dataframe as vcfdf
 
-from persotools.debugging import *
 from persotools.files import *
 
 ArrayLike = NewType('ArrayLike', Union[Sequence, List, Set, Tuple, Iterable, np.ndarray, int, float, str])

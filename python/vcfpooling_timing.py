@@ -1,5 +1,5 @@
 from scripts.VCFPooling.poolSNPs.poolvcf import *
-from scripts.VCFPooling.poolSNPs.pool import *
+from scripts.VCFPooling.python.archived.pool import *
 import numpy as np
 import timeit
 

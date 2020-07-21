@@ -3,7 +3,7 @@ import numpy as np
 
 from scripts.VCFPooling.poolSNPs import parameters as prm
 from scripts.VCFPooling.poolSNPs import pybcf
-from scripts.VCFPooling.poolSNPs.alleles import alleles_tools as alltls
+from scripts.VCFPooling.python.archived.alleles import alleles_tools as alltls
 
 from persotools.files import *
 from persotools.struct import *
