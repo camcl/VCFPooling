@@ -1,6 +1,6 @@
-from scripts.VCFPooling.poolSNPs.pooler import *
-from scripts.VCFPooling.poolSNPs import pybcf
-from scripts.VCFPooling.poolSNPs import utils
+from poolSNPs.pooler import *
+from poolSNPs import pybcf
+from poolSNPs import utils
 
 import numpy as np
 import timeit
@@ -125,11 +125,7 @@ class VariantRecordPooler(object):
     def _decode(self) -> np.ndarray:
         x_shift = self.dm.shape[1]  # 16
         y_shift = self.dm.shape[0]  # 8
-        # return blocks_decoder(self.n_blocks, self._encode(), y_shift, dec, glkeys)
         varp = self._encode()
-        # dec = DictBlockDecoder(self.dm, self.lookup)
-        # vect_decoder = lambda x: single_block_decoder(x, self.lookup, self.fmt_to)
-        # v2 = varp.sum(axis=-1).reshape((self.n_blocks, self.dm.shape[0]))
         return dict_blocks_decoder(self.n_blocks, varp.sum(axis=-1), y_shift, self.lookup, 'gp')
 
     def new_var(self) -> str:
@@ -223,7 +219,6 @@ class VariantFilePooler(object):
             if n % 1000 == 0:
                 print('{} variants processed in {:06.2f} sec'.format(n + 1, timeit.default_timer() - tm).ljust(80, '.'))
         self.data = iter(pvar)
-
 
     def write(self) -> None:
         """Writes pooling simulation result into an output file"""

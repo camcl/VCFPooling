@@ -513,7 +513,7 @@ def get_dummy_key(k) -> np.ndarray:
 
 
 def load_lookup_dict(path: str, log10: bool = True) -> dict:
-    df = pd.read_csv(os.path.join(path, 'adaptive_gls.csv'),
+    df = pd.read_csv(os.path.abspath(path),
                      header=None,
                      names=['rowsrr', 'rowsra', 'rowsaa', 'colsrr', 'colsra', 'colsaa',
                             'n', 'm',
