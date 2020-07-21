@@ -1,4 +1,5 @@
 import subprocess
+import shutil
 
 from typing import *
 
@@ -64,7 +65,9 @@ def create_ref_imp_lists(cd: str, sizeref: int = prm.NB_REF, sizeimp: int = prm.
     samples_files = ['cat {}/ALL.chr20.snps.allID.txt '.format(prm.WD + '/gt')
                      + '| head -{} > {}/ALL.chr20.snps.impID.txt'.format(sizeimp, prm.WD + '/gt'),
                      'cat {}/ALL.chr20.snps.allID.txt '.format(prm.WD + '/gt')
-                     + '| tail -{} > {}/ALL.chr20.snps.refID.txt'.format(sizeref, prm.WD + '/gt'),
+                     + '| head -{} | tail -{} > {}/ALL.chr20.snps.refID.txt'.format(sizeimp + sizeref,
+                                                                                    sizeref,
+                                                                                    prm.WD + '/gt'),
                      'dos2unix {}/ALL.chr20.snps.refID.txt'.format(prm.WD + '/gt'),
                      'dos2unix {}/ALL.chr20.snps.impID.txt'.format(prm.WD + '/gt')]
     for f in samples_files:
@@ -157,7 +160,9 @@ def beagle_phasing(dic: dict, path_gt_files: str, cd: str) -> None:
                            + os.path.join(path_gt_files, dic['ref'].replace('.gl', '.gt')),
                            'impute=false',
                            'gprobs=true',
-                           'out=' + dic['b1r']
+                           'out=' + dic['b1r'],
+                           # 'map=' + os.path.join(os.path.expanduser('~'),
+                           #                       '1000Genomes/data/plink.GRCh37.map/plink.chr20.GRCh37.map')
                            ])
 
         subprocess.run(bgl1gt, shell=True, cwd=cd)
@@ -173,7 +178,9 @@ def beagle_phasing(dic: dict, path_gt_files: str, cd: str) -> None:
                              '{}='.format('gtgl') + dic['imp'],
                              'impute=false',
                              'gprobs=true',
-                             'out=' + 'temp.b1'
+                             'out=' + 'temp.b1',
+                             # 'map=' + os.path.join(os.path.expanduser('~'),
+                             #                       '1000Genomes/data/plink.GRCh37.map/plink.chr20.GRCh37.map')
                              ])
 
         bgl1gt = ' '.join(['java -Xss5m -jar {}'.format(prm.BEAGLE_JAR),
@@ -181,7 +188,9 @@ def beagle_phasing(dic: dict, path_gt_files: str, cd: str) -> None:
                            + '{}'.format('temp.b1.vcf.gz' if prm.GTGL == 'GL' else dic['imp']),
                            'impute=false',
                            'gprobs=true',
-                           'out=' + dic['b1']
+                           'out=' + dic['b1'],
+                           # 'map=' + os.path.join(os.path.expanduser('~'),
+                           #                       '1000Genomes/data/plink.GRCh37.map/plink.chr20.GRCh37.map')
                            ])
 
         if prm.GTGL == 'GL':
@@ -259,12 +268,15 @@ def conform_gt(dic: dict, dicraw: dict, cd: str) -> bool:
     cfgt = ' '.join(['java -jar {}'.format(prm.CFGT_JAR),
                      '{}='.format('gt') + dic['b1'] + '.vcf.gz',
                      'chrom=20:60343-62965354',
-                     'ref={}/{}'.format(os.path.dirname(cd),
-                                        dicraw['b1r'] + '.vcf.gz'),
+                     'ref={}'.format(os.path.join(cd,
+                                                  dicraw['b1r'] + '.vcf.gz')),
                      'out=' + dic['cfgt']
                      ])
-
-    subprocess.run(cfgt, shell=True, cwd=cd)
+    try:
+        subprocess.run(cfgt, shell=True, cwd=cd)
+        assert os.path.exists(dic['cfgt'] + '.vcf.gz')
+    except AssertionError:  # if duplicated markers, just copy phased file
+        shutil.copy(dic['b1'] + '.vcf.gz', dic['cfgt'] + '.vcf.gz')
     pybcf.index(dic['cfgt'] + '.vcf.gz', cd)
 
     return check_file_creation(cd, dic['cfgt'] + '.vcf.gz')
@@ -277,11 +289,13 @@ def beagle_imputing(dic_study: dict, dicref: dict, cd: str) -> bool:
 
     bgl2 = ' '.join(['java -Xss5m -jar {}'.format(prm.BEAGLE_JAR),  # -Xss5m option: fix StackOverFlow error of Java
                      'gt=' + dic_study['cfgt'] + '.vcf.gz',
-                     'ref={}/{}.vcf.gz'.format(os.path.dirname(cd),
-                                               dicref['b1r']),
+                     'ref={}'.format(os.path.join(cd,
+                                                  dicref['b1r'] + '.vcf.gz')),
                      'impute=true',
                      'gprobs=true',
-                     'out=' + dic_study['b2']
+                     'out=' + dic_study['b2'],
+                     # 'map=' + os.path.join(os.path.expanduser('~'),
+                     #                       '1000Genomes/data/plink.GRCh37.map/plink.chr20.GRCh37.map')
                      ])
 
     subprocess.run(bgl2, shell=True, cwd=cd)

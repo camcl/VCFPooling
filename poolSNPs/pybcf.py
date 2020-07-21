@@ -1,7 +1,7 @@
 import subprocess
 import numpy as np
 
-from scripts.VCFPooling.poolSNPs import parameters as prm
+from poolSNPs import parameters as prm
 from persotools.files import *
 
 """
@@ -21,6 +21,7 @@ def bgzip(f_vcf: str, f_gz: str, wd: str) -> None:
     cmd = ' '.join(['bcftools',
                     'view -Oz -o',
                     f_gz,
+                    '--threads {}'.format(os.cpu_count()),
                     f_vcf
                     ])
     subprocess.run(cmd, shell=True, cwd=wd)
@@ -76,6 +77,7 @@ def sampling(f_gz: str, f_out: str, f_samp: str, wd: str) -> None:
                     'view -Oz -o',
                     f_out,
                     '-S {}'.format(f_samp),
+                    '--threads {}'.format(os.cpu_count()),
                     f_gz
                     ])
     subprocess.run(cmd, shell=True, cwd=wd)
@@ -217,9 +219,10 @@ def chunk_markers(f_gz: str, chk_sz: int, wd: str) -> None:
                                                                    'chunk_{}.vcf'.format(str(chk_sz))))))
 
 
-def concatenate(flist_in: list, f_out: FilePath, wd: str):
+def cat(flist_in: list, f_out: FilePath, wd: str):
     """
-
+    Merge text-readable files
+    Merge header.vcf and body.vcf parts.
     :param flist_in:
     :param f_out:
     :return:
@@ -228,6 +231,29 @@ def concatenate(flist_in: list, f_out: FilePath, wd: str):
                     ' '.join([f for f in flist_in]),
                     '>',
                     f_out
+                    ])
+    subprocess.run(cmd, shell=True, cwd=wd)
+    print('{}:\r\n File created? -> {}'.format(os.path.join(wd, f_out),
+                                               check_file_creation(wd, f_out)))
+
+
+def concat(flist_in: list, f_out: FilePath, wd: str) -> None:
+    """
+    Concatenate or combine VCF/BCF files.
+    All source files must have the same sample columns appearing in the same order.
+    Can be used, to concatenate chromosome VCFs into one VCF, or combine a SNP VCF and an indel VCF into one.
+    The input files must be sorted by chr and position. The files must be given in the correct order to produce
+    sorted VCF on output unless the -a, --allow-overlaps option is specified. With the --naive option, the files
+    are concatenated without being recompressed, which is very fast..
+    :param flist_in: list of vcf files names
+    :param f_out: output vcf file name
+    :param wd: path to working directory
+    :return: None
+    """
+    cmd = ' '.join(['bcftools',
+                    'concat -aOv -o',
+                    f_out,
+                    ' '.join([f for f in flist_in])
                     ])
     subprocess.run(cmd, shell=True, cwd=wd)
     print('{}:\r\n File created? -> {}'.format(os.path.join(wd, f_out),

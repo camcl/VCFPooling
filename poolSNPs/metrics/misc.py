@@ -6,18 +6,11 @@ For instance, the case GL=[0.33, 0.33, 0.33] stands for the situation where the 
 Implement metrics for measuring diversity in population genotypes: Mean Squre diff? at population level
 """
 
-import os
 import numpy as np
-import pandas as pd
-from scipy.stats import pearsonr, zscore
-from sklearn import metrics
 from typing import *
 from collections import Counter
 
-from scripts.VCFPooling.poolSNPs import parameters as prm
-from scripts.VCFPooling.poolSNPs import utils
-from scripts.VCFPooling.poolSNPs.alleles import alleles_tools as alltls
-from persotools.debugging import *
+from scripts.VCFPooling.poolSNPs import dataframe as vcfdf
 from persotools.files import *
 
 ArrayLike = NewType('ArrayLike', Union[Sequence, List, Set, Tuple, Iterable, np.ndarray, int, float, str])
@@ -32,7 +25,7 @@ def normalize(v: np.ndarray) -> np.ndarray:
 
 def shannons_index(a: np.ndarray) -> float:
     """
-
+    see scipy.stats.entropy
     """
     hfunc = np.vectorize(lambda x: -x * np.log2(x) if x != 0.0 else 0)
     h = np.sum(hfunc(a), axis=0)
@@ -63,7 +56,7 @@ class Diversity(object):
 
     """
     def __init__(self, filepath: FilePath, format: str = None, idx: str = 'id'):
-        self.obj = alltls.PandasMixedVCF(filepath, format=format, indextype=idx)
+        self.obj = vcfdf.PandasMixedVCF(filepath, format=format, indextype=idx)
         self.fmt = format
 
     def markers_diversity(self):

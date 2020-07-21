@@ -3,10 +3,6 @@ from scipy.stats import *
 import numpy as np
 import pandas as pd
 
-from scripts.VCFPooling.poolSNPs.alleles import alleles_tools as alltls
-from scripts.VCFPooling.poolSNPs.alleles import alleles_plots as allplt
-from scripts.VCFPooling.poolSNPs import parameters as prm
-from persotools.files import *
 from persotools.debugging import *
 
 dbg = MyPrintClass(True)

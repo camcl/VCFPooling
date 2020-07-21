@@ -2,7 +2,7 @@ import sys, os
 from typing import *
 import numpy as np
 from cyvcf2 import VCF
-from itertools import starmap, repeat
+from itertools import repeat
 import shutil
 import multiprocessing as mp
 import argparse
@@ -14,7 +14,7 @@ sys.path.insert(0, proj_dir)
 from scripts.VCFPooling.poolSNPs import parameters as prm
 from scripts.VCFPooling.poolSNPs import beagle_tools as bgltls
 from scripts.VCFPooling.poolSNPs import pybcf
-from scripts.VCFPooling.poolSNPs.alleles import alleles_tools as alltls
+from scripts.VCFPooling.python.archived.alleles import alleles_tools as alltls
 
 from persotools.files import delete_file, mkdir
 from persotools.struct import NamedDict

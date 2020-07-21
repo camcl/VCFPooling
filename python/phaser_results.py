@@ -4,7 +4,7 @@ import pathlib
 from cyvcf2 import VCF
 
 from scripts.VCFPooling.poolSNPs import parameters as prm
-from scripts.VCFPooling.poolSNPs.myssh import sshtools
+from scripts.VCFPooling.python.archived.myssh import sshtools
 from scripts.VCFPooling.poolSNPs import pybcf
 from persotools.files import delete_file
 

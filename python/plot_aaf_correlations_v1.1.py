@@ -5,7 +5,8 @@ from itertools import starmap
 from functools import partial
 from cyvcf2 import VCF
 
-from scripts.VCFPooling.poolSNPs.alleles import alleles_tools as alltls
+from scripts.VCFPooling.python.archived.alleles import alleles_tools as alltls
+from scripts.VCFPooling.poolSNPs import dataframe as vcfdf
 from scripts.VCFPooling.poolSNPs import parameters as prm
 from persotools.files import *
 
@@ -33,7 +34,7 @@ def compute_aaf_evol(set, fpre, fpost, gtgl='gt', chk_sz=None, idt='id'):
              'postimp': fpost}
     temp = []
     for d, vcf in steps.items():
-        df = pd.DataFrame.from_dict(alltls.PandasVCF(vcf, idt=idt).aaf,
+        df = pd.DataFrame.from_dict(vcfdf.PandasVCF(vcf, idt=idt).aaf,
                                     orient='index',
                                     columns=[d + '_' + set])
         temp.append(df)
@@ -192,12 +193,12 @@ if __name__ == '__main__':
     devol = []
 
     # Load AAFs
-    pdvcfall = alltls.PandasVCF(os.path.join(prm.PATH_GT_FILES,
+    pdvcfall = vcfdf.PandasVCF(os.path.join(prm.PATH_GT_FILES,
                                              'ALL.chr20.pooled.snps.gt.chunk{}.vcf.gz'.format(prm.CHK_SZ),
                                              indextype='id'))
     allaafs = pdvcfall.concatcols([pdvcfall.af_info, pdvcfall.aaf])
     afinfo = pdvcfall.af_info.to_frame()
-    pdvcfimp = alltls.PandasVCF(os.path.join(prm.PATH_GT_FILES,
+    pdvcfimp = vcfdf.PandasVCF(os.path.join(prm.PATH_GT_FILES,
                                              '/IMP.chr20.pooled.snps.gt.chunk{}.vcf.gz'.format(prm.CHK_SZ),
                                              idt='id'))
     impaafs = pdvcfimp.concatcols([pdvcfimp.af_info, pdvcfimp.aaf])
@@ -220,8 +221,8 @@ if __name__ == '__main__':
         aaf_idx, pop_idx = alltls.make_index(B1, src=ALL, id=idt)
 
         print('Build datasets'.ljust(80, '.'))
-        rawvcf = alltls.PandasVCF(B1, indextype=idt)
-        poolvcf =alltls.PandasVCF(POOL, indextype=idt)
+        rawvcf = vcfdf.PandasVCF(B1, indextype=idt)
+        poolvcf = vcfdf.PandasVCF(POOL, indextype=idt)
         raw0, raw1 = rawvcf.vcf2dframe()
         pool0, pool1 = poolvcf.vcf2dframe()
         # raw0 = raw0.join(pool0.index.to_frame(), how='inner').iloc[:, :-1]

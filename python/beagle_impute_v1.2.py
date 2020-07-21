@@ -6,7 +6,7 @@ from itertools import starmap, repeat
 from scripts.VCFPooling.poolSNPs import parameters as prm
 from scripts.VCFPooling.poolSNPs import beagle_tools as bgltls
 from scripts.VCFPooling.poolSNPs import pybcf
-from scripts.VCFPooling.poolSNPs.alleles import alleles_tools as alltls
+from scripts.VCFPooling.python.archived.alleles import alleles_tools as alltls
 
 from persotools.files import delete_file, mkdir
 from persotools.struct import NamedDict

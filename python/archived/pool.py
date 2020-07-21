@@ -6,10 +6,10 @@ import time
 import math
 from scipy.stats import bernoulli as bn
 from cyvcf2 import VCF, Writer, Variant
+import pysam
 
 from scripts.VCFPooling.poolSNPs import parameters as prm
-from scripts.VCFPooling.poolSNPs.alleles import alleles_tools as alltls
-from scripts.VCFPooling.poolSNPs.alleles import frequency_distribution as allfqc
+from scripts.VCFPooling.python.archived.alleles import alleles_tools as alltls
 from scripts.VCFPooling.poolSNPs import pybcf
 
 from persotools.files import *
@@ -25,6 +25,9 @@ nb_cores = os.cpu_count()
 data = VCF(os.path.join(prm.WD, 'gt', prm.CHKFILE), threads=nb_cores)
 
 SAMPLES = data.samples
+
+# data = VCF(os.path.join('/home/camille/PoolImpHuman/data/20200603', "TEST.chr20.snps.gt.vcf.gz"))
+# SAMPLES = data.samples
 
 ### README
 
@@ -113,6 +116,7 @@ class SNPsPool(np.ndarray):
         id = 'U' + str(cls.id_len)
         cls.pools_nb = pools_nb
         cls.pools_size = pools_size
+        cls.block = None
         return np.empty_like(super(SNPsPool, cls).__new__(cls, shape),
                              dtype=id)
 
@@ -134,29 +138,30 @@ class SNPsPool(np.ndarray):
                        [j+k*pools_size for k in range(pools_size)]] = 1
         return design
 
-    def set_subset(self, subset: np.ndarray) -> np.ndarray:
+    def set_subset(self, block: np.ndarray) -> np.ndarray:
         # TODO: refactor with more sel-explanatory name
         """
         Fills the pooling matrix according to the (default) design
         and the input list of samples.
-        :param subset: 1D-nparray-like object with the variables IDs
+        :param block: 1D-nparray-like object with the variables IDs
         :return: pooling matrix with samples' names.
         """
-        self.__setattr__('subset', subset)  # from split_pools
-        sub = self.__getattribute__('subset')
-        try:
-            for i in range(self.shape[0]):
-                self[i, :] = sub[:self.shape[1]]
-                sub = sub[self.shape[1]:]
-        except Exception as exc:
-            if len(self.subset) > self.size:
-                raise ValueError('The input you gave is too long') from exc
-            if len(self.subset) < self.size:
-                raise ValueError('The input you gave is too short') from exc
-            if type(self.subset) != np.ndarray and type(self.subset) != list:
-                raise TypeError('The input is not a 1D-array-like') from exc
-            if len(self.subset) > 0 and type(self.subset[0]) != str:
-                raise TypeError('The input does not contain str-type elements') from exc
+        self.__setattr__('block', block)  # from split_pools
+        sub = self.__getattribute__('block')
+        self.block = block
+        # try:
+        #     for i in range(self.shape[0]):
+        #         self[i, :] = sub[:self.shape[1]]
+        #         sub = sub[self.shape[1]:]
+        # except Exception as exc:
+        #     if len(self.block) > self.size:
+        #         raise ValueError('The input you gave is too long') from exc
+        #     if len(self.block) < self.size:
+        #         raise ValueError('The input you gave is too short') from exc
+        #     if type(self.block) != np.ndarray and type(self.block) != list:
+        #         raise TypeError('The input is not a 1D-array-like') from exc
+        #     if len(self.block) > 0 and type(self.block[0]) != str:
+        #         raise TypeError('The input does not contain str-type elements') from exc
 
         return self
 
@@ -165,7 +170,7 @@ class SNPsPool(np.ndarray):
         Flatten the matrix of pooled samples identifiers.
         :return: flattened array of samples identifiers or genotypes.
         """
-        ids = self.flatten()  # .reshape(1, self.size)
+        ids = self.block.flatten()  # .reshape(1, self.size)
         return ids
 
     def pools_list(self) -> List[str]:
@@ -183,29 +188,31 @@ class SNPsPool(np.ndarray):
             return pools_
             # return just for being able to print the list if wished
 
-    def set_line_values(self, samples: list, variant: Variant,
-                        sig: object = None,
-                        params: List[float] = [], interp: object = None) -> None:
-        # TODO: refactor with property decorator
+    def set_line_values(self, samples: list, variant: Variant) -> None:
         """
         Attach sigmoid-transformed alternate allele frequencies to the current variant.
         :param samples: samples identifiers from the VCF-file
         :param variant: variant identifier from the VCF-file
-        :param sig: sigmoid object computed from another set of pooled genotype data
-        :param params: parameters to pass for the sigmoid approximation
-        :param interp: interpolated sigmoid object for sigmoid approximation
         :return: variant object with attributes attached, e.g. twisted alternate allele frequency
         """
         self.__setattr__('variant', variant.genotypes)
         self.__setattr__('samples', samples)
         self.__setattr__('var_pos', str(variant.POS))
         self.__setattr__('aaf', variant.aaf)
-        if sig is not None:
-            self.__setattr__('aat', sig.call_sigmoid(params, self.aaf))
-            self.__setattr__('aat_', sig.call_sigmoid_derivative(interp, self.aaf))
-        else:
-            self.__setattr__('aat', np.nan)
-            self.__setattr__('aat_', np.nan)
+
+    def set_record_att(self, samples: list, variant: pysam.VariantRecord) -> None:
+        """
+        pysam translation of set_lines_values
+        :param samples: samples identifiers from the VCF-file
+        :param variant: variant identifier from the VCF-file
+        :return: variant object with attributes attached, e.g. twisted alternate allele frequency
+        """
+        self.__setattr__('variant', variant.samples.values()['GT'])
+        self.__setattr__('samples', samples.keys())
+        self.__setattr__('var_pos', str(variant.pos))
+        gt = np.array(variant.samples.values()['GT']).flatten()
+        aaf = gt.sum() / len(samples.keys())
+        self.__setattr__('aaf', aaf)
 
     def get_call(self) -> np.ndarray:
         """
@@ -256,7 +263,7 @@ class SNPsPool(np.ndarray):
     def decode_genotypes_gt(self, samples_gt: np.ndarray) -> np.ndarray:
         """
         Recomputes true genotypes of samples with/without pooling/missing data
-        :param pooled_samples: Variant.genotypes (unpooled samples' true genotypes with phase)
+        :param samples_gt: Variant.genotypes (unpooled samples' true genotypes with phase)
         :return: individual samples genotypes (true genotype with phase)
         """
         pooled: np.ndarray = self.pool_genotypes()  # pooled[:, :, -1]: bool = phase of the genotype
@@ -325,7 +332,7 @@ class SNPsPool(np.ndarray):
         samples_gl = samples_gl.astype(float)  # avoid truncating GL
         pooled: np.ndarray = self.pool_genotypes()  # outputs unphased genotypes
         scores: np.ndarray = np.apply_along_axis(sum, axis=-1, arr=pooled[:, :, :-1]).flatten()
-        p = np.argwhere(np.isin(self.samples, self.subset))
+        p = np.argwhere(np.isin(self.samples, self.block))
         count_alt: Callable[int] = lambda x: 1 if 1 in x else 0
         count_ref: Callable[int] = lambda x: 1 if 0 in x else 0
 
@@ -343,6 +350,10 @@ class SNPsPool(np.ndarray):
                                                   arr=pooled[:, 4:, :-1]))
 
         rowcounts, colcounts = self.rowcolcounts(scores)
+        colcross = np.apply_along_axis(np.multiply, 1, self.design_matrix().transpose(), scores)  # (16, 8)
+        masks = np.ma.masked_where(self.design_matrix().transpose(), colcross)
+        # Returns and sorts genotypes of pools cross section for an individual
+        crosses = np.sort(colcross[masks.mask].reshape((self.size, 2)))  # (self.size, 2) = (16, 2) and 2 is the weight of the design
 
         nb_alt: int = alt_row + alt_col
         nb_ref: int = ref_row + ref_col
@@ -365,8 +376,10 @@ class SNPsPool(np.ndarray):
                 aa = np.array([0, 0, 1])
                 decoded_gl = np.tile(aa, self.size).reshape((1, self.size, 3))
             else:  # nb_alt >= 2 and nb_alt < 8: # nb_alt = 2*n with n > 1
-                unknown = dict_gl[tuple([*rowcounts, *colcounts, 1, 1])]  # 1,1 only cross-section that outputs unknown genotypes
-                decoded_gl = np.apply_along_axis(self.multidecoder_gl, -1, b, unknown)
+                # unknown = dict_gl[tuple([*rowcounts, *colcounts, 1, 1])]  # 1,1 only cross-section that outputs unknown genotypes
+                unknown = [dict_gl[tuple([*rowcounts, *colcounts, *crs])] for crs in crosses]
+                #TODO: deprecate multidecoder_gl?
+                decoded_gl = np.asarray(unknown)
 
         np.put_along_axis(samples_gl,
                           np.broadcast_to(p, (self.size, 3)),
@@ -397,6 +410,7 @@ class SNPsPool(np.ndarray):
         colcounts[2] = np.sum(count_aa(a[4:]))
 
         return tuple(rowcounts), tuple(colcounts)
+
 
     @staticmethod
     def multidecoder_gt(a: np.ndarray) -> prm.GTtype:
@@ -477,6 +491,7 @@ class SNPsPool(np.ndarray):
 
 def process_file(data: VCF, groups: list, simul: str) -> None:
     #TODO: clean/refactor execution comments like processed file name
+    # TODO: should be useable in chunkvcf.py
     """
     Computes and rewrites genotypes of all individuals for all samples from input files
     :param data: cyvcf2 object reader pointing on a VCF-file
@@ -509,23 +524,16 @@ def process_file(data: VCF, groups: list, simul: str) -> None:
                                           n, m,
                                           rr, ra, aa in df.itertuples(index=False, name=None))
 
-        sig = allfqc.SigmoidInterpolator(os.path.join(prm.PATH_GT_FILES, prm.RAW['gz'].replace('gl', 'gt')),
-                                         os.path.join(prm.PATH_GT_FILES, prm.POOLED['gz'].replace('gl', 'gt')))
-        params = sig.get_sigmoid_params()
-        interp = sig.interpolate_derivative()
-
     else:  # prm.GTGL == 'GT' or fixed GL
         w = Writer(prm.PATH_OUT[simul], data)
         w.set_threads(4)
         df2dict = None
-        sig = None
-        params = None
-        interp = None
 
     tm = time.time()
     # for n, variant in enumerate(data('20:59973567-59973568')):
     for n, variant in enumerate(data):
-        process_line(groups, simul, w, variant, df2dict, sig, params, interp)
+        # print(variant)
+        process_line(groups, simul, w, variant, df2dict, write=True)
         if n % 1000 == 0:
             print('{} variants processed in {:06.2f} sec'.format(n+1, time.time()-tm).ljust(80, '.'))
         # if n+1 == 1000:
@@ -540,7 +548,7 @@ def process_file(data: VCF, groups: list, simul: str) -> None:
 
 
 def process_line(groups: list, simul: str, w: Writer, v: Variant, dict_gl: dict,
-                 sig: object, params: List[float], interp: object, write: bool = True) -> None:
+                write: bool = True) -> None:
     #TODO: comments to add
     """
     From currently pointed variant object:
@@ -550,17 +558,18 @@ def process_line(groups: list, simul: str, w: Writer, v: Variant, dict_gl: dict,
     :param w: cyvcf2.cyvcf2.Writer object
     :return: variant object with pooled values for GT/GL
     """
-    var = v # copy the variant object to make it readable several times
+    var = v  # copy the variant object to make it readable several times
     pooled_samples = np.asarray(var.genotypes)
     sets = []
     for gp in groups[0]:
+        gp = np.asarray(gp)
         sets.append(SNPsPool().set_subset(gp))
 
-    if simul == 'pooled':  # sig might be not None if adaptive GL
+    if simul == 'pooled':
         i = 1
         for p in sets:
             i += 1
-            p.set_line_values(SAMPLES, var, sig, params, interp)
+            p.set_line_values(SAMPLES, var)
             if prm.GTGL == 'GL' and prm.unknown_gl == 'adaptive':
                     pooled_samples = p.decode_genotypes_gl(pooled_samples,
                                                            dict_gl)
@@ -578,7 +587,6 @@ def process_line(groups: list, simul: str, w: Writer, v: Variant, dict_gl: dict,
                     np.put(pooled_samples, idx, np.asarray([1/3, 1/3, 1/3]))
                 else:
                     np.put(pooled_samples, idx, np.asarray([-1, -1, 0]))
-
     if write:
         if prm.GTGL == 'GL' and prm.unknown_gl == 'adaptive':
             # cyvcf2.Variant.genotypes does not handle GL-format
@@ -599,7 +607,7 @@ def process_line(groups: list, simul: str, w: Writer, v: Variant, dict_gl: dict,
                                 dtype=str)
             towrite = '\t'.join(toshow) + '\n'
             stream = towrite.encode()
-            w.write(stream)
+            w.write(stream)  # cyvcf2.Writer.variant_from_string() does not write anything
         else:
             # cyvcf2.Variant.genotypes does handle GT-format
             var.genotypes = pooled_samples.tolist()
@@ -615,6 +623,7 @@ def init_chunk(WD: str, path_in: str, chunk: bool = True, strat: bool = False) -
     :return: list of 16-sized groups of samples i.e. pools
     """
     raw = VCF(os.path.join(prm.WD, 'gt', path_in), threads=nb_cores)  # VCF iterator object
+    #TODO: raw = pysam.VariantFile(os.path.join(prm.WD, 'gt', path_in))
     splits = split_pools(raw.samples, 16, seed=123)  # list of lists
     with open(os.path.join(prm.WD, 'gt', 'ALL.chr20.snps.allID.txt'), 'w') as f:
         for s in splits[0]:
@@ -632,8 +641,8 @@ def init_chunk(WD: str, path_in: str, chunk: bool = True, strat: bool = False) -
 
             print('Sampling markers'.ljust(80, '.'))
             pybcf.chunk_markers(prm.SRCFILE, prm.CHK_SZ, WD)
-            pybcf.concatenate(['headers.ALL.chr20.snps.gt.vcf', 'chunk_{}.vcf '.format(str(prm.CHK_SZ))],
-                              'TMP.chr20.snps.gt.chunk.vcf', WD)
+            pybcf.cat(['headers.ALL.chr20.snps.gt.vcf', 'chunk_{}.vcf '.format(str(prm.CHK_SZ))],
+                      'TMP.chr20.snps.gt.chunk.vcf', WD)
 
             print('BGzipping chunk file'.ljust(80, '.'))
             pybcf.bgzip('TMP.chr20.snps.gt.chunk.vcf', prm.CHKFILE, WD)
@@ -696,6 +705,7 @@ def run(splits: list, sim: str) -> None:
     :return:
     """
     vcf = VCF(os.path.join(prm.PATH_GT_FILES, prm.CHKFILE), threads=nb_cores)
+    #TODO: vcf = pysam.VariantFile(os.path.join(prm.PATH_GT_FILES, prm.CHKFILE))
     print('File to write to --> ', prm.PATH_OUT[sim])
     start = time.time()
     process_file(vcf, splits, sim)
@@ -704,6 +714,7 @@ def run(splits: list, sim: str) -> None:
 
 
 def write_truncate_vcf(path_in: str, path_out: str, trunc: int) -> int:
+    #TODO: w = to deprecate
     """
 
     :param path_in:
@@ -721,6 +732,7 @@ def write_truncate_vcf(path_in: str, path_out: str, trunc: int) -> int:
 
 
 def subset_chunked_vcf(wd: str, src: str, path_out: str, chz_sz: int, trc: int) -> None:
+    #TODO: w = to deprecate
     """
     
     :param wd:
