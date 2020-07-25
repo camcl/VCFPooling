@@ -1,16 +1,12 @@
 import os
 import numpy as np
 
-from scripts.VCFPooling.poolSNPs.pooler import Design, Encoder
+from VCFPooling.poolSNPs.pooler import Design, Encoder
 
-from scipy.linalg import block_diag
-import itertools
 import pandas as pd
 from numba import jit, jitclass
 from numba import int32, float32, float64, types
-import time
 import timeit
-import pysam
 from typing import *
 
 

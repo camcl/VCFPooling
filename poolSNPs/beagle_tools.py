@@ -3,9 +3,9 @@ import shutil
 
 from typing import *
 
-from scripts.VCFPooling.poolSNPs import parameters as prm
-from scripts.VCFPooling.poolSNPs import pybcf
-from persotools.files import *
+from VCFPooling.poolSNPs import parameters as prm
+from VCFPooling.poolSNPs import pybcf
+from VCFPooling.persotools.files import *
 
 '''
 Functions for running the steps necessary to Beagle execution

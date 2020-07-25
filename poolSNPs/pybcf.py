@@ -1,8 +1,8 @@
 import subprocess
 import numpy as np
 
-from poolSNPs import parameters as prm
-from persotools.files import *
+from VCFPooling.poolSNPs import parameters as prm
+from VCFPooling.persotools.files import *
 
 """
 Bash commands for bcftools manipulations written as Python-functions.

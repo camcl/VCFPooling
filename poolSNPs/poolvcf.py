@@ -1,6 +1,6 @@
-from poolSNPs.pooler import *
-from poolSNPs import pybcf
-from poolSNPs import utils
+from VCFPooling.poolSNPs.pooler import *
+from VCFPooling.poolSNPs import pybcf
+from VCFPooling.poolSNPs import utils
 
 import numpy as np
 import timeit

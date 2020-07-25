@@ -10,8 +10,8 @@ import numpy as np
 from typing import *
 from collections import Counter
 
-from scripts.VCFPooling.poolSNPs import dataframe as vcfdf
-from persotools.files import *
+from VCFPooling.poolSNPs import dataframe as vcfdf
+from VCFPooling.persotools.files import *
 
 ArrayLike = NewType('ArrayLike', Union[Sequence, List, Set, Tuple, Iterable, np.ndarray, int, float, str])
 

@@ -1,10 +1,11 @@
 from cyvcf2 import VCF
 import pysam
 import pandas as pd
+import numpy as np
 from scipy.stats import *
 
-from scripts.VCFPooling.poolSNPs import chunkvcf as chkvcf
-from persotools.files import *
+from VCFPooling.poolSNPs import chunkvcf as chkvcf
+from VCFPooling.persotools.files import *
 
 """
 Building pandas Dataframes from VCF-files for plotting

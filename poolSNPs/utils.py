@@ -3,7 +3,7 @@ from scipy.stats import *
 import numpy as np
 import pandas as pd
 
-from persotools.debugging import *
+from VCFPooling.persotools.debugging import *
 
 dbg = MyPrintClass(True)
 

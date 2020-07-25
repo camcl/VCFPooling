@@ -9,17 +9,17 @@ import math
 import multiprocessing as mp
 
 home_dir = os.path.expanduser("~")
-proj_dir = os.path.join(home_dir, '1000Genomes')
+proj_dir = os.path.join(home_dir, '1000Genomes/scripts')
 sys.path.insert(0, proj_dir)
 
 nb_cores = os.cpu_count()
 
-from scripts.VCFPooling.poolSNPs import parameters as prm
-from scripts.VCFPooling.poolSNPs import pybcf
-from scripts.VCFPooling.python.archived import pool
-from scripts.VCFPooling.python.archived.alleles import alleles_tools as alltls
+from VCFPooling.poolSNPs import parameters as prm
+from VCFPooling.poolSNPs import pybcf
+from VCFPooling.python.archived import pool
+from VCFPooling.python.archived.alleles import alleles_tools as alltls
 
-from persotools.files import delete_file, FilePath
+from VCFPooling.persotools.files import delete_file, FilePath
 
 '''
 Classes for parallelized file processing: Read main VCF-file and write chunks from it

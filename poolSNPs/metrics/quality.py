@@ -97,9 +97,9 @@ from scipy.stats import pearsonr, zscore
 from sklearn import metrics
 from typing import *
 
-from scripts.VCFPooling.poolSNPs import dataframe as vcfdf
+from VCFPooling.poolSNPs import dataframe as vcfdf
 
-from persotools.files import *
+from VCFPooling.persotools.files import *
 
 ArrayLike = NewType('ArrayLike', Union[Sequence, List, Set, Tuple, Iterable, np.ndarray, int, float, str])
 
