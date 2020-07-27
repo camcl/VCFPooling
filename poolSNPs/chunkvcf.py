@@ -1,15 +1,8 @@
 import sys, os
-from typing import *
-import numpy as np
-import pandas as pd
 import pysam
-from itertools import repeat
-import math
-import multiprocessing as mp
 
-home_dir = os.path.expanduser("~")
-proj_dir = os.path.join(home_dir, '1000Genomes/src')
-sys.path.insert(0, proj_dir)
+rootdir = os.path.dirname(os.path.dirname(os.getcwd()))
+sys.path.insert(0, rootdir)
 
 nb_cores = os.cpu_count()
 
@@ -112,79 +105,5 @@ class PysamVariantChunkGenerator(object):
             yield chk
             print(self.newpos, self.pack)
 
-
-class PysamChunkPooler(object):
-    """
-    Class translation of pool.process_file
-    modify header if GT pooled to GL
-    what I will be able to do with chunks of variants:
-    * track header of the main file, update header if necessary
-    * process e.g. simualte pooling
-    * write back to vcf
-    """
-    def __init__(self, mainpath: FilePath, packedchunk):
-        self.mainf = pysam.VariantFile(mainpath)
-        self.data = packedchunk
-
-    @property
-    def header(self):
-        return self.mainf.header
-
-    def process(self):
-        # any way to update a record?
-        for rec in self.data:
-            var = rec
-            for v in var.samples.values():
-                v['GT'] = (None, None)
-            yield var
-
-    def writechunk(self, pathout: FilePath, data):
-        """
-        :param data: variant generator
-        """
-        fout = pysam.VariantFile(pathout, 'w', header=self.header)
-        data = self.process()
-        for rec in data:
-            var = rec
-            print([v['GT'] for v in var.samples.values()])
-            fout.write(rec)
-        fout.close()
-
-
-class PysamVariantPooler(object):
-    """
-    Class translation of pool.process_line
-    """
-    def __init__(self, groups: list, simul: str, format: str,
-                 w: pysam.VariantFile, v: pysam.VariantRecord,
-                 dict_gl: dict,  write: bool = True):
-        self.groups = groups
-        self.simul = simul
-        self.fmt = format
-        self.writer = w
-        self.record = v
-        self.lookup = dict_gl
-        self._write = write
-        self.samples = self.record.samples.keys()
-        self.genotypes = np.asarray(self.record.samples.values()[self.fmt])
-        self.pooled_record = self.record.copy()
-        self.blocks = []
-        for gp in groups[0]:
-            self.blocks.append(pool.SNPsPool().set_subset(gp))
-
-    def simulate_pooling(self):
-        self.pooled_record.format = prm.GTGL
-        for p in self.blocks:
-            p.set_line_values(self.samples, self.record)
-            if prm.GTGL == 'GL' and prm.unknown_gl == 'adaptive':
-                self.pooled_record = p.decode_genotypes_gp(self.genotypes, self.lookup)
-            else:  # prm.GTGL == 'GT' or fixed GL
-                self.pooled_record = p.decode_genotypes_gt(self.genotypes)
-
-    def simulate_rdmissing(self):
-        pass
-
-    def write_variant(self):
-        pass
 
 
