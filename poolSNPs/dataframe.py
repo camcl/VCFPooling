@@ -1,7 +1,11 @@
+import os, sys
 import pysam
 import pandas as pd
 import numpy as np
 from scipy.stats import *
+
+rootdir = os.path.dirname(os.path.dirname(os.getcwd()))
+sys.path.insert(0, rootdir)
 
 from VCFPooling.poolSNPs import chunkvcf as chkvcf
 from VCFPooling.persotools.files import *
@@ -50,6 +54,16 @@ class PandasMixedVCF(object):
                 vars.append(':'.join([str(var.chrom), str(var.pos)]))
 
         return pd.Index(data=vars, dtype=str, name='variants')
+
+    @property
+    def af_info(self):
+        vcfobj = self.load()
+        vars = self.variants
+        arr = np.zeros((len(vars), ), dtype=float)
+        for i, var in enumerate(vcfobj):
+            arr[i] = var.info['AF'][0]
+
+        return pd.DataFrame(arr, index=vars, columns=['af_info'], dtype=float)
 
     @property
     def phases(self) -> pd.DataFrame:
@@ -105,3 +119,9 @@ class PandasMixedVCF(object):
         dftrinary = pd.DataFrame(arr, index=vars, columns=self.samples, dtype=int)
 
         return dftrinary
+
+
+if __name__=='__main__':
+    vcf = '/home/camille/1000Genomes/src/VCFPooling/examples/ALL.chr20.snps.gt.vcf.gz'
+    df = PandasMixedVCF(vcf, format='GT')
+    print(df.af_info)
