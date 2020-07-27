@@ -8,7 +8,7 @@ from scipy.stats import bernoulli as bn
 from cyvcf2 import VCF, Writer
 from operator import *
 
-from scripts.poolSNPs import parameters as prm
+from src.poolSNPs import parameters as prm
 
 
 warnings.simplefilter('ignore')

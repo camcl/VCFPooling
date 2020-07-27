@@ -1,8 +1,8 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from scripts.VCFPooling.python.archived.alleles import alleles_tools as alltls
-from scripts.VCFPooling.poolSNPs.metrics import quality
+from src.VCFPooling.python.archived.alleles import alleles_tools as alltls
+from src.VCFPooling.poolSNPs.metrics import quality
 
 from persotools.files import *
 

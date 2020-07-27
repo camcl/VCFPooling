@@ -54,7 +54,7 @@ SNIC_PROJ = '/crex/proj/snic2019-8-216/private'
 DATA_PATH = os.path.join(ROOT, 'data')
 TMP_DATA_PATH = os.path.join(ROOT, 'tmp_data')
 PLOTS_PATH = os.path.join(ROOT, 'plots')
-SCRIPTS_PATH = os.path.join(ROOT, 'scripts')
+SCRIPTS_PATH = os.path.join(ROOT, 'src')
 
 
 ### pool.py

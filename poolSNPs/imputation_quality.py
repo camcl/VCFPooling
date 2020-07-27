@@ -1,5 +1,5 @@
 import sys, os
-sys.path.insert(0, '/home/camille/1000Genomes/scripts/')
+sys.path.insert(0, '/home/camille/1000Genomes/src/')
 import pandas as pd
 import numpy as np
 
@@ -15,7 +15,7 @@ ex.
 $ python3 -u imputation_quality.py /home/camille/PoolImpHuman/data/20200722 IMP.chr20.snps.gt.vcf.gz IMP.chr20.pooled.imputed.vcf.gz
 """
 
-pconverter = '~/PoolImpHuman/bin/bash-scripts/gt_to_gl.sh'
+pconverter = '~/PoolImpHuman/bin/bash-src/gt_to_gl.sh'
 parser = argparse.ArgumentParser(description='Compute and plot'
                                              'customized imputation accuracy metrics')
 parser.add_argument('directory', metavar='dir', type=str, help='Path to directory with files', default=None)

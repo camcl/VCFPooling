@@ -7,8 +7,8 @@ import collections
 from scipy.stats import *
 import math
 
-import scripts.VCFPooling.poolSNPs.parameters as prm
-from scripts.VCFPooling.poolSNPs import dataframe as vcfdf
+import src.VCFPooling.poolSNPs.parameters as prm
+from src.VCFPooling.poolSNPs import dataframe as vcfdf
 
 from persotools.files import *
 

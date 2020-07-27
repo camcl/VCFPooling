@@ -8,9 +8,9 @@ import operator
 import math
 
 from cyvcf2 import VCF
-from scripts.VCFPooling.poolSNPs import parameters as prm
-from scripts.VCFPooling.python.archived import pool
-from scripts.VCFPooling.python.archived.alleles import alleles_tools as alltls
+from src.VCFPooling.poolSNPs import parameters as prm
+from src.VCFPooling.python.archived import pool
+from src.VCFPooling.python.archived.alleles import alleles_tools as alltls
 from persotools.files import *
 
 import inspect

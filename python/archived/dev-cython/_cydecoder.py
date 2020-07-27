@@ -1,6 +1,6 @@
 import os
 import numpy as np
-from scripts.VCFPooling.poolSNPs.pooler import *
+from src.VCFPooling.poolSNPs.pooler import *
 import pandas as pd
 import time
 import timeit

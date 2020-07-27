@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 
-from scripts.VCFPooling.poolSNPs import dataframe as vcfdf
-from scripts.VCFPooling.poolSNPs import parameters as prm
+from src.VCFPooling.poolSNPs import dataframe as vcfdf
+from src.VCFPooling.poolSNPs import parameters as prm
 from persotools.files import *
 
 """

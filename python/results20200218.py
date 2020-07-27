@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 
-from scripts.VCFPooling.poolSNPs import dataframe as vcfdf
+from src.VCFPooling.poolSNPs import dataframe as vcfdf
 
 """
 Plot pooling evaluation:

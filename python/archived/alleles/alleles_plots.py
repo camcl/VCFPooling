@@ -2,8 +2,8 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 import numpy as np
 import pandas as pd
-from scripts.VCFPooling.python.archived.alleles import alleles_tools as alltls
-from scripts.VCFPooling.poolSNPs import parameters as prm
+from src.VCFPooling.python.archived.alleles import alleles_tools as alltls
+from src.VCFPooling.poolSNPs import parameters as prm
 from persotools.files import *
 
 
@@ -85,7 +85,7 @@ def plot_heat_map(dtfr, figname, figsize, sorting, title='{}', rightYaxis=False)
 
 
 def plot_aaf_twist(setname: str, setdf: pd.DataFrame, vcfpath: str):
-    # TODO: Refactor: not any longer needed if overlay in plot_aaf_ scripts
+    # TODO: Refactor: not any longer needed if overlay in plot_aaf_ src
     """
     Plot aaf before/after pooling.
     Plot error after pooling vs. aaf

@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import subprocess
 
-from scripts.VCFPooling.poolSNPs.metrics import quality
+from src.VCFPooling.poolSNPs.metrics import quality
 
 from persotools.files import *
 
@@ -29,7 +29,7 @@ paths = {'beagle1': {
 }
 # Convert GT files to GL (Phaser)
 if convert_files:
-    cmd = 'bash ~/PoolImpHuman/bin/bash-scripts/gt_to_gl.sh {} {}'.format(paths['beagle1']['true'], paths['beaglegl']['true'])
+    cmd = 'bash ~/PoolImpHuman/bin/bash-src/gt_to_gl.sh {} {}'.format(paths['beagle1']['true'], paths['beaglegl']['true'])
     subprocess.run(cmd, shell=True,)
     # easier for cross entropies not to log gl
 

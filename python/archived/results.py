@@ -1,7 +1,7 @@
 import pandas as pd
 
-from scripts.VCFPooling.poolSNPs import parameters as prm
-from scripts.VCFPooling.poolSNPs import utils
+from src.VCFPooling.poolSNPs import parameters as prm
+from src.VCFPooling.poolSNPs import utils
 from persotools.files import *
 from persotools.debugging import *
 

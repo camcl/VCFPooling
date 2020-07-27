@@ -1,9 +1,9 @@
 import numpy as np
 
-from scripts.VCFPooling.python.archived import pool
+from src.VCFPooling.python.archived import pool
 
-# from scripts.VCFPooling.poolSNPs import parameters as prm
-# from scripts.VCFPooling.poolSNPs.alleles import alleles_tools as alltls
+# from src.VCFPooling.poolSNPs import parameters as prm
+# from src.VCFPooling.poolSNPs.alleles import alleles_tools as alltls
 #
 # wd = '/home/camille/1000Genomes/data/gt/stratified'
 # os.chdir(wd)

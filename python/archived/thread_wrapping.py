@@ -2,8 +2,8 @@ import os
 import threading
 from queue import Queue
 import inspect
-from scripts.VCFPooling.python.archived.alleles import alleles_tools as alltls
-from scripts.VCFPooling.poolSNPs import parameters as prm
+from src.VCFPooling.python.archived.alleles import alleles_tools as alltls
+from src.VCFPooling.poolSNPs import parameters as prm
 
 chk_sz = prm.CHK_SZ
 

@@ -4,10 +4,10 @@ import numpy as np
 from itertools import repeat
 import multiprocessing as mp
 
-from scripts.VCFPooling.poolSNPs import parameters as prm
-from scripts.VCFPooling.poolSNPs import beagle_tools as bgltls
-from scripts.VCFPooling.poolSNPs import pybcf
-from scripts.VCFPooling.python.archived.alleles import alleles_tools as alltls
+from src.VCFPooling.poolSNPs import parameters as prm
+from src.VCFPooling.poolSNPs import beagle_tools as bgltls
+from src.VCFPooling.poolSNPs import pybcf
+from src.VCFPooling.python.archived.alleles import alleles_tools as alltls
 
 from persotools.files import delete_file, mkdir
 from persotools.struct import NamedDict

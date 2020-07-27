@@ -9,4 +9,4 @@ module load bioinfo-tools
 module load bcftools/1.9
 module load tabix/0.2.6
 source ~/1000Genomes/venv3.6/bin/activate
-python3 ~/1000Genomes/scripts/VCFPooling/python/beagle_impute_v1.1.1.py 20 240
+python3 ~/1000Genomes/src/VCFPooling/python/beagle_impute_v1.1.1.py 20 240

@@ -9,7 +9,7 @@ import math
 import multiprocessing as mp
 
 home_dir = os.path.expanduser("~")
-proj_dir = os.path.join(home_dir, '1000Genomes/scripts')
+proj_dir = os.path.join(home_dir, '1000Genomes/src')
 sys.path.insert(0, proj_dir)
 
 nb_cores = os.cpu_count()

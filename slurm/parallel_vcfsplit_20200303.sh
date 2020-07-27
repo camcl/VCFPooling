@@ -14,7 +14,7 @@ cd /proj/snic2019-8-216/parallel_vcfsplit
 cp ~/1000Genomes/data/gt/ALL.chr20.snps.gt.vcf.gz /proj/snic2019-8-216/parallel_vcfsplit
 tabix ALL.chr20.snps.gt.vcf.gz
 touch -c ALL.chr20.snps.gt.vcf.gz.csi
-bash ~/1000Genomes/scripts/bcfchunkpara.sh ALL.chr20.snps.gt.vcf.gz
+bash ~/1000Genomes/src/bcfchunkpara.sh ALL.chr20.snps.gt.vcf.gz
 
 # Job for splitting a chr20 VCF-file into chunks of 1000 markers
 # Based on a parallelized bash script using bcftools for processing VCF files

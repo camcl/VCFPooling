@@ -12,10 +12,10 @@ home_dir = os.path.expanduser("~")
 proj_dir = os.path.join(home_dir, '1000Genomes')
 sys.path.insert(0, proj_dir)
 
-from scripts.VCFPooling.poolSNPs import parameters as prm
-from scripts.VCFPooling.poolSNPs import chunkvcf as chkvcf
-from scripts.VCFPooling.python.archived import pool
-from scripts.VCFPooling.poolSNPs import pybcf
+from src.VCFPooling.poolSNPs import parameters as prm
+from src.VCFPooling.poolSNPs import chunkvcf as chkvcf
+from src.VCFPooling.python.archived import pool
+from src.VCFPooling.poolSNPs import pybcf
 
 from persotools.files import delete_file
 

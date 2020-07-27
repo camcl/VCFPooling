@@ -1,5 +1,5 @@
-from scripts.VCFPooling.poolSNPs.pooler import Encoder
-from scripts.VCFPooling.python.archived.cydecoder import *
+from src.VCFPooling.poolSNPs.pooler import Encoder
+from src.VCFPooling.python.archived.cydecoder import *
 import timeit
 
 """

@@ -3,9 +3,9 @@ import os
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.stats import *
-from scripts.poolSNPs import parameters as prm
-from scripts.poolSNPs.alleles import alleles_tools as alltls
-from scripts.python import results as res
+from src.poolSNPs import parameters as prm
+from src.poolSNPs.alleles import alleles_tools as alltls
+from src.python import results as res
 
 os.chdir(prm.WD)
 plots_path = prm.PLOTS_PATH

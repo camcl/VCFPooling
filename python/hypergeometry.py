@@ -6,7 +6,7 @@ from itertools import starmap
 from functools import partial
 from cyvcf2 import VCF
 
-from scripts.VCFPooling.poolSNPs import parameters as prm
+from src.VCFPooling.poolSNPs import parameters as prm
 from persotools.files import *
 
 """

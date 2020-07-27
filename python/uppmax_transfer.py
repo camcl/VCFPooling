@@ -2,7 +2,7 @@ import os
 import pathlib
 import shutil
 
-from scripts.VCFPooling.python.archived.myssh import sshtools
+from src.VCFPooling.python.archived.myssh import sshtools
 
 from persotools.files import dir_size
 
@@ -39,7 +39,7 @@ if create_rep:
     size_in = dir_size(littlelocal)
 
     sshtools.ssh_recursive_transfer(sshtools.host,
-                                    str(littlelocal),  # + '/scripts',
+                                    str(littlelocal),  # + '/src',
                                     str(sshtools.rackham),  # + '/1000Genomes',
                                     username=sshtools.user,
                                     password=sshtools.pwd)

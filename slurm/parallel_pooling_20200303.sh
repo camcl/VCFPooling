@@ -17,13 +17,13 @@ cd /proj/snic2019-8-216/parallel_vcfsplit
 cp ~/1000Genomes/data/gt/ALL.chr20.snps.gt.vcf.gz /proj/snic2019-8-216/parallel_vcfsplit
 tabix ALL.chr20.snps.gt.vcf.gz
 touch -c ALL.chr20.snps.gt.vcf.gz.csi
-bash ~/1000Genomes/scripts/bcfchunkpara.sh ALL.chr20.snps.gt.vcf.gz
+bash ~/1000Genomes/src/bcfchunkpara.sh ALL.chr20.snps.gt.vcf.gz
 
 # pool packed files with python
 source ~/1000Genomes/venv3.6/bin/activate
 python3 -c 'print("\npython3 ready\n")'
 echo ''
-python3 -u ~/1000Genomes/scripts/VCFPooling/python/parallel_20200303.py /crex/proj/snic2019-8-216/parallel_vcfsplit/ALL.chr20.snps.gt.vcf.gz ~/1000Genomes/data/gl/gl_adaptive/parallel_pooling/ALL.chr20.pooled.snps.gl.vcf.gz
+python3 -u ~/1000Genomes/src/VCFPooling/python/parallel_20200303.py /crex/proj/snic2019-8-216/parallel_vcfsplit/ALL.chr20.snps.gt.vcf.gz ~/1000Genomes/data/gl/gl_adaptive/parallel_pooling/ALL.chr20.pooled.snps.gl.vcf.gz
 
 # adaptive GL pooling with EM method values
 # whole chromosom 20 data set filtered for SNP-only

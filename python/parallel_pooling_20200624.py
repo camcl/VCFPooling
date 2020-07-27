@@ -14,9 +14,9 @@ bin_dir = os.path.join(home_dir, '1000Genomes')
 proj_dir = os.path.join(home_dir, 'PoolImpHuman')
 sys.path.insert(0, bin_dir)
 
-from scripts.VCFPooling.poolSNPs import parameters as prm
-from scripts.VCFPooling.poolSNPs import poolvcf
-from scripts.VCFPooling.poolSNPs import pybcf
+from src.VCFPooling.poolSNPs import parameters as prm
+from src.VCFPooling.poolSNPs import poolvcf
+from src.VCFPooling.poolSNPs import pybcf
 
 from persotools.files import delete_file, mkdir
 

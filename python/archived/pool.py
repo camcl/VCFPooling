@@ -8,9 +8,9 @@ from scipy.stats import bernoulli as bn
 from cyvcf2 import VCF, Writer, Variant
 import pysam
 
-from scripts.VCFPooling.poolSNPs import parameters as prm
-from scripts.VCFPooling.python.archived.alleles import alleles_tools as alltls
-from scripts.VCFPooling.poolSNPs import pybcf
+from src.VCFPooling.poolSNPs import parameters as prm
+from src.VCFPooling.python.archived.alleles import alleles_tools as alltls
+from src.VCFPooling.poolSNPs import pybcf
 
 from persotools.files import *
 from typing import *

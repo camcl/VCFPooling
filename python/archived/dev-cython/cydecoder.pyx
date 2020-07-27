@@ -2,7 +2,7 @@ import os
 import numpy as np
 cimport numpy as np
 import cython
-from scripts.VCFPooling.poolSNPs.pooler import Design
+from src.VCFPooling.poolSNPs.pooler import Design
 import pandas as pd
 
 

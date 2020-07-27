@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from scripts.VCFPooling.poolSNPs.metrics import quality
+from src.VCFPooling.poolSNPs.metrics import quality
 
 from persotools.files import *
 

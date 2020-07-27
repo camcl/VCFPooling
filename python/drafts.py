@@ -8,8 +8,8 @@ from typing import *
 
 from cyvcf2 import VCF
 import pysam
-from scripts.VCFPooling.python.archived import _mylog
-from scripts.VCFPooling.poolSNPs import parameters as prm
+from src.VCFPooling.python.archived import _mylog
+from src.VCFPooling.poolSNPs import parameters as prm
 
 warnings.simplefilter('ignore')
 _mylog.stdout(__file__)
