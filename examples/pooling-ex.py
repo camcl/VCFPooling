@@ -3,13 +3,12 @@ import argparse
 import timeit
 
 # force PYTHONPATH to look into the project directory for modules
-bin_dir = os.path.dirname(os.getcwd())
-print(bin_dir)
-sys.path.insert(0, bin_dir)
+rootdir = os.path.dirname(os.path.dirname(os.getcwd()))
+sys.path.insert(0, rootdir)
 
-import poolSNPs.parameters as prm
-from poolSNPs import poolvcf
-from poolSNPs import pybcf
+import VCFPooling.poolSNPs.parameters as prm
+from VCFPooling.poolSNPs import poolvcf
+from VCFPooling.poolSNPs import pybcf
 
 '''
 Applies pooling simulation to a VCF file

@@ -12,20 +12,21 @@ import matplotlib.pyplot as plt
 """
 Compute results with customized metrics from true vs. imputed data sets
 ex.
-$ python3 -u imputation_quality.py /home/camille/PoolImpHuman/data/20200722 IMP.chr20.snps.gt.vcf.gz IMP.chr20.pooled.imputed.vcf.gz
+$ python3 -u imputation_quality.py<path to directory> <VCF file with true genotypes> <VCF file with imputed genotypes> <path to script converting GT to GL>
 """
 
-pconverter = '~/PoolImpHuman/bin/bash-src/gt_to_gl.sh'
 parser = argparse.ArgumentParser(description='Compute and plot'
                                              'customized imputation accuracy metrics')
 parser.add_argument('directory', metavar='dir', type=str, help='Path to directory with files', default=None)
 parser.add_argument('true', metavar='tru', type=str, help='File with true genotypes', default=None)
 parser.add_argument('imputed', metavar='imp', type=str, help='Imputed file with genotypes (GT:DS:GP)', default=None)
+parser.add_argument('gconverter', metavar='gcv', type=str, help='Imputed file with genotypes (GT:DS:GP)', default='~/PoolImpHuman/bin/bash-src/gt_to_gl.sh')
 
 argsin = parser.parse_args()
 dirin = argsin.directory
 ftrue = argsin.true
 fimp = argsin.imputed
+gconv = argsin.gconverter
 
 paths = {'beaglegt': {
     'true': os.path.join(dirin, ftrue),
@@ -37,7 +38,7 @@ paths = {'beaglegt': {
 
 convertgtgl = True
 if convertgtgl:
-    cmd = 'bash {} {} {}'.format(pconverter, paths['beaglegt']['true'], paths['beaglegl']['true'])
+    cmd = 'bash {} {} {}'.format(gconv, paths['beaglegt']['true'], paths['beaglegl']['true'])
     subprocess.run(cmd, shell=True,)
 
 qbeaglegt = quality.QualityGT(*paths['beaglegt'].values(), 0, idx='id')
