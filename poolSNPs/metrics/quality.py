@@ -91,21 +91,22 @@ The nltk metrics package also provides for calculating and printing confusion ma
  In particular, it wants two lists of labels (in the same order).
 """
 
+import os, sys
 import numpy as np
 import pandas as pd
 from scipy.stats import pearsonr, zscore
 from sklearn import metrics
 from typing import *
 
-from VCFPooling.poolSNPs import dataframe as vcfdf
+rootdir = os.path.dirname(os.path.dirname(os.path.dirname(os.getcwd())))
+sys.path.insert(0, rootdir)
 
+from VCFPooling.poolSNPs import dataframe as vcfdf
 from VCFPooling.persotools.files import *
 
 ArrayLike = NewType('ArrayLike', Union[Sequence, List, Set, Tuple, Iterable, np.ndarray, int, float, str])
 
-#TODO: implement method for extracting GP field
 #TODO: coming later: evaluate phase/switch rate
-#TODO: entropy measure for GL
 
 
 class QualityGT(object):
@@ -117,8 +118,8 @@ class QualityGT(object):
     * allele dosage
     """
     def __init__(self, truefile: FilePath, imputedfile: FilePath, ax: object, idx: str = 'id'):
-        self.trueobj = vcfdf.PandasVCF(truefile, indextype=idx)
-        self.imputedobj = vcfdf.PandasVCF(imputedfile, indextype=idx)
+        self.trueobj = vcfdf.PandasMixedVCF(truefile, format='GT', indextype=idx)
+        self.imputedobj = vcfdf.PandasMixedVCF(imputedfile, format='GT', indextype=idx)
         self._axis = ax
         #TODO: index properties and verification
 
@@ -353,22 +354,8 @@ class QualityGL(object):
         return pd.Series(score, index=self.trueobj.variants, name='cross_entropy')
 
 
-if __name__ == '__main__':
-    import matplotlib.pyplot as plt
-    # Example with results from Phaser and Beagle on 10000 markers
-    paths = {'phaser': {
-        'true': '/home/camille/1000Genomes/data/gt/stratified/IMP.chr20.snps.gt.chunk10000.vcf.gz',
-        'imputed': '/home/camille/1000Genomes/data/gl/gl_adaptive/phaser/IMP.chr20.pooled.imputed.gt.chunk10000.vcf.gz'},
-        'beagle': {
-            'true': '/home/camille/1000Genomes/data/gl/IMP.chr20.snps.gl.chunk10000.vcf',
-            'imputed': '/home/camille/1000Genomes/data/gl/gl_adaptive/chunk10000_20190725/IMP.chr20.pooled.beagle2.gl.chunk10000.corr.vcf.gz'}
-    }
-
-    qgl = QualityGL(paths['beagle']['true'], paths['beagle']['imputed'], 0)
-
-    mess = qgl.cross_entropy
-    dfaf = vcfdf.PandasVCF('/home/camille/1000Genomes/data/gt/stratified/IMP.chr20.snps.gt.chunk10000.vcf.gz')
-    dfmess = mess.to_frame()
-    dfmess = dfmess.join(dfaf.af_info)
-    dfmess.plot.scatter('af_info', 'cross_entropy', s=0.7)
-    plt.show()
+if __name__=='__main__':
+    true = '/home/camille/1000Genomes/src/VCFPooling/examples/IMP.chr20.snps.gt.vcf.gz'
+    imputed = '/home/camille/1000Genomes/src/VCFPooling/examples/IMP.chr20.pooled.snps.gl.vcf.gz'
+    qbeaglegt = QualityGT(true, imputed, 0, idx='id')
+    print(qbeaglegt.trueobj.af_info)
