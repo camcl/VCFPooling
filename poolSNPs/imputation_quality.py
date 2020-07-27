@@ -1,5 +1,6 @@
 import sys, os
-sys.path.insert(0, '/home/camille/1000Genomes/src/')
+rootdir = os.path.dirname(os.path.dirname(os.getcwd()))
+sys.path.insert(0, rootdir)
 import pandas as pd
 import numpy as np
 
@@ -20,7 +21,7 @@ parser = argparse.ArgumentParser(description='Compute and plot'
 parser.add_argument('directory', metavar='dir', type=str, help='Path to directory with files', default=None)
 parser.add_argument('true', metavar='tru', type=str, help='File with true genotypes', default=None)
 parser.add_argument('imputed', metavar='imp', type=str, help='Imputed file with genotypes (GT:DS:GP)', default=None)
-parser.add_argument('gconverter', metavar='gcv', type=str, help='Imputed file with genotypes (GT:DS:GP)', default='~/PoolImpHuman/bin/bash-src/gt_to_gl.sh')
+parser.add_argument('gconverter', metavar='gcv', type=str, help='Path to script converting GT to GL', default='~/PoolImpHuman/bin/bash-src/gt_to_gl.sh')
 
 argsin = parser.parse_args()
 dirin = argsin.directory
