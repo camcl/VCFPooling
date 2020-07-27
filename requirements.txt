@@ -1,0 +1,26 @@
+# run $ pip3 install -r requirements.txt
+
+asn1crypto
+bcrypt
+cffi
+cryptography
+cyvcf2
+cycler
+fabric
+img2pdf
+jupyter
+kiwisolver
+matplotlib
+numpy
+pandas
+paramiko
+pathlib
+pycparser
+pyparsing
+pysam
+pytz
+scikit-learn
+scipy
+setuptools
+
+# /home/camille/PycharmProjects/lib/persotools

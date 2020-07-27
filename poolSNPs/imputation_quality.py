@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 """
 Compute results with customized metrics from true vs. imputed data sets
 ex.
-$ python3 -u imputation_quality.py<path to directory> <VCF file with true genotypes> <VCF file with imputed genotypes> <path to script converting GT to GL>
+$ python3 -u imputation_quality.py <path to working directory> <VCF file with true genotypes> <VCF file with imputed genotypes> <path to script for converting GT to GL>
 """
 
 parser = argparse.ArgumentParser(description='Compute and plot'
@@ -21,7 +21,7 @@ parser = argparse.ArgumentParser(description='Compute and plot'
 parser.add_argument('directory', metavar='dir', type=str, help='Path to directory with files', default=None)
 parser.add_argument('true', metavar='tru', type=str, help='File with true genotypes', default=None)
 parser.add_argument('imputed', metavar='imp', type=str, help='Imputed file with genotypes (GT:DS:GP)', default=None)
-parser.add_argument('gconverter', metavar='gcv', type=str, help='Path to script converting GT to GL', default='~/PoolImpHuman/bin/bash-src/gt_to_gl.sh')
+parser.add_argument('gconverter', metavar='gcv', type=str, help='Path to script for converting GT to GL', default='~/PoolImpHuman/bin/bash-scripts/gt_to_gl.sh')
 
 argsin = parser.parse_args()
 dirin = argsin.directory

@@ -12,6 +12,9 @@ depending on the position of the sample in the block layout _lambda_ and the poo
 _lambda_= (0, 2, 1, 0) e.g. allelic dosages of the ambiguous samples after pooling, 
 and _psi_=((2, 2, 0), (2, 2, 0)) is the pooling pattern e.g. 2 row-pools have genotype 0, 2 have genotype 1, none has genotype 2, idem for the column-pools.
 
+## Installation
+In addition to the Python3 code, you want to read and process VCF files. We used [bcftools](https://samtools.github.io/bcftools/bcftools.html)
+
 ## Usage
 Some data and scripts are provided as usage examples in [/examples](/examples). 
 
