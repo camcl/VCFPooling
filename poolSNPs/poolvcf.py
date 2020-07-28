@@ -1,3 +1,9 @@
+import sys, os
+
+# force PYTHONPATH to look into the project directory for modules
+rootdir = os.path.dirname(os.path.dirname(os.getcwd()))
+sys.path.insert(0, rootdir)
+
 from VCFPooling.poolSNPs.pooler import *
 from VCFPooling.poolSNPs import pybcf
 from VCFPooling.poolSNPs import utils
@@ -5,7 +11,6 @@ from VCFPooling.poolSNPs import utils
 import numpy as np
 import timeit
 import pysam
-import os
 
 """
 Classes for applying pooling simulation to a VCF file using Pysam
