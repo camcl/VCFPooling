@@ -95,7 +95,7 @@ print([os.path.join(wd, f0) for f0 in files0])
 files1 = ['pooled.{}'.format(f0).rstrip('.gz') for f0 in files0]
 args1 = list(zip([os.path.join(wd, f0) for f0 in files0],
                  [os.path.join(tmp_path, f1) for f1 in files1],
-                 repeat(data_dir, len(indices)),  # path to lookup table
+                 repeat(os.path.join(data_dir, 'adaptive_gls.csv'), len(indices)),  # path to lookup table
                  repeat(tmp_path, len(indices))))  # directory for temporary output
 
 with mp.Pool(processes=nb_cores) as mpool:
