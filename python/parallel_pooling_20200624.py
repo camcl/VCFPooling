@@ -10,13 +10,15 @@ import timeit
 import datetime
 
 home_dir = os.path.expanduser("~")
-bin_dir = os.path.join(home_dir, '1000Genomes')
 proj_dir = os.path.join(home_dir, 'PoolImpHuman')
-sys.path.insert(0, bin_dir)
 
-from src.VCFPooling.poolSNPs import parameters as prm
-from src.VCFPooling.poolSNPs import poolvcf
-from src.VCFPooling.poolSNPs import pybcf
+# force PYTHONPATH to look into the project directory for modules
+rootdir = os.path.dirname(os.path.dirname(os.getcwd()))
+sys.path.insert(0, rootdir)
+
+from VCFPooling.poolSNPs import parameters as prm
+from VCFPooling.poolSNPs import poolvcf
+from VCFPooling.poolSNPs import pybcf
 
 from persotools.files import delete_file, mkdir
 
