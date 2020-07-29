@@ -1,10 +1,7 @@
 #!/bin/bash
 
-# assumed to be run from examples directory
-cwd=$( pwd )
-echo 'Current working directory ' $cwd
-beaglejar=bin/beagle.11Mar19.69c.jar
-cfgtjar=bin/conform-gt.jar
+beaglejar=../bin/beagle.11Mar19.69c.jar
+cfgtjar=../bin/conform-gt.jar
 
 chrom=$( bcftools query -f '%CHROM\n' REF.chr20.snps.gt.vcf.gz | head -1 )
 startpos=$( bcftools query -f '%POS\n' REF.chr20.snps.gt.vcf.gz | head -1 )
