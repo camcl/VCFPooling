@@ -1,7 +1,7 @@
 #!/bin/bash
 
-beaglejar=~/1000Genomes/src/beagle.11Mar19.69c.jar
-cfgtjar=~/1000Genomes/src/conform-gt.jar
+beaglejar=../bin/beagle.11Mar19.69c.jar
+cfgtjar=../bin/conform-gt.jar
 
 chrom=$( bcftools query -f '%CHROM\n' REF.chr20.snps.gt.vcf.gz | head -1 )
 startpos=$( bcftools query -f '%POS\n' REF.chr20.snps.gt.vcf.gz | head -1 )
