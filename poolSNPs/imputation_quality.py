@@ -22,12 +22,14 @@ parser.add_argument('directory', metavar='dir', type=str, help='Path to director
 parser.add_argument('true', metavar='tru', type=str, help='File with true genotypes', default=None)
 parser.add_argument('imputed', metavar='imp', type=str, help='Imputed file with genotypes (GT:DS:GP)', default=None)
 parser.add_argument('gconverter', metavar='gcv', type=str, help='Path to script converting GT to GL', default='~/PoolImpHuman/bin/bash-src/gt_to_gl.sh')
+parser.add_argument('ident', metavar='idt', type=str, help='Type of identifier for variants (id/chrom:pos)', default='id')
 
 argsin = parser.parse_args()
 dirin = argsin.directory
 ftrue = argsin.true
 fimp = argsin.imputed
 gconv = argsin.gconverter
+idt = argsin.ident
 
 paths = {'beaglegt': {
     'true': os.path.join(dirin, ftrue),
@@ -42,8 +44,8 @@ if convertgtgl:
     cmd = 'bash {} {} {}'.format(gconv, paths['beaglegt']['true'], paths['beaglegl']['true'])
     subprocess.run(cmd, shell=True,)
 
-qbeaglegt = quality.QualityGT(*paths['beaglegt'].values(), 0, idx='id')
-qbeaglegl = quality.QualityGL(paths['beaglegl']['true'], paths['beaglegl']['imputed'], 0, idx='id')
+qbeaglegt = quality.QualityGT(*paths['beaglegt'].values(), 0, idx=idt)
+qbeaglegl = quality.QualityGL(paths['beaglegl']['true'], paths['beaglegl']['imputed'], 0, idx=idt)
 messbeagle = qbeaglegl.cross_entropy
 
 tabbeaglegl = pd.concat([qbeaglegt.concordance(),
