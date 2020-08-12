@@ -9,6 +9,10 @@ Implement metrics for measuring diversity in population genotypes: Mean Squre di
 import numpy as np
 from typing import *
 from collections import Counter
+import os, sys
+
+rootdir = os.path.dirname(os.path.dirname(os.getcwd()))
+sys.path.insert(0, rootdir)
 
 from VCFPooling.poolSNPs import dataframe as vcfdf
 from VCFPooling.persotools.files import *
