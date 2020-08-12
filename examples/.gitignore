@@ -1,10 +1,10 @@
 # Ignore files output from examples
 
 # Example #1 pooling-ex.py
-TEST.chr20.pooled.snsps.gl.vcf.gz
-TEST.chr20.pooled.snsps.gl.vcf.gz.csi
-TEST.chr20.pooled.snsps.gt.vcf.gz
-TEST.chr20.pooled.snsps.gt.vcf.gz.csi
+TEST.chr20.pooled.snps.gl.vcf.gz
+TEST.chr20.pooled.snps.gl.vcf.gz.csi
+TEST.chr20.pooled.snps.gt.vcf.gz
+TEST.chr20.pooled.snps.gt.vcf.gz.csi
 
 # Example #2 pooling-imputing-example.ipynb
 IMP.chr20.pooled.imputed.vcf.gz

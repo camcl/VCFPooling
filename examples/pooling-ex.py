@@ -25,8 +25,12 @@ bgzipped format (.vcf.gz) with bcftools.
 
 For VCF-file bigger than some dozen of thousands of variants, pooling can be parallelized.
 
-Command line usage (assuming the current directory is VCFPooling/examples
+Command line usage (assuming the current directory is VCFPooling/examples)
 $ python3 -u pooling-ex.py <path-to-file-in> <path-to-file-out> <decoding-format>
+
+Examples for GP and GT decoding formats:
+python3 -u pooling-ex.py TEST.chr20.snps.gt.vcf.gz TEST.chr20.pooled.snps.gp.vcf.gz GP
+python3 -u pooling-ex.py TEST.chr20.snps.gt.vcf.gz TEST.chr20.pooled.snss.gt.vcf.gz GT
 '''
 
 ### COMMAND-LINE PARSING AND PARAMETERS
