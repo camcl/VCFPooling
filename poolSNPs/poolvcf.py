@@ -131,15 +131,16 @@ class VariantRecordPooler(object):
         x_shift = self.dm.shape[1]  # 16
         y_shift = self.dm.shape[0]  # 8
         varp = self._encode()
-        return dict_blocks_decoder(self.n_blocks, varp.sum(axis=-1), y_shift, self.lookup, 'gp')
+        return dict_blocks_decoder(self.n_blocks, varp.sum(axis=-1), y_shift, self.lookup, self.fmt_to.lower())
 
     def new_var(self) -> str:
         """
         Outputs a string representation of a pooled variant
         since pysam.VariantRecord objects are not writable
         """
-        _genotypes = self._decode().reshape((self.genotypes.shape[0], 3))  # 3 --> GP(RR, RA, AA)
+        #_genotypes = self._decode().reshape((self.genotypes.shape[0], 3))  # 3 --> GP(RR, RA, AA)
         if self.fmt_to == 'GP':
+            _genotypes = self._decode().reshape((self.genotypes.shape[0], 3))  # 3 --> GP(RR, RA, AA)
             # GP must be written as GL (literaly) for compatibility with Beagle
             info_fields = ['='.join([str(k), str(np.asarray(v).flatten()[0])]) for k, v in self.var.info.items()]
             info = ';'.join([kv for kv in info_fields])
@@ -156,6 +157,8 @@ class VariantRecordPooler(object):
         # '20\t61098\trs6078030\tC\tT\t100\tPASS\tAC=4;AF=0.287141;AN=32;NS=2504;DP=16880;EAS_AF=0.4415;AMR_AF=0.2709;AFR_AF=0.1823;EUR_AF=0.2167;SAS_AF=0.3538;AA=.|||;VT=SNP\tGT\t0|0\t0|0\t0|0\t0|0\t0|1\t0|0\t1|0\t0|0\t0|0\t0|0\t0|0\t0|1\t0|0\t0|1\t0|0\t0|0\n'
         # self.var.format = 'GP'
         # AttributeError: attribute 'format' of 'pysam.libcbcf.VariantRecord' objects is not writable
+        elif self.fmt_to == 'GT':
+            _genotypes = self._decode().reshape((self.genotypes.shape[0], 2))  # 3 --> Gt(allele 0, allele 1)
         for _i, v in enumerate(self.var.samples.values()):
             if self.fmt_to == 'GP':
                 str_var = str_var + '\t' + ','.join(_genotypes[_i].astype(str))
@@ -273,9 +276,9 @@ class VariantRecordConverter(pysam.VariantRecord):
         new_var['__class__'] = pysam.libcbcf.VariantRecord
 
 
-def pysam_pooler(file_in: str, file_out: str, path_to_lookup: str, wd: str):
+def pysam_pooler_gp(file_in: str, file_out: str, path_to_lookup: str, wd: str):
     """
-    Process a VCF file with NORB pooling simulation.
+    Process a VCF file with NORB pooling simulation. Decode into GP based on a look up table.
     :param file_in: name of the file to be processed (.vcf.gz or .vcf only)
     :param file_out: name of the file to output (NO .gz)
     :param path_to_lookup: lookup table to use for GP decoding
@@ -292,6 +295,32 @@ def pysam_pooler(file_in: str, file_out: str, path_to_lookup: str, wd: str):
                               os.path.join(wd, file_out),
                               dict_gl,
                               'GP')
+
+    tstart = timeit.default_timer()
+    poolf.write()
+    tstop = timeit.default_timer()
+    print('Time for pooling {} variants = {} sec'.format(poolf.n_variants, tstop - tstart))
+
+
+def pysam_pooler_gt(file_in: str, file_out: str, path_to_lookup: str, wd: str):
+    """
+    Process a VCF file with NORB pooling simulation. Decode into GP based on a look up table.
+    :param file_in: name of the file to be processed (.vcf.gz or .vcf only)
+    :param file_out: name of the file to output (NO .gz)
+    :param path_to_lookup: lookup table to use for GP decoding
+    :param wd: path to the data directory
+    """
+    design = Design()
+    dm = design.matrix
+
+    #path_to_lookup = '/home/camille/PoolImpHuman/data/main'
+    dict_gl = load_lookup_dict(path_to_lookup)
+
+    poolf = VariantFilePooler(dm,
+                              os.path.join(wd, file_in),
+                              os.path.join(wd, file_out),
+                              dict_gl,
+                              'GT')
 
     tstart = timeit.default_timer()
     poolf.write()

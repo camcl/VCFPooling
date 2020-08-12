@@ -26,7 +26,7 @@ bgzipped format (.vcf.gz) with bcftools.
 For VCF-file bigger than some dozen of thousands of variants, pooling can be parallelized.
 
 Command line usage (assuming the current directory is VCFPooling/examples
-$ python3 -u pooling-ex.py <path-to-file-in> <path-to-file-out>
+$ python3 -u pooling-ex.py <path-to-file-in> <path-to-file-out> <decoding-format>
 '''
 
 ### COMMAND-LINE PARSING AND PARAMETERS
@@ -34,10 +34,13 @@ parser = argparse.ArgumentParser(description='Run pooling simulation'
                                              'on the whole set of samples')
 parser.add_argument('pathin', metavar='in', type=str, help='File to pool', default=None)
 parser.add_argument('pathout', metavar='out', type=str, help='Pooled file', default=None)
+parser.add_argument('formatto', metavar='fmt', type=str, help='Genootype format to decode to (GP or GT)', default='GP')
+
 
 argsin = parser.parse_args()
 filin = argsin.pathin
 filout = argsin.pathout
+fmt = argsin.formatto.upper()
 plookup = os.path.join(os.getcwd(), 'adaptive_gls.csv')  # look-up table for converting pooled GT to GL
 
 print('\n'.ljust(80, '*'))
@@ -48,9 +51,14 @@ print('\n'.rjust(80, '*'))
 # make sure to write to .vcf
 if filout.endswith('.gz'):
     vcfout = filout[:-3]
+if filout.endswith('.vcf'):
+    vcfout = filout
 
 ### SIMULATE POOLING
 start = timeit.default_timer()
-poolvcf.pysam_pooler(filin, vcfout, plookup, os.getcwd())
+if fmt == 'GP':
+    poolvcf.pysam_pooler_gp(filin, vcfout, plookup, os.getcwd())
+if fmt == 'GT':
+    poolvcf.pysam_pooler_gt(filin, vcfout, plookup, os.getcwd())
 
 print('\r\nTime elapsed --> ', timeit.default_timer() - start)

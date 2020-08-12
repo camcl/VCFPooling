@@ -120,8 +120,59 @@ class PandasMixedVCF(object):
 
         return dftrinary
 
+    @property
+    def missing_rate(self):
+        trico = self.trinary_encoding()
+        trico[trico == -1] = np.nan
+        func = lambda x: np.where(x == np.nan, 1, 0).sum() / len(x)
+        miss = trico.apply(func, axis=1, raw=True)
+        miss.rename('missing_rate', inplace=True)
+        return miss.to_frame()
+
+    @property
+    def aaf(self):
+        trico = self.trinary_encoding()
+        trico[trico == -1] = np.nan
+        # calculate alternate allele frequency from non-missing genotypes
+        func = lambda x: np.nansum(x) / (2 * np.sum(~np.isnan(x)))
+        aaf = trico.apply(func, axis=1, raw=True)
+        aaf.rename('aaf', inplace=True)
+        return aaf.to_frame()
+
+    @property
+    def het_rate(self):
+        trico = self.trinary_encoding()
+        trico[trico == -1] = np.nan
+        func = lambda x: np.where(x == 1, 1, 0).sum() / np.sum(~np.isnan(x))
+        het_ra = trico.apply(func, axis=1, raw=True)
+        het_ra.rename('het_rate', inplace=True)
+        return het_ra.to_frame()
+
+    @property
+    def hom_ref_rate(self):
+        trico = self.trinary_encoding()
+        trico[trico == -1] = np.nan
+        func = lambda x: np.where(x == 0, 1, 0).sum() / np.sum(~np.isnan(x))
+        hom_rr = trico.apply(func, axis=1, raw=True)
+        hom_rr.rename('hom_ref_rate', inplace=True)
+        return hom_rr.to_frame()
+
+    @property
+    def hom_alt_rate(self):
+        trico = self.trinary_encoding()
+        trico[trico == -1] = np.nan
+        func = lambda x: np.where(x == 2, 1, 0).sum() / np.sum(~np.isnan(x))
+        hom_aa = trico.apply(func, axis=1, raw=True)
+        hom_aa.rename('hom_alt_rate', inplace=True)
+        return hom_aa.to_frame()
+
+    def concatcols(self, args):
+        vars = self.variants.to_frame(name='variants')
+        df = vars.join(args)
+        df.drop('variants', axis=1, inplace=True)
+        return df
 
 if __name__=='__main__':
-    vcf = '/home/camille/1000Genomes/src/VCFPooling/examples/ALL.chr20.snps.gt.vcf.gz'
+    vcf = '/home/camille/1000Genomes/src/VCFPooling/examples/IMP.chr20.snps.gt.vcf.gz'
     df = PandasMixedVCF(vcf, format='GT')
     print(df.af_info)
