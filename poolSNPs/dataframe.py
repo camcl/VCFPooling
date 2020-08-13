@@ -124,7 +124,7 @@ class PandasMixedVCF(object):
     def missing_rate(self):
         trico = self.trinary_encoding()
         trico[trico == -1] = np.nan
-        func = lambda x: np.where(x == np.nan, 1, 0).sum() / len(x)
+        func = lambda x: np.sum(np.isnan(x)) / len(x)
         miss = trico.apply(func, axis=1, raw=True)
         miss.rename('missing_rate', inplace=True)
         return miss.to_frame()
