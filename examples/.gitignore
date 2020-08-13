@@ -29,3 +29,8 @@ REF.chr20.snps.gt.vcf.gz
 REF.chr20.snps.gt.vcf.gz.csi
 reference.panel
 study.population
+
+# Example EDA
+eda_pooled_gt.png
+IMP.chr20.pooled.snps.gt.vcf.gz
+IMP.chr20.pooled.snps.gt.vcf.gz.csi
