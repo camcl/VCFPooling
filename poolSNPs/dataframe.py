@@ -172,6 +172,13 @@ class PandasMixedVCF(object):
         df.drop('variants', axis=1, inplace=True)
         return df
 
+    @staticmethod
+    def aaf_to_maf(s: pd.Series, suffix: str = ''):
+        func = lambda x: x if x <= 0.5 else 1 - x
+        mafs = s.apply(func).rename(s.name + suffix)
+        return mafs
+
+
 if __name__=='__main__':
     vcf = '/home/camille/1000Genomes/src/VCFPooling/examples/IMP.chr20.snps.gt.vcf.gz'
     df = PandasMixedVCF(vcf, format='GT')
