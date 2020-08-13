@@ -24,16 +24,16 @@ from persotools.files import delete_file, mkdir
 
 '''
 Parallelized file processing
-For VCF-file bigger than some dozen of thousands of variants (e.g. 1 million SNPs).
+For VCF-file bigger than some dozen of thousands of varaiants (e.g. 1 million SNPs).
 To be run on Rackham at Uppmax.
 
 Steps:
 * Read main vcf and write chunks: bash script based on bcftools
-* Simulate pooling on chunks and decode into GP
+* Simulate pooling on chunks and decode into GT
 * Merge pooled chunks back to read-for-use compressed VCF file
 
 Usage: 
-$ python3 parallel_pooling_20200624.py /home/camille/PoolImpHuman/data/omniexpress/ALL.chr20.snps.gt.vcf.gz /home/camille/PoolImpHuman/data/omniexpress/ALL.chr20.pooled.snps.gl.vcf.gz 4
+$ python3 parallel_pooling_20200624.py /home/camille/PoolImpHuman/data/omniexpress/ALL.chr20.snps.gt.vcf.gz /home/camille/PoolImpHuman/data/omniexpress/ALL.chr20.pooled.snps.gt.vcf.gz 4
 '''
 
 ### COMMAND-LINE PARSING AND PARAMETERS
@@ -99,7 +99,7 @@ args1 = list(zip([os.path.join(wd, f0) for f0 in files0],
                  repeat(tmp_path, len(indices))))  # directory for temporary output
 
 with mp.Pool(processes=nb_cores) as mpool:
-    _ = all(mpool.starmap(poolvcf.pysam_pooler_gp, args1))
+    _ = all(mpool.starmap(poolvcf.pysam_pooler_gt, args1))
 
 print('\r\nTime elapsed --> ', timeit.default_timer() - start)
 
