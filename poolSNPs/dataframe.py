@@ -183,6 +183,12 @@ class PandasMixedVCF(object):
         maf = self.aaf_to_maf(dfaaf['aaf'])
         return maf.to_frame()
 
+    @property
+    def maf_info(self):
+        dfafinfo = self.af_info
+        maf = self.aaf_to_maf(dfafinfo['af_info'], name='maf_info')
+        return maf.to_frame()
+
 
 if __name__=='__main__':
     vcf = '/home/camille/1000Genomes/src/VCFPooling/examples/IMP.chr20.snps.gt.vcf.gz'

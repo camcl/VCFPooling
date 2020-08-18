@@ -18,7 +18,7 @@ Usage:
 $ python3 -u imputation_quality.py <path to directory> <VCF file with true genotypes> <VCF file with imputed genotypes> <path to script converting GT to GL> <ID type for variants>
 
 Ex.
-$ python3 -u ../poolSNPs/imputation_quality.py ./ IMP.chr20.snps.gt.vcf.gz IMP.chr20.pooled.imputed.vcf.gz ../bin/gt_to_gl.sh 'id'
+$ python3 -u ../poolSNPs/imputation_quality_maf.py ./ IMP.chr20.snps.gt.vcf.gz IMP.chr20.pooled.imputed.vcf.gz ../bin/gt_to_gl.sh 'id'
 """
 
 parser = argparse.ArgumentParser(description='Compute and plot'
@@ -58,7 +58,7 @@ except KeyError:
     entro = None
 
 tabbeaglegl = pd.concat([qbeaglegt.concordance(),
-                         qbeaglegt.trueobj.af_info,
+                         qbeaglegt.trueobj.maf_info,
                          qbeaglegt.pearsoncorrelation(),
                          qbeaglegt.precision,
                          qbeaglegt.accuracy,
@@ -72,18 +72,18 @@ tabbeaglegl.head()
 plt.rcParams["figure.figsize"] = [5*4, 4*2]
 fig, axes = plt.subplots(2, 4)
 
-tabbeaglegl.plot.scatter('af_info', 'precision_score', ax=axes[0, 0], s=0.7, label='beaglegl')
+tabbeaglegl.plot.scatter('maf_info', 'precision_score', ax=axes[0, 0], s=0.7, label='beaglegl')
 axes[0, 0].set_ylim(0.0, 1.0)
-tabbeaglegl.plot.scatter('af_info', 'accuracy_score', ax=axes[0, 1], s=0.7, label='beaglegl')
+tabbeaglegl.plot.scatter('maf_info', 'accuracy_score', ax=axes[0, 1], s=0.7, label='beaglegl')
 axes[0, 1].set_ylim(0.0, 1.0)
-tabbeaglegl.plot.scatter('af_info', 'concordance', ax=axes[0, 2], s=0.7, label='beaglegl')
+tabbeaglegl.plot.scatter('maf_info', 'concordance', ax=axes[0, 2], s=0.7, label='beaglegl')
 axes[0, 2].set_ylim(0.0, 1.0)
-tabbeaglegl.plot.scatter('af_info', 'f1_score', ax=axes[0, 3], s=0.7, label='beaglegl')
+tabbeaglegl.plot.scatter('maf_info', 'f1_score', ax=axes[0, 3], s=0.7, label='beaglegl')
 axes[0, 3].set_ylim(0.0, 1.0)
-tabbeaglegl.plot.scatter('af_info', 'r_squared', ax=axes[1, 0], s=0.7, label='beaglegl')
+tabbeaglegl.plot.scatter('maf_info', 'r_squared', ax=axes[1, 0], s=0.7, label='beaglegl')
 axes[1, 0].set_ylim(-0.2, 1.0)
 if entro is not None:
-    tabbeaglegl.plot.scatter('af_info', 'cross_entropy', ax=axes[1, 1], s=0.7, label='beaglegl')
+    tabbeaglegl.plot.scatter('maf_info', 'cross_entropy', ax=axes[1, 1], s=0.7, label='beaglegl')
     axes[1, 1].set_ylim(-0.5, 5.0)
 axes[1, 2].scatter(dosbeaglegl[0], dosbeaglegl[1], s=0.7, label='beaglegl')
 axes[1, 2].set_xlabel('true allele dosage')
@@ -94,5 +94,5 @@ for ax in axes.flatten()[:-2]:
     # cast color to white 'w' if dark background
     ax.set_xlabel('true alternate allele frequency', color='k')
     ax.set_ylabel(ax.get_ylabel(), color='w')
-plt.savefig(os.path.join(os.path.dirname(paths['beaglegt']['imputed']), 'imputation_quality_gtgl.pdf'))
+plt.savefig(os.path.join(os.path.dirname(paths['beaglegt']['imputed']), 'imputation_quality_maf_gtgl.pdf'))
 plt.show()
