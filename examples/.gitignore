@@ -20,7 +20,6 @@ IMP.chr20.snps.gl.vcf.gz
 IMP.chr20.snps.gl.vcf.gz.csi
 IMP.chr20.snps.gt.vcf.gz
 IMP.chr20.snps.gt.vcf.gz.csi
-imputation_quality_gtgl.png
 REF.chr20.phased.dedup.vcf.gz
 REF.chr20.phased.dedup.vcf.gz.csi
 REF.chr20.phased.vcf.gz.csi
@@ -31,6 +30,8 @@ reference.panel
 study.population
 
 # Example EDA
-eda_pooled_gt.png
 IMP.chr20.pooled.snps.gt.vcf.gz
 IMP.chr20.pooled.snps.gt.vcf.gz.csi
+
+# Plots
+*pdf

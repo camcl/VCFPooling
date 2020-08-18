@@ -176,7 +176,7 @@ def scatter_joint(df: pd.DataFrame, variable: str, ylabel: str, figtitle: str, f
     """
     sns.set(style="white", color_codes=True)
     g = sns.jointplot("af_info", variable, data=df,  # figure data
-                      kind="scatter", color='0.5', s=10, edgecolor="w", linewidth=1,  # scatterplot params
+                      kind="hex", color='0.2', #s=10, edgecolor="w", linewidth=1,  # scatterplot params
                       marginal_kws=dict(bins=x_bins, hist=True, color='0.3'),  # distplot params
                       height=figsize, space=0, ratio=3)  # figure layout params
     g.set_axis_labels("Estimated alternate allele frequency in main population",
