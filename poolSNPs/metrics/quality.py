@@ -354,8 +354,90 @@ class QualityGL(object):
         return pd.Series(score, index=self.trueobj.variants, name='cross_entropy')
 
 
+class PercentilesDataFrame(object):
+    """
+    Builds a DataFrame with percentiles values over bins for a given Quality data Series object
+    and its AF_INFO/MAF_INFO data Series
+    """
+    def __init__(self, dX: pd.DataFrame, dY: pd.Series):
+        assert (dX.columns[0] == 'maf_info' or dX.columns[0] == 'af_info')
+        self.dX = dX
+        self.dY = dY.to_frame()
+        self.x_data = dX.columns[0]
+        self.y_data = dY.name
+
+        bins_step = 0.01
+        self.y_bins = np.arange(0.0, 1.0 + bins_step, bins_step)
+        self.y_bins_labels = (np.diff(self.y_bins) / 2) + self.y_bins[:-1]
+        self.x_bins = np.arange(0.0, 0.5 + bins_step, bins_step) if self.x_data == 'maf_info' \
+            else np.arange(0.0, 1.0 + bins_step, bins_step)
+        self.x_bins_labels = (np.diff(self.x_bins) / 2) + self.x_bins[:-1]
+
+        self.percentiles = np.array([0, 1, 10, 50, 90, 99, 100])
+
+    @property
+    def binnedX(self):
+        binx = pd.cut(self.dX.values.squeeze(), bins=self.x_bins, labels=self.x_bins_labels)
+        return pd.DataFrame(binx, index=self.dX.index, columns=['binned_' + self.x_data])
+
+    @property
+    def binnedY(self):
+        biny = pd.cut(self.dY.values.squeeze(), bins=self.y_bins, labels=self.y_bins_labels)
+        return pd.DataFrame(biny, index=self.dY.index, columns=['binned_' + self.y_data])
+
+    @property
+    def percentilY(self):
+        df = self.binnedX.join(self.dY)
+        pdf = df.groupby(['binned_' + self.x_data]).quantile(self.percentiles/100)
+        pdf = pdf.reset_index()
+        pdf.columns = ['binned_' + self.x_data, 'percentiles', self.y_data]
+        pdf.astype(float, copy=False)
+        return pdf
+
+    @property
+    def percentilX(self):
+        df = self.binnedY.join(self.dX)
+        pdf = df.groupby(['binned_' + self.y_data]).quantile(self.percentiles / 100)
+        pdf = pdf.reset_index()
+        pdf.columns = ['binned_' + self.y_data, 'percentiles', self.x_data]
+        pdf.astype(float, copy=False)
+        return pdf
+
+
 if __name__=='__main__':
-    true = '/home/camille/1000Genomes/src/VCFPooling/examples/IMP.chr20.snps.gt.vcf.gz'
-    imputed = '/home/camille/1000Genomes/src/VCFPooling/examples/IMP.chr20.pooled.snps.gl.vcf.gz'
+    import seaborn as sns
+    import matplotlib.pyplot as plt
+
+    # true = '/home/camille/1000Genomes/src/VCFPooling/examples/IMP.chr20.snps.gt.vcf.gz'
+    # imputed = '/home/camille/1000Genomes/src/VCFPooling/examples/IMP.chr20.pooled.imputed.vcf.gz'
+
+    true = '/home/camille/PoolImpHuman/data/20200722/IMP.chr20.snps.gt.vcf.gz'
+    imputed = '/home/camille/PoolImpHuman/data/20200722/IMP.chr20.pooled.imputed.vcf.gz'
+
     qbeaglegt = QualityGT(true, imputed, 0, idx='id')
     print(qbeaglegt.trueobj.af_info)
+
+    mafS = qbeaglegt.trueobj.maf_info
+    yS = qbeaglegt.concordance()
+    pdf = PercentilesDataFrame(mafS, yS)
+    print(pdf.percentilY)
+    print(pdf.percentilX)
+    print(pdf.percentilX.dropna())
+
+    dash_styles = [
+        (1, 1),
+        (3, 1, 1.5, 1),
+        (5, 1, 1, 1),
+        (5, 1, 2, 1, 2, 1),
+        (2, 2, 3, 1.5),
+        (1, 2.5, 3, 1.2),
+        "",
+        (4, 1.5),
+    ]
+
+    gY = sns.lineplot(data=pdf.percentilY, x='binned_maf_info', y='concordance',
+                      style='percentiles', dashes=dash_styles, palette="GnBu_d", linewidth=.5)
+    plt.show()
+    gX = sns.lineplot(data=pdf.percentilX.dropna(), y='maf_info', x='binned_concordance',
+                      style='percentiles', dashes=dash_styles, palette="GnBu_d", linewidth=.5)
+    plt.show()
