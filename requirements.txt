@@ -1,0 +1,4 @@
+pandas >= 1.10
+pysam
+numpy
+seaborn
