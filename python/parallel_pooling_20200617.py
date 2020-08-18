@@ -97,7 +97,7 @@ args1 = list(zip([os.path.join(wd, f0) for f0 in files0],
                  repeat(tmp_path, len(indices))))  # directory for temporary output
 
 with mp.Pool(processes=nb_cores) as mpool:
-    _ = all(mpool.starmap(poolvcf.pysam_pooler, args1))
+    _ = all(mpool.starmap(poolvcf.pysam_pooler_gp, args1))
 
 print('\r\nTime elapsed --> ', timeit.default_timer() - start)
 
