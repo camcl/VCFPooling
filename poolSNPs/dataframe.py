@@ -16,7 +16,6 @@ Building pandas Dataframes from VCF-files for plotting
 
 
 class PandasMixedVCF(object):
-    #TODO: implement aaf property
     """
     Pandas objects and methods for manipulating VCF files. Any format.
     Implements pysam methods into Pandas structures.
@@ -173,10 +172,16 @@ class PandasMixedVCF(object):
         return df
 
     @staticmethod
-    def aaf_to_maf(s: pd.Series, suffix: str = ''):
+    def aaf_to_maf(s: pd.Series, name: str = 'maf'):
         func = lambda x: x if x <= 0.5 else 1 - x
-        mafs = s.apply(func).rename(s.name + suffix)
+        mafs = s.apply(func).rename(name)
         return mafs
+
+    @property
+    def maf(self):
+        dfaaf = self.aaf
+        maf = self.aaf_to_maf(dfaaf['aaf'])
+        return maf.to_frame()
 
 
 if __name__=='__main__':
