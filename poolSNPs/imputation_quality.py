@@ -1,6 +1,7 @@
 import sys, os
 rootdir = os.path.dirname(os.path.dirname(os.getcwd()))
-sys.path.insert(0, rootdir)
+print(rootdir)
+sys.path.insert(0, '/home/camille/1000Genomes/src')
 import pandas as pd
 import numpy as np
 
@@ -13,7 +14,7 @@ import matplotlib.pyplot as plt
 """
 Compute results with customized metrics from true vs. imputed data sets
 ex.
-$ python3 -u imputation_quality.py<path to directory> <VCF file with true genotypes> <VCF file with imputed genotypes> <path to script converting GT to GL>
+$ python3 -u imputation_quality.py <path to directory> <VCF file with true genotypes> <VCF file with imputed genotypes> <path to script converting GT to GL> <ID type for variants>
 """
 
 parser = argparse.ArgumentParser(description='Compute and plot'
@@ -46,7 +47,11 @@ if convertgtgl:
 
 qbeaglegt = quality.QualityGT(*paths['beaglegt'].values(), 0, idx=idt)
 qbeaglegl = quality.QualityGL(paths['beaglegl']['true'], paths['beaglegl']['imputed'], 0, idx=idt)
-messbeagle = qbeaglegl.cross_entropy
+
+try:
+    entro = qbeaglegl.cross_entropy
+except KeyError:
+    entro = None
 
 tabbeaglegl = pd.concat([qbeaglegt.concordance(),
                          qbeaglegt.trueobj.af_info,
@@ -55,7 +60,7 @@ tabbeaglegl = pd.concat([qbeaglegt.concordance(),
                          qbeaglegt.accuracy,
                          qbeaglegt.recall,
                          qbeaglegt.f1_score,
-                         qbeaglegl.cross_entropy], axis=1)
+                         entro], axis=1)
 dosbeaglegl = qbeaglegt.alleledosage()
 
 tabbeaglegl.head()
@@ -73,8 +78,9 @@ tabbeaglegl.plot.scatter('af_info', 'f1_score', ax=axes[0, 3], s=0.7, label='bea
 axes[0, 3].set_ylim(0.0, 1.0)
 tabbeaglegl.plot.scatter('af_info', 'r_squared', ax=axes[1, 0], s=0.7, label='beaglegl')
 axes[1, 0].set_ylim(-0.2, 1.0)
-tabbeaglegl.plot.scatter('af_info', 'cross_entropy', ax=axes[1, 1], s=0.7, label='beaglegl')
-axes[1, 1].set_ylim(-0.5, 5.0)
+if entro is not None:
+    tabbeaglegl.plot.scatter('af_info', 'cross_entropy', ax=axes[1, 1], s=0.7, label='beaglegl')
+    axes[1, 1].set_ylim(-0.5, 5.0)
 axes[1, 2].scatter(dosbeaglegl[0], dosbeaglegl[1], s=0.7, label='beaglegl')
 axes[1, 2].set_xlabel('true allele dosage')
 axes[1, 2].set_ylabel('imputed allele dosage')
@@ -82,7 +88,7 @@ axes[1, 2].set_ylim(0.0, 2.0)
 
 for ax in axes.flatten()[:-2]:
     # cast color to white 'w' if dark background
-    ax.set_xlabel('true alternate allele frequency', color='w')
+    ax.set_xlabel('true alternate allele frequency', color='k')
     ax.set_ylabel(ax.get_ylabel(), color='w')
 plt.savefig(os.path.join(os.path.dirname(paths['beaglegt']['imputed']), 'imputation_quality_gtgl.png'))
 plt.show()
