@@ -1,5 +1,5 @@
 """
-Metrics for assessing imputation quality?
+Metrics for assessing imputation quality
 
 Het/Hom ratio
 
@@ -33,8 +33,8 @@ Expected number of counts of allele A: g = (2*n_A/A + n_A/B)/I
 
     1) Genotype Quality Score: GQS = n_IG /I,
     n_IG = number of iterations where the given genotype was selected as the most likely one
-    This quantity can be averaged over all genotypes for a
-    particular marker to quantify the average accuracy of imputation for that marker
+    This ity can be averaged over all genotypes for a
+    particular marker to ify the average accuracy of imputation for that marker
 
     2) Accuracy: alpha = sum(GQS_i, i=1:N)/N,
     N number of individuals
@@ -42,7 +42,7 @@ Expected number of counts of allele A: g = (2*n_A/A + n_A/B)/I
     3) R²: E(r² with true genotypes) = Var(g)/((4*n_A/A + n_A/B)/I - [(2*n_A/A + n_A/B)/I]²),
     Estimated r² with true genotypes, Var(g) be the variance of estimated genotype:
     a better measure of imputation quality for a marker is the estimated r² between
-    true allele counts and estimated allele counts. This quantity can be estimated by
+    true allele counts and estimated allele counts. This ity can be estimated by
     comparing the variance of the estimated genotype scores with what would be expected if
     genotype scores were observed without error.
 
@@ -102,11 +102,12 @@ rootdir = os.path.dirname(os.path.dirname(os.path.dirname(os.getcwd())))
 sys.path.insert(0, rootdir)
 
 from VCFPooling.poolSNPs import dataframe as vcfdf
+from VCFPooling.poolSNPs.metrics.misc import normalize, min_max_scale
 from VCFPooling.persotools.files import *
 
 ArrayLike = NewType('ArrayLike', Union[Sequence, List, Set, Tuple, Iterable, np.ndarray, int, float, str])
 
-#TODO: coming later: evaluate phase/switch rate
+#TODO: evaluate phase/switch rate
 
 
 class QualityGT(object):
@@ -174,15 +175,12 @@ class QualityGT(object):
         i.e. 1 - the Z-norm of the absolute difference of true vs. imputed genotypes?
         :return:
         """
-        absdiff = self.diff()
-        normer = lambda x: np.linalg.norm(x)
-        # scipy.stats.zscore?
-        # np.mean?
-        # np.linalg.norm --> accuracy = recall
-        normdiff = zscore(absdiff, axis=1)
-        score = 1.0 - np.mean(absdiff, axis=1)
-        norm = np.apply_along_axis(normer, 1, absdiff)
-        return pd.Series(score, index=self.trueobj.variants, name='concordance')
+        absdiff = self.diff()  # equals 0 when true = imputed
+        absdiffnorm = absdiff.apply(min_max_scale, axis=1, raw=True)
+        discord_score = absdiffnorm.mean(axis=1)  # discordance
+        concord_score = 1 - discord_score  # concordance = 1 - discordance
+        concord = pd.Series(concord_score, index=self.trueobj.variants, name='concordance')
+        return concord
 
     @staticmethod
     def expectation(a: np.ndarray, freq: np.ndarray):
@@ -354,9 +352,9 @@ class QualityGL(object):
         return pd.Series(score, index=self.trueobj.variants, name='cross_entropy')
 
 
-class PercentilesDataFrame(object):
+class quantilesDataFrame(object):
     """
-    Builds a DataFrame with percentiles values over bins for a given Quality data Series object
+    Builds a DataFrame with quantiles values over bins for a given Quality data Series object
     and its AF_INFO/MAF_INFO data Series
     """
     def __init__(self, dX: pd.DataFrame, dY: pd.Series):
@@ -373,7 +371,7 @@ class PercentilesDataFrame(object):
             else np.arange(0.0, 1.0 + bins_step, bins_step)
         self.x_bins_labels = (np.diff(self.x_bins) / 2) + self.x_bins[:-1]
 
-        self.percentiles = np.array([0, 1, 10, 50, 90, 99, 100])
+        self.quantiles = np.array([0, 1, 10, 50, 90, 99, 100])
 
     @property
     def binnedX(self):
@@ -386,20 +384,20 @@ class PercentilesDataFrame(object):
         return pd.DataFrame(biny, index=self.dY.index, columns=['binned_' + self.y_data])
 
     @property
-    def percentilY(self):
+    def quantilY(self):
         df = self.binnedX.join(self.dY)
-        pdf = df.groupby(['binned_' + self.x_data]).quantile(self.percentiles/100)
+        pdf = df.groupby(['binned_' + self.x_data]).quantile(self.quantiles/100)
         pdf = pdf.reset_index()
-        pdf.columns = ['binned_' + self.x_data, 'percentiles', self.y_data]
+        pdf.columns = ['binned_' + self.x_data, 'quantiles', self.y_data]
         pdf.astype(float, copy=False)
         return pdf
 
     @property
-    def percentilX(self):
+    def quantilX(self):
         df = self.binnedY.join(self.dX)
-        pdf = df.groupby(['binned_' + self.y_data]).quantile(self.percentiles / 100)
+        pdf = df.groupby(['binned_' + self.y_data]).quantile(self.quantiles / 100)
         pdf = pdf.reset_index()
-        pdf.columns = ['binned_' + self.y_data, 'percentiles', self.x_data]
+        pdf.columns = ['binned_' + self.y_data, 'quantiles', self.x_data]
         pdf.astype(float, copy=False)
         return pdf
 
@@ -409,20 +407,36 @@ if __name__=='__main__':
     import matplotlib.pyplot as plt
 
     # true = '/home/camille/1000Genomes/src/VCFPooling/examples/IMP.chr20.snps.gt.vcf.gz'
-    # imputed = '/home/camille/1000Genomes/src/VCFPooling/examples/IMP.chr20.pooled.imputed.vcf.gz'
+    # imputed_beagle = '/home/camille/1000Genomes/src/VCFPooling/examples/IMP.chr20.pooled.imputed.vcf.gz'
 
     true = '/home/camille/PoolImpHuman/data/20200722/IMP.chr20.snps.gt.vcf.gz'
-    imputed = '/home/camille/PoolImpHuman/data/20200722/IMP.chr20.pooled.imputed.vcf.gz'
+    imputed_beagle = '/home/camille/PoolImpHuman/data/20200722/IMP.chr20.pooled.imputed.vcf.gz'
+    imputed_phaser = '/home/camille/PoolImpHuman/data/20200817/IMP.chr20.pooled.imputed.vcf.gz'
 
-    qbeaglegt = QualityGT(true, imputed, 0, idx='id')
+    qbeaglegt = QualityGT(true, imputed_beagle, 0, idx='chrom:pos')
+
+    bgldiff = qbeaglegt.diff()
+
+    qphasergt = QualityGT(true, imputed_phaser, 0, idx='chrom:pos')
     print(qbeaglegt.trueobj.af_info)
 
     mafS = qbeaglegt.trueobj.maf_info
-    yS = qbeaglegt.concordance()
-    pdf = PercentilesDataFrame(mafS, yS)
-    print(pdf.percentilY)
-    print(pdf.percentilX)
-    print(pdf.percentilX.dropna())
+
+    yS_beagle = qbeaglegt.concordance()  # .accuracy
+    pdf_beagle = quantilesDataFrame(mafS, yS_beagle)
+    pctY_beagle = pdf_beagle.quantilY
+    pctY_beagle['dataset'] = ['beagle'] * pctY_beagle.shape[0]
+
+    yS_phaser = qphasergt.concordance()  # .accuracy
+    pdf_phaser = quantilesDataFrame(mafS, yS_phaser)
+    pctY_phaser = pdf_phaser.quantilY
+    pctY_phaser['dataset'] = ['phaser'] * pctY_phaser.shape[0]
+
+    pctY_comp = pd.concat([pctY_beagle, pctY_phaser])
+
+    print(pdf_beagle.quantilY)
+    print(pdf_beagle.quantilX)
+    print(pdf_beagle.quantilX.dropna())
 
     dash_styles = [
         (1, 1),
@@ -435,9 +449,14 @@ if __name__=='__main__':
         (4, 1.5),
     ]
 
-    gY = sns.lineplot(data=pdf.percentilY, x='binned_maf_info', y='concordance',
-                      style='percentiles', dashes=dash_styles, palette="GnBu_d", linewidth=.5)
-    plt.show()
-    gX = sns.lineplot(data=pdf.percentilX.dropna(), y='maf_info', x='binned_concordance',
-                      style='percentiles', dashes=dash_styles, palette="GnBu_d", linewidth=.5)
+    # gY = sns.lineplot(data=pdf.quantilY, x='binned_maf_info', y='accuracy_score',
+    #                   style='quantiles', dashes=dash_styles, palette="GnBu_d", linewidth=.8)
+    # plt.show()
+    # gX = sns.lineplot(data=pdf_beagle.quantilX, y='maf_info', x='binned_accuracy_score',
+    #                   style='quantiles', dashes=dash_styles, palette="GnBu_d", linewidth=.8)
+    # plt.show()
+
+    g = sns.lineplot(data=pctY_comp, x='binned_maf_info', y='concordance',
+                     style='quantiles', hue='dataset',
+                     dashes=dash_styles, palette="deep", linewidth=.8)
     plt.show()

@@ -21,11 +21,30 @@ ArrayLike = NewType('ArrayLike', Union[Sequence, List, Set, Tuple, Iterable, np.
 
 
 def normalize(v: np.ndarray) -> np.ndarray:
+    """
+    :param v: 1d-array
+    """
     normv = np.linalg.norm(v)
     if normv == 0.0:
         return v
     else:
         return v/normv
+
+
+def min_max_scale(v: np.ndarray) -> np.ndarray:
+    """
+    Min-Max scaling = unity-based normalization.
+    Brings all values into the range [0,1].
+    :param v: 1d-array
+    """
+    minv = np.min(v)
+    maxv = np.max(v)
+    maxmin = maxv - minv
+    if maxmin == 0.0:
+        return v
+    else:
+        return (v - minv) / maxmin
+
 
 def shannons_index(a: np.ndarray) -> float:
     """
