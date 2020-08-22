@@ -119,6 +119,28 @@ class PandasMixedVCF(object):
 
         return dftrinary
 
+    def hexa_encoding(self) -> pd.DataFrame:
+        """
+        Encode the GT genotypes as follows:
+            * 0, 0 -> 0.0
+            * 0, 1 -> 1.0
+            * 1, 1 -> 2.0
+            * None, None -> -1.0
+            * 1, None -> 0.5
+            * 0, None -> -0.5
+        """
+        # TODO: fmt GT only!
+        vcfobj = self.load()
+        vars = self.variants
+        arr = np.empty((len(vars), len(self.samples)), dtype=float)
+        for i, var in enumerate(vcfobj):
+            # missing are read as None
+            gts = np.array([g[self.fmt] for g in var.samples.values()]).astype(float)
+            arr[i, :] = np.nan_to_num(gts, nan=-0.5).sum(axis=-1)
+        dfhexa = pd.DataFrame(arr, index=vars, columns=self.samples, dtype=float)
+
+        return dfhexa
+
     @property
     def missing_rate(self):
         trico = self.trinary_encoding()
