@@ -95,7 +95,8 @@ import os, sys
 import numpy as np
 import pandas as pd
 from scipy.stats import pearsonr, zscore
-from sklearn import metrics
+from scipy.special import softmax
+from sklearn import metrics, preprocessing
 from typing import *
 
 rootdir = os.path.dirname(os.path.dirname(os.path.dirname(os.getcwd())))
@@ -175,8 +176,10 @@ class QualityGT(object):
         i.e. 1 - the Z-norm of the absolute difference of true vs. imputed genotypes?
         :return:
         """
-        absdiff = self.diff()  # equals 0 when true = imputed
-        absdiffnorm = absdiff.apply(min_max_scale, axis=1, raw=True)
+        # absdiff = self.diff()  # equals 0 when true = imputed, else can be 1 or 2 (very unlikely 2?)
+        absdiff = self.diff() / 2  # restricts values to 0.0, 0.5, 1.0
+        # absdiffnorm = absdiff.apply(min_max_scale, axis=1, raw=True)  # homemade minmax scaler
+        absdiffnorm = absdiff.apply(preprocessing.minmax_scale, axis=1, raw=True)  # sklearn minmax scaler
         discord_score = absdiffnorm.mean(axis=1)  # discordance
         concord_score = 1 - discord_score  # concordance = 1 - discordance
         concord = pd.Series(concord_score, index=self.trueobj.variants, name='concordance')
@@ -352,26 +355,26 @@ class QualityGL(object):
         return pd.Series(score, index=self.trueobj.variants, name='cross_entropy')
 
 
-class quantilesDataFrame(object):
+class QuantilesDataFrame(object):
     """
     Builds a DataFrame with quantiles values over bins for a given Quality data Series object
     and its AF_INFO/MAF_INFO data Series
     """
-    def __init__(self, dX: pd.DataFrame, dY: pd.Series):
-        assert (dX.columns[0] == 'maf_info' or dX.columns[0] == 'af_info')
+    def __init__(self, dX: pd.DataFrame, dY: pd.Series, bins_step: float = 0.01):
+        # assert dX.columns[0] in ['maf_info', 'af_info', 'maf', 'aaf']
         self.dX = dX
         self.dY = dY.to_frame()
         self.x_data = dX.columns[0]
         self.y_data = dY.name
 
-        bins_step = 0.01
         self.y_bins = np.arange(0.0, 1.0 + bins_step, bins_step)
         self.y_bins_labels = (np.diff(self.y_bins) / 2) + self.y_bins[:-1]
-        self.x_bins = np.arange(0.0, 0.5 + bins_step, bins_step) if self.x_data == 'maf_info' \
+        self.x_bins = np.arange(0.0, 0.5 + bins_step, bins_step) if self.x_data in ['maf_info', 'maf'] \
             else np.arange(0.0, 1.0 + bins_step, bins_step)
         self.x_bins_labels = (np.diff(self.x_bins) / 2) + self.x_bins[:-1]
 
-        self.quantiles = np.array([0, 1, 10, 50, 90, 99, 100])
+        # self.quantiles = np.array([0.0, 0.01, 0.1, 0.5, 0.9, 0.99, 1.0])
+        self.quantiles = np.array([0.0, 0.01, 0.25, 0.5, 0.75, 0.99, 1.0])
 
     @property
     def binnedX(self):
@@ -386,7 +389,7 @@ class quantilesDataFrame(object):
     @property
     def quantilY(self):
         df = self.binnedX.join(self.dY)
-        pdf = df.groupby(['binned_' + self.x_data]).quantile(self.quantiles/100)
+        pdf = df.groupby(['binned_' + self.x_data]).quantile(self.quantiles)
         pdf = pdf.reset_index()
         pdf.columns = ['binned_' + self.x_data, 'quantiles', self.y_data]
         pdf.astype(float, copy=False)
@@ -395,49 +398,82 @@ class quantilesDataFrame(object):
     @property
     def quantilX(self):
         df = self.binnedY.join(self.dX)
-        pdf = df.groupby(['binned_' + self.y_data]).quantile(self.quantiles / 100)
+        pdf = df.groupby(['binned_' + self.y_data]).quantile(self.quantiles)
         pdf = pdf.reset_index()
         pdf.columns = ['binned_' + self.y_data, 'quantiles', self.x_data]
         pdf.astype(float, copy=False)
         return pdf
+
+    def rolling_quantilY(self, rollwin: int = 10):
+        df = self.dX.join(self.dY).sort_values(by=self.x_data, axis=0)
+        rollX = df[self.x_data].rolling(window=rollwin)
+        rollY = df[self.y_data].rolling(window=rollwin)
+
+        rollmean = rollX.mean().to_frame()
+        dquants = []
+        for quant in self.quantiles:
+            rollq = rollY.quantile(quant).to_frame()
+            rollq['quantiles'] = [quant] * rollq.shape[0]
+            rollq = rollmean.join(rollq)
+            dquants.append(rollq)
+
+        dfroll = pd.concat(dquants, axis=0).dropna()
+        return dfroll
+
+    def binnedX_rolling_quantilY(self, rollwin: int = 10):
+        dfroll = self.rolling_quantilY(rollwin=rollwin)
+        binx = pd.cut(dfroll[self.x_data].values.squeeze(), bins=self.x_bins, labels=self.x_bins_labels)
+        dfrollbin = pd.DataFrame(binx, index=dfroll.index, columns=['binned_' + self.x_data])
+        dfrollbin = dfrollbin.join(dfroll[[self.y_data, 'quantiles']])
+        df = dfrollbin.groupby(['binned_' + self.x_data, 'quantiles']).mean().reset_index()
+        return df
+
 
 
 if __name__=='__main__':
     import seaborn as sns
     import matplotlib.pyplot as plt
 
-    # true = '/home/camille/1000Genomes/src/VCFPooling/examples/IMP.chr20.snps.gt.vcf.gz'
-    # imputed_beagle = '/home/camille/1000Genomes/src/VCFPooling/examples/IMP.chr20.pooled.imputed.vcf.gz'
+    true = '/home/camille/1000Genomes/src/VCFPooling/examples/IMP.chr20.snps.gt.vcf.gz'
+    imputed_beagle = '/home/camille/1000Genomes/src/VCFPooling/examples/IMP.chr20.pooled.imputed.vcf.gz'
+    true = imputed_beagle
 
-    true = '/home/camille/PoolImpHuman/data/20200722/IMP.chr20.snps.gt.vcf.gz'
-    imputed_beagle = '/home/camille/PoolImpHuman/data/20200722/IMP.chr20.pooled.imputed.vcf.gz'
-    imputed_phaser = '/home/camille/PoolImpHuman/data/20200817/IMP.chr20.pooled.imputed.vcf.gz'
+    # true = '/home/camille/PoolImpHuman/data/20200722/IMP.chr20.snps.gt.vcf.gz'
+    # imputed_beagle = '/home/camille/PoolImpHuman/data/20200722/IMP.chr20.pooled.imputed.vcf.gz'
+    # imputed_phaser = '/home/camille/PoolImpHuman/data/20200817/IMP.chr20.pooled.imputed.vcf.gz'
 
     qbeaglegt = QualityGT(true, imputed_beagle, 0, idx='chrom:pos')
 
     bgldiff = qbeaglegt.diff()
 
-    qphasergt = QualityGT(true, imputed_phaser, 0, idx='chrom:pos')
+    # qphasergt = QualityGT(true, imputed_phaser, 0, idx='chrom:pos')
     print(qbeaglegt.trueobj.af_info)
 
     mafS = qbeaglegt.trueobj.maf_info
-
     yS_beagle = qbeaglegt.concordance()  # .accuracy
-    pdf_beagle = quantilesDataFrame(mafS, yS_beagle)
-    pctY_beagle = pdf_beagle.quantilY
+
+    # pdf_beagle = QuantilesDataFrame(mafS, yS_beagle)
+    # pctY_beagle = pdf_beagle.quantilY
+    # pctY_beagle['dataset'] = ['beagle'] * pctY_beagle.shape[0]
+
+    dfjoin = mafS.join(yS_beagle).sort_values(by='maf_info', axis=0)
+    dfrolled = dfjoin.rolling(window=10).mean().dropna()
+
+    pdf_beagle = QuantilesDataFrame(mafS, yS_beagle)
+    pctY_beagle = pdf_beagle.binnedX_rolling_quantilY()  # .quantilY
     pctY_beagle['dataset'] = ['beagle'] * pctY_beagle.shape[0]
 
-    yS_phaser = qphasergt.concordance()  # .accuracy
-    pdf_phaser = quantilesDataFrame(mafS, yS_phaser)
-    pctY_phaser = pdf_phaser.quantilY
-    pctY_phaser['dataset'] = ['phaser'] * pctY_phaser.shape[0]
+    # yS_phaser = qphasergt.concordance()  # .accuracy
+    # pdf_phaser = QuantilesDataFrame(mafS, yS_phaser)
+    # pctY_phaser = pdf_phaser.quantilY
+    # pctY_phaser['dataset'] = ['phaser'] * pctY_phaser.shape[0]
+    #
+    # pctY_comp = pd.concat([pctY_beagle, pctY_phaser])
+    #
+    # print(pctY_beagle)
 
-    pctY_comp = pd.concat([pctY_beagle, pctY_phaser])
-
-    print(pdf_beagle.quantilY)
-    print(pdf_beagle.quantilX)
-    print(pdf_beagle.quantilX.dropna())
-
+    sns.set(rc={'figure.figsize': (10, 8)})
+    sns.set_style('whitegrid')
     dash_styles = [
         (1, 1),
         (3, 1, 1.5, 1),
@@ -449,14 +485,22 @@ if __name__=='__main__':
         (4, 1.5),
     ]
 
-    # gY = sns.lineplot(data=pdf.quantilY, x='binned_maf_info', y='accuracy_score',
-    #                   style='quantiles', dashes=dash_styles, palette="GnBu_d", linewidth=.8)
-    # plt.show()
-    # gX = sns.lineplot(data=pdf_beagle.quantilX, y='maf_info', x='binned_accuracy_score',
-    #                   style='quantiles', dashes=dash_styles, palette="GnBu_d", linewidth=.8)
-    # plt.show()
+    gY = sns.lineplot(data=pctY_beagle[pctY_beagle.quantiles == 0.5], x='binned_maf_info', y='concordance',
+                      palette="deep", linewidth=1)
+    gY.fill_between(pctY_beagle[pctY_beagle.quantiles == 1.0]['binned_maf_info'],
+                    pctY_beagle[pctY_beagle.quantiles == 0.0]['concordance'],
+                    pctY_beagle[pctY_beagle.quantiles == 1.0]['concordance'],
+                    color=sns.color_palette('deep')[0],
+                    alpha=0.1)
+    gY.fill_between(pctY_beagle[pctY_beagle.quantiles == 0.99]['binned_maf_info'],
+                    pctY_beagle[pctY_beagle.quantiles == 0.01]['concordance'],
+                    pctY_beagle[pctY_beagle.quantiles == 0.99]['concordance'],
+                    color=sns.color_palette('deep')[0],
+                    alpha=0.25)
+    gY.fill_between(pctY_beagle[pctY_beagle.quantiles == 0.9]['binned_maf_info'],
+                    pctY_beagle[pctY_beagle.quantiles == 0.1]['concordance'],
+                    pctY_beagle[pctY_beagle.quantiles == 0.9]['concordance'],
+                    color=sns.color_palette('deep')[0],
+                    alpha=0.40)
 
-    g = sns.lineplot(data=pctY_comp, x='binned_maf_info', y='concordance',
-                     style='quantiles', hue='dataset',
-                     dashes=dash_styles, palette="deep", linewidth=.8)
     plt.show()

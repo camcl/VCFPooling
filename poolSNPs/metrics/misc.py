@@ -41,7 +41,7 @@ def min_max_scale(v: np.ndarray) -> np.ndarray:
     maxv = np.max(v)
     maxmin = maxv - minv
     if maxmin == 0.0:
-        return v
+        return 0.0
     else:
         return (v - minv) / maxmin
 
