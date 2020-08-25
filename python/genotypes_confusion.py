@@ -1,5 +1,8 @@
 """
 How does pooling confuse the data?
+
+Usage example:
+$ python3 -u genotypes_confusion.py /home/camille/PoolImpHuman/data/20200812/IMP.chr20.snps.gt.vcf.gz /home/camille/PoolImpHuman/data/20200812/IMP.chr20.pooled.snps.gt.vcf.gz /home/camille/PoolImpHuman/results/20200812
 """
 
 import numpy as np
@@ -23,9 +26,22 @@ from VCFPooling.poolSNPs import dataframe as vcfdf
 parser = argparse.ArgumentParser(description='Confusion matrices for genotypes states in pooled data')
 parser.add_argument('truefile', metavar='truef', type=str, help='File with true genotypes GT', default=None)
 parser.add_argument('pooledfile', metavar='pooledf', type=str, help='File with pooled genotypes decoded into GT', default=None)
+parser.add_argument('outdir', metavar='outdir', type=str, help='Directory to save the plots', default=None)
 argsin = parser.parse_args()
 
-# Plotting features
+truef = argsin.truefile
+# '/home/camille/1000Genomes/data/gt/stratified/IMP.chr20.snps.gt.chunk1000.vcf.gz'
+# '/home/camille/1000Genomes/src/VCFPooling/examples/IMP.chr20.snps.gt.vcf.gz'
+pooledf = argsin.pooledfile
+# '/home/camille/1000Genomes/data/gt/stratified/IMP.chr20.pooled.snps.gt.chunk1000.vcf.gz'
+# '/home/camille/1000Genomes/src/VCFPooling/examples/IMP.chr20.pooled.snps.gt.vcf.gz'
+outdir = argsin.outdir
+if not os.path.exists(outdir):
+    os.mkdir(outdir)
+print('\r\nFigures will be saved in {}'.format(outdir).ljust(80, '.'))
+
+
+# Plotting features and parameters
 true_genos = [0.0, 1.0, 2.0]
 true_labels = ['0/0', '0/1', '1/1']
 pooled_genos = [-1.0, -0.5, 0.5, 0.0, 1.0, 2.0]
@@ -39,13 +55,12 @@ heatmask = np.array([[False, False, True, False, True, True],
 x_bins = [0.0, 0.02, 0.04, 0.06, 0.1, 0.2, 0.4, 0.6, 0.8, 0.9, 0.94, 0.96, 0.98, 1.0]
 lab_bins = [0.01, 0.03, 0.05, 0.08, 0.15, 0.3, 0.5, 0.7, 0.85, 0.92, 0.95, 0.97, 0.99]
 
-truef = argsin.truefile
-# '/home/camille/1000Genomes/data/gt/stratified/IMP.chr20.snps.gt.chunk1000.vcf.gz'
-# '/home/camille/1000Genomes/src/VCFPooling/examples/IMP.chr20.snps.gt.vcf.gz'
-pooledf = argsin.pooledfile
-# '/home/camille/1000Genomes/data/gt/stratified/IMP.chr20.pooled.snps.gt.chunk1000.vcf.gz'
-# '/home/camille/1000Genomes/src/VCFPooling/examples/IMP.chr20.pooled.snps.gt.vcf.gz'
+figsize=4
+plt.rcParams["figure.figsize"] = [figsize*(len(x_bins)//2)*2, figsize*2]
 
+
+# Read and process data
+print('\r\nReading data from {} and {}'.format(truef, pooledf).ljust(80, '.'))
 dftrue = vcfdf.PandasMixedVCF(truef, format='GT')
 dfpooled = vcfdf.PandasMixedVCF(pooledf, format='GT')
 n_markers, n_samples = dftrue.genotypes().shape
@@ -64,8 +79,9 @@ pooled = pooled.join(binned_af)
 pooled['dataset'] = ['pooled'] * pooled.shape[0]
 pooled = pooled.reset_index().set_index(['variants', 'binned_af', 'dataset'])
 
-figsize=4
-plt.rcParams["figure.figsize"] = [figsize*(len(x_bins)//2)*2, figsize*2]
+
+# Plot processed data
+print('\r\nCounting genotypes and plotting results'.ljust(80, '.'))
 fig, axes = plt.subplots(2, len(x_bins)//2)
 
 for i, ax in enumerate(axes.flatten()):
@@ -136,5 +152,5 @@ for i, ax in enumerate(axes.flatten()):
         ax.set_xlabel('Pooled GT')
         ax.set_ylabel('True GT')
         ax.set_title('Allele frequency = {}'.format('all'))
-plt.savefig(os.path.join(os.path.dirname(pooledf), 'genotypes_confusion.pdf'))
+plt.savefig(os.path.join(outdir, 'genotypes_confusion.pdf'))
 plt.show()
