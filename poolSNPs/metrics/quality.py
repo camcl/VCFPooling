@@ -378,12 +378,16 @@ class QuantilesDataFrame(object):
 
     @property
     def binnedX(self):
-        binx = pd.cut(self.dX.values.squeeze(), bins=self.x_bins, labels=self.x_bins_labels)
+        binx = pd.cut(self.dX.values.squeeze(),
+                      bins=self.x_bins, labels=self.x_bins_labels,
+                      include_lowest=True)
         return pd.DataFrame(binx, index=self.dX.index, columns=['binned_' + self.x_data])
 
     @property
     def binnedY(self):
-        biny = pd.cut(self.dY.values.squeeze(), bins=self.y_bins, labels=self.y_bins_labels)
+        biny = pd.cut(self.dY.values.squeeze(),
+                      bins=self.y_bins, labels=self.y_bins_labels,
+                      include_lowest=True)
         return pd.DataFrame(biny, index=self.dY.index, columns=['binned_' + self.y_data])
 
     @property
@@ -433,10 +437,10 @@ class QuantilesDataFrame(object):
 if __name__=='__main__':
     import seaborn as sns
     import matplotlib.pyplot as plt
+    from scipy.stats import pearsonr, spearmanr
 
     true = '/home/camille/1000Genomes/src/VCFPooling/examples/IMP.chr20.snps.gt.vcf.gz'
     imputed_beagle = '/home/camille/1000Genomes/src/VCFPooling/examples/IMP.chr20.pooled.imputed.vcf.gz'
-    true = imputed_beagle
 
     # true = '/home/camille/PoolImpHuman/data/20200722/IMP.chr20.snps.gt.vcf.gz'
     # imputed_beagle = '/home/camille/PoolImpHuman/data/20200722/IMP.chr20.pooled.imputed.vcf.gz'
@@ -452,55 +456,47 @@ if __name__=='__main__':
     mafS = qbeaglegt.trueobj.maf_info
     yS_beagle = qbeaglegt.concordance()  # .accuracy
 
-    # pdf_beagle = QuantilesDataFrame(mafS, yS_beagle)
-    # pctY_beagle = pdf_beagle.quantilY
-    # pctY_beagle['dataset'] = ['beagle'] * pctY_beagle.shape[0]
+    afS = qbeaglegt.trueobj.aaf
+    y_true, y_imp = qbeaglegt.alleledosage()
 
-    dfjoin = mafS.join(yS_beagle).sort_values(by='maf_info', axis=0)
-    dfrolled = dfjoin.rolling(window=10).mean().dropna()
+    print(y_true)
+    print(y_imp)
 
-    pdf_beagle = QuantilesDataFrame(mafS, yS_beagle)
-    pctY_beagle = pdf_beagle.binnedX_rolling_quantilY()  # .quantilY
-    pctY_beagle['dataset'] = ['beagle'] * pctY_beagle.shape[0]
+    quant_true = QuantilesDataFrame(afS, y_true/2, bins_step=0.02)  # scale dosage to [0, 1]
+    quant_imp = QuantilesDataFrame(afS, y_imp / 2, bins_step=0.02)
 
-    # yS_phaser = qphasergt.concordance()  # .accuracy
-    # pdf_phaser = QuantilesDataFrame(mafS, yS_phaser)
-    # pctY_phaser = pdf_phaser.quantilY
-    # pctY_phaser['dataset'] = ['phaser'] * pctY_phaser.shape[0]
+    dfq_true = quant_true.binnedX.join(y_true)
+    print(dfq_true)
+
+    # sns.set(rc={'figure.figsize': (10, 8)})
+    # sns.set_style('whitegrid')
+    # dash_styles = [
+    #     (1, 1),
+    #     (3, 1, 1.5, 1),
+    #     (5, 1, 1, 1),
+    #     (5, 1, 2, 1, 2, 1),
+    #     (2, 2, 3, 1.5),
+    #     (1, 2.5, 3, 1.2),
+    #     "",
+    #     (4, 1.5),
+    # ]
     #
-    # pctY_comp = pd.concat([pctY_beagle, pctY_phaser])
+    # gY = sns.lineplot(data=pctY_beagle[pctY_beagle.quantiles == 0.5], x='binned_maf_info', y='concordance',
+    #                   palette="deep", linewidth=1)
+    # gY.fill_between(pctY_beagle[pctY_beagle.quantiles == 1.0]['binned_maf_info'],
+    #                 pctY_beagle[pctY_beagle.quantiles == 0.0]['concordance'],
+    #                 pctY_beagle[pctY_beagle.quantiles == 1.0]['concordance'],
+    #                 color=sns.color_palette('deep')[0],
+    #                 alpha=0.1)
+    # gY.fill_between(pctY_beagle[pctY_beagle.quantiles == 0.99]['binned_maf_info'],
+    #                 pctY_beagle[pctY_beagle.quantiles == 0.01]['concordance'],
+    #                 pctY_beagle[pctY_beagle.quantiles == 0.99]['concordance'],
+    #                 color=sns.color_palette('deep')[0],
+    #                 alpha=0.25)
+    # gY.fill_between(pctY_beagle[pctY_beagle.quantiles == 0.9]['binned_maf_info'],
+    #                 pctY_beagle[pctY_beagle.quantiles == 0.1]['concordance'],
+    #                 pctY_beagle[pctY_beagle.quantiles == 0.9]['concordance'],
+    #                 color=sns.color_palette('deep')[0],
+    #                 alpha=0.40)
     #
-    # print(pctY_beagle)
-
-    sns.set(rc={'figure.figsize': (10, 8)})
-    sns.set_style('whitegrid')
-    dash_styles = [
-        (1, 1),
-        (3, 1, 1.5, 1),
-        (5, 1, 1, 1),
-        (5, 1, 2, 1, 2, 1),
-        (2, 2, 3, 1.5),
-        (1, 2.5, 3, 1.2),
-        "",
-        (4, 1.5),
-    ]
-
-    gY = sns.lineplot(data=pctY_beagle[pctY_beagle.quantiles == 0.5], x='binned_maf_info', y='concordance',
-                      palette="deep", linewidth=1)
-    gY.fill_between(pctY_beagle[pctY_beagle.quantiles == 1.0]['binned_maf_info'],
-                    pctY_beagle[pctY_beagle.quantiles == 0.0]['concordance'],
-                    pctY_beagle[pctY_beagle.quantiles == 1.0]['concordance'],
-                    color=sns.color_palette('deep')[0],
-                    alpha=0.1)
-    gY.fill_between(pctY_beagle[pctY_beagle.quantiles == 0.99]['binned_maf_info'],
-                    pctY_beagle[pctY_beagle.quantiles == 0.01]['concordance'],
-                    pctY_beagle[pctY_beagle.quantiles == 0.99]['concordance'],
-                    color=sns.color_palette('deep')[0],
-                    alpha=0.25)
-    gY.fill_between(pctY_beagle[pctY_beagle.quantiles == 0.9]['binned_maf_info'],
-                    pctY_beagle[pctY_beagle.quantiles == 0.1]['concordance'],
-                    pctY_beagle[pctY_beagle.quantiles == 0.9]['concordance'],
-                    color=sns.color_palette('deep')[0],
-                    alpha=0.40)
-
-    plt.show()
+    # plt.show()
