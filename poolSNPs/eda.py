@@ -280,7 +280,7 @@ binned_striped_box(dfaaf,
                    outdir)
 
 
-boxw = 0.75
+boxw = 0.95
 plt.rcParams["figure.figsize"] = [figsize*2, figsize*boxw*1]
 fig, axes = plt.subplots(1, 2)  # , sharey=True)
 
@@ -353,6 +353,6 @@ axes[1].set_position([box.x0 * 0.85, box.y0, box.width * boxw, box.height])  # r
 handles, labels = axes[1].get_legend_handles_labels()
 new_handles = [handles[3], *handles[:3], *handles[4:]]
 new_labels = ['Genotypes', *labels[:3], *true_labels]
-axes[1].legend(new_handles, new_labels, loc='center right', bbox_to_anchor=(1 + boxw, 0.5), ncol=1)  # Put a legend to the right side
+axes[1].legend(new_handles, new_labels, loc='center right', bbox_to_anchor=((8/5) * boxw, 0.5), ncol=1)  # Put a legend to the right side
 
 plt.savefig(os.path.join(outdir, 'eda_genos_hwe.pdf'))
