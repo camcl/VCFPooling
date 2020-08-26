@@ -111,7 +111,7 @@ dfcounts_sized = dfcounts / (n_samples * n_markers)
 print('\r\nPlotting results'.ljust(80, '.'))
 ax = dfcounts_scaled.plot(kind='bar', stacked=True, rot=45,
                           color=barcolors, style=dashes_styles)  # cmap = sns.set_palette('GnBu_d')
-ax.set_xlabel('Estimated alternate allele frequency')
+ax.set_xlabel('True alternate allele frequency')
 ax.set_ylabel('Proportions of genotypes scaled per AAF-bin')
 plt.title('Genotypes proportions from pooled data in the study population')
 plt.tight_layout()
@@ -120,7 +120,7 @@ plt.show()
 
 ax_scaled = dfcounts_sized.plot(kind='bar', stacked=True, rot=45,
                                 color=barcolors, style=dashes_styles)
-ax_scaled.set_xlabel('Estimated alternate allele frequency')
+ax_scaled.set_xlabel('True alternate allele frequency')
 ax_scaled.set_ylabel('Proportion of genotypes')
 plt.title('Genotypes proportions from pooled data in the study population (total number of genotypes = {})'.format(n_samples * n_markers))
 plt.tight_layout()
