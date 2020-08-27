@@ -198,7 +198,7 @@ class QualityGT(object):
     def alleledosage(self) -> Tuple[pd.Series]:
         # TODO: add  by Standardized Allele Frequency Error as described in Beagle09?
         """
-        Compute mean genotype along the given axis. Equivalent to AAF computation.
+        Compute alternate allele dosage.
         Makes sense only accross a population i.e. mean values along samples axis.
         Allele dosage = 2 * AAF, for a diploid organism
         :return:
@@ -291,7 +291,6 @@ class QualityGL(object):
         self.trueobj = vcfdf.PandasMixedVCF(truefile, format='GL', indextype=idx)
         self.imputedobj = vcfdf.PandasMixedVCF(imputedfile, format=fmt, indextype=idx)
         self._axis = ax
-        #TODO: index properties and verification
 
     @property
     def axis(self):
@@ -353,6 +352,16 @@ class QualityGL(object):
         entro = true.combine(imputed, self.intergl_entropy)
         score = entro.mean(axis=1)
         return pd.Series(score, index=self.trueobj.variants, name='cross_entropy')
+
+    @property
+    def postg_allelic_dosage(self): # postg_aaf and postg_maf ?
+        """
+        Alternate allelic dosage from posterior genotypes probabilities
+        """
+        #TODO:
+        true = self.trueobj.genotypes()
+        imputed = self.imputedobj.genotypes()
+
 
 
 class QuantilesDataFrame(object):
@@ -442,31 +451,41 @@ if __name__=='__main__':
     true = '/home/camille/1000Genomes/src/VCFPooling/examples/IMP.chr20.snps.gt.vcf.gz'
     imputed_beagle = '/home/camille/1000Genomes/src/VCFPooling/examples/IMP.chr20.pooled.imputed.vcf.gz'
 
-    # true = '/home/camille/PoolImpHuman/data/20200722/IMP.chr20.snps.gt.vcf.gz'
-    # imputed_beagle = '/home/camille/PoolImpHuman/data/20200722/IMP.chr20.pooled.imputed.vcf.gz'
-    # imputed_phaser = '/home/camille/PoolImpHuman/data/20200817/IMP.chr20.pooled.imputed.vcf.gz'
+    true = '/home/camille/PoolImpHuman/data/20200722/IMP.chr20.snps.gt.vcf.gz'
+    imputed_beagle = '/home/camille/PoolImpHuman/data/20200722/IMP.chr20.pooled.imputed.vcf.gz'
+    imputed_phaser = '/home/camille/PoolImpHuman/data/20200817/IMP.chr20.pooled.imputed.vcf.gz'
 
     qbeaglegt = QualityGT(true, imputed_beagle, 0, idx='chrom:pos')
 
-    bgldiff = qbeaglegt.diff()
-
-    # qphasergt = QualityGT(true, imputed_phaser, 0, idx='chrom:pos')
+    qphasergt = QualityGT(true, imputed_phaser, 0, idx='chrom:pos')
     print(qbeaglegt.trueobj.af_info)
 
-    mafS = qbeaglegt.trueobj.maf_info
-    yS_beagle = qbeaglegt.concordance()  # .accuracy
+    mafS = qbeaglegt.trueobj.maf
 
     afS = qbeaglegt.trueobj.aaf
-    y_true, y_imp = qbeaglegt.alleledosage()
+    y_true_beagle, y_imp_beagle = qbeaglegt.alleledosage()
+    y_true_phaser, y_imp_phaser = qphasergt.alleledosage()
 
-    print(y_true)
-    print(y_imp)
+    quant_beagle = QuantilesDataFrame(mafS, y_true_beagle/2, bins_step=0.01)  # scale dosage to [0, 1]
+    quant_phaser = QuantilesDataFrame(mafS, y_true_phaser / 2, bins_step=0.01)
+    
+    dfquant_beagle = quant_beagle.binnedX.join([y_true_beagle/2, y_imp_beagle/2])
+    dfcorr_beagle = dfquant_beagle.groupby('binned_maf').corr(method='pearson')
+    corrS_beagle = dfcorr_beagle.xs('truedos', level=1)['imputeddos'].rename('r_square')  # pd.Series with corr per AF bin
+    print(corrS_beagle)
+    dfquant_phaser = quant_phaser.binnedX.join([y_true_phaser / 2, y_imp_phaser / 2])
+    dfcorr_phaser = dfquant_phaser.groupby('binned_maf').corr(method='pearson')
+    corrS_phaser = dfcorr_phaser.xs('truedos', level=1)['imputeddos'].rename('r_square')
 
-    quant_true = QuantilesDataFrame(afS, y_true/2, bins_step=0.02)  # scale dosage to [0, 1]
-    quant_imp = QuantilesDataFrame(afS, y_imp / 2, bins_step=0.02)
+    corr_beagle = pd.DataFrame(data='beagle', index=corrS_beagle.index, columns=['dataset'])
+    corr_beagle = corr_beagle.join(corrS_beagle).reset_index()
 
-    dfq_true = quant_true.binnedX.join(y_true)
-    print(dfq_true)
+    corr_phaser = pd.DataFrame(data='phaser', index=corrS_phaser.index, columns=['dataset'])
+    corr_phaser = corr_phaser.join(corrS_phaser).reset_index()
+
+    corr_comp = pd.concat([corr_beagle, corr_phaser], axis=0, ignore_index=True)
+    print(corr_comp)
+    g = sns.lineplot(data=corr_comp, x='binned_maf', y='r_square', hue='dataset')
 
     # sns.set(rc={'figure.figsize': (10, 8)})
     # sns.set_style('whitegrid')
