@@ -65,7 +65,7 @@ if not os.path.exists(outdir):
 
 true = '/home/camille/PoolImpHuman/data/20200722/IMP.chr20.snps.gt.vcf.gz'
 pooled = '/home/camille/PoolImpHuman/data/20200812/IMP.chr20.pooled.snps.gt.vcf.gz'
-imputed_beagle = '/home/camille/PoolImpHuman/data/20200722/IMP.chr20.pooled.imputed.vcf.gz'
+imputed_beagle = '/home/camille/PoolImpHuman/data/20200722/IMP.chr20.pooled.imputed.vcf.gz'  # '/home/camille/PoolImpHuman/data/20200710/IMP.chr20.pooled.imputed.vcf.gz'
 imputed_phaser = '/home/camille/PoolImpHuman/data/20200817/IMP.chr20.pooled.imputed.vcf.gz'
 
 # true = '/home/camille/1000Genomes/src/VCFPooling/examples/IMP.chr20.snps.gt.vcf.gz'
@@ -118,11 +118,6 @@ for k in dosdata.keys():
 
 #TODO: dosage from posterior gprobs
 
-# af_dos_beagle = dftrue.aaf.join(dfbeagle.aaf, lsuffix='_true', rsuffix='_beagle')
-# af_dos_phaser = dftrue.aaf.join(dfphaser.aaf, lsuffix='_true', rsuffix='_phaser')
-
-# maf_dos_phaser = dftrue.aaf.join(dfphaser.aaf, lsuffix='_true', rsuffix='_phaser').join(binned_maf_true)
-
 # Correlation imputed dosage and true dosage
 binned_alt_true_beagle = binned_maf_true.join([dosage['true_alt'], dosage['beagle_alt']])
 corr_mat_beagle = binned_alt_true_beagle.groupby('binned_maf').corr(method='pearson')
@@ -136,31 +131,31 @@ corr_df_phaser = pd.DataFrame(data='phaser', index=corr_ser_phaser.index, column
 
 corr_df_true = pd.concat([corr_df_beagle, corr_df_phaser], axis=0).reset_index()
 
-g = sns.lineplot(data=corr_df_true, x='binned_maf', y='r_squared', hue='dataset')
+g = sns.lineplot(data=corr_df_true, x='binned_maf', y='r_squared', hue='dataset', lw=3)
 g.set_xlabel('True minor allele frequency in study population')
 g.set_ylabel('r²')
 plt.title('Squared correlation between the true and the imputed allelic dosages')
+plt.savefig(os.path.join(outdir, 'r_sqr_dos_true_imputed.pdf'))
 plt.show()
 
 
-# Correlation imputed dosage and pooled dosage
-binned_alt_pooled_beagle = binned_maf_pooled.join([dosage['pooled_alt'], dosage['beagle_alt']])
-corr_mat_beagle = binned_alt_pooled_beagle.groupby('binned_maf').corr(method='pearson')
-corr_ser_beagle = corr_mat_beagle.xs('pooled_alt_dos', level=1)['beagle_alt_dos'].rename('r_squared')
-corr_df_beagle = pd.DataFrame(data='beagle', index=corr_ser_beagle.index, columns=['dataset']).join(corr_ser_beagle)
+# # Correlation imputed dosage and pooled dosage
+# binned_alt_pooled_beagle = binned_maf_pooled.join([dosage['pooled_alt'], dosage['beagle_alt']])
+# corr_mat_beagle = binned_alt_pooled_beagle.groupby('binned_maf').corr(method='pearson')
+# corr_ser_beagle = corr_mat_beagle.xs('pooled_alt_dos', level=1)['beagle_alt_dos'].rename('r_squared')
+# corr_df_beagle = pd.DataFrame(data='beagle', index=corr_ser_beagle.index, columns=['dataset']).join(corr_ser_beagle)
+#
+# binned_alt_pooled_phaser = binned_maf_pooled.join([dosage['pooled_alt'], dosage['phaser_alt']])
+# corr_mat_phaser = binned_alt_pooled_phaser.groupby('binned_maf').corr(method='pearson')
+# corr_ser_phaser = corr_mat_phaser.xs('pooled_alt_dos', level=1)['phaser_alt_dos'].rename('r_squared')
+# corr_df_phaser = pd.DataFrame(data='phaser', index=corr_ser_phaser.index, columns=['dataset']).join(corr_ser_phaser)
+#
+# corr_df_pooled = pd.concat([corr_df_beagle, corr_df_phaser], axis=0).reset_index()
+#
+# g = sns.lineplot(data=corr_df_pooled, x='binned_maf', y='r_squared', hue='dataset', lw=3)
+# g.set_xlabel('pooled minor allele frequency in study population')
+# g.set_ylabel('r²')
+# plt.title('Squared correlation between the pooled and the imputed allelic dosages')
+# plt.savefig(os.path.join(outdir, 'r_sqr_dos_true_imputed.pdf'))
+# plt.show()
 
-binned_alt_pooled_phaser = binned_maf_pooled.join([dosage['pooled_alt'], dosage['phaser_alt']])
-corr_mat_phaser = binned_alt_pooled_phaser.groupby('binned_maf').corr(method='pearson')
-corr_ser_phaser = corr_mat_phaser.xs('pooled_alt_dos', level=1)['phaser_alt_dos'].rename('r_squared')
-corr_df_phaser = pd.DataFrame(data='phaser', index=corr_ser_phaser.index, columns=['dataset']).join(corr_ser_phaser)
-
-corr_df_pooled = pd.concat([corr_df_beagle, corr_df_phaser], axis=0).reset_index()
-
-g = sns.lineplot(data=corr_df_pooled, x='binned_maf', y='r_squared', hue='dataset')
-g.set_xlabel('pooled minor allele frequency in study population')
-g.set_ylabel('r²')
-plt.title('Squared correlation between the pooled and the imputed allelic dosages')
-plt.show()
-
-#         plt.savefig(os.path.join(outdir, '{}_percentiles_rQ={}_bS={}_xdata={}.pdf'.format(dquant, rQ, bS, x_data.lstrip('binned_'))))
-#         plt.show()

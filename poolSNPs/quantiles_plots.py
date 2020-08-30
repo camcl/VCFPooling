@@ -39,12 +39,12 @@ dash_styles = [
 
 # Configure data/plots paths
 
-outdir = '/home/camille/PoolImpHuman/results/20200722'
+outdir = '/home/camille/PoolImpHuman/results/20200710'
 if not os.path.exists(outdir):
     os.mkdir(outdir)
 
 true = '/home/camille/PoolImpHuman/data/20200722/IMP.chr20.snps.gt.vcf.gz'
-imputed_beagle = '/home/camille/PoolImpHuman/data/20200722/IMP.chr20.pooled.imputed.vcf.gz'
+imputed_beagle = '/home/camille/PoolImpHuman/data/20200710/IMP.chr20.pooled.imputed.vcf.gz'
 imputed_phaser = '/home/camille/PoolImpHuman/data/20200817/IMP.chr20.pooled.imputed.vcf.gz'
 
 
