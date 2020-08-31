@@ -64,8 +64,8 @@ genos_label2int = dict(zip(genos_labels, genos))
 genos2str = lambda x: ''.join(np.char.replace(x.astype(str), '-1', '-'))
 genos_str = np.char.replace(genos.astype(str), '-1', '-')
 
-algo = 'phaser'
-# algo = 'beagle'
+# algo = 'phaser'
+algo = 'beagle'
 table_counts = 'confusion_true_pooled_imputed_{}.csv'.format(algo)
 genos = np.array([0, 1, 2, -1])
 barcolors = ['#80013f',  # missing
@@ -103,10 +103,10 @@ plt.rcParams["figure.figsize"] = [figsize*3, figsize + 1]
 
 truef = '/home/camille/PoolImpHuman/data/20200722/IMP.chr20.snps.gt.vcf.gz'
 pooledf = '/home/camille/PoolImpHuman/data/20200812/IMP.chr20.pooled.snps.gt.vcf.gz'
-imputedf = '/home/camille/PoolImpHuman/data/20200817/IMP.chr20.pooled.imputed.vcf.gz'  # phaser
-# imputedf = '/home/camille/PoolImpHuman/data/20200722/IMP.chr20.pooled.imputed.vcf.gz'  # beagle
-outdir = '/home/camille/PoolImpHuman/results/20200817'  # phaser
-# outdir = '/home/camille/PoolImpHuman/results/20200722'  # beagle
+# imputedf = '/home/camille/PoolImpHuman/data/20200817/IMP.chr20.pooled.imputed.vcf.gz'  # phaser
+imputedf = '/home/camille/PoolImpHuman/data/20200722/IMP.chr20.pooled.imputed.vcf.gz'  # beagle
+# outdir = '/home/camille/PoolImpHuman/results/20200817'  # phaser
+outdir = '/home/camille/PoolImpHuman/results/20200722'  # beagle
 
 dftrue = vcfdf.PandasMixedVCF(truef, format='GT', indextype='chrom:pos')
 dfpooled = vcfdf.PandasMixedVCF(pooledf, format='GT', indextype='chrom:pos')
