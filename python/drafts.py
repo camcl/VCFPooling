@@ -18,45 +18,43 @@ sys.path.insert(0, rootdir)
 from VCFPooling.poolSNPs import dataframe as vcfdf
 
 
-def ok_ko_mapper(i: str, labels: np.ndarray) -> dict:
-    d = {  # truth = i value
-        'okok': [],  # decoded True and imputed True
-        'okko': [],  # decoded True and imputed False  # should be 0!
-        'koko': [],  # decoded False and imputed False
-        'kook': [],  # decoded False and imputed True
-    }
-
-    d['okok'].append(str(i) + str(i) + str(i))
-
-    dko = list(labels)
-    dko.remove(str(i))
-    for j in dko:
-        d['okko'].append(str(i) + str(i) + str(j))
-        d['kook'].append(str(i) + str(j) + str(i))
-        for k in dko:
-            d['koko'].append(str(i) + str(j) + str(k))
-
-    return d
-
-
-def ok_ko_counter(dict_ok_ko: dict, counts: dict) -> dict:
-    '''counts = Counter(arr_str)'''
-    dcount = {}
-    for k, cases in dict_ok_ko.items():
-        dcount[k] = []
-        for cas in cases:
-            dcount[k].append(counts[cas])
-            dcount[cas] = counts[cas]
-    return dcount
+# def ok_ko_mapper(i: str, labels: np.ndarray) -> dict:
+#     d = {  # truth = i value
+#         'okok': [],  # decoded True and imputed True
+#         'okko': [],  # decoded True and imputed False  # should be 0!
+#         'koko': [],  # decoded False and imputed False
+#         'kook': [],  # decoded False and imputed True
+#     }
+#
+#     d['okok'].append(str(i) + str(i) + str(i))
+#
+#     dko = list(labels)
+#     dko.remove(str(i))
+#     for j in dko:
+#         d['okko'].append(str(i) + str(i) + str(j))
+#         d['kook'].append(str(i) + str(j) + str(i))
+#         for k in dko:
+#             d['koko'].append(str(i) + str(j) + str(k))
+#
+#     return d
+#
+#
+# def ok_ko_counter(dict_ok_ko: dict, counts: dict) -> dict:
+#     '''counts = Counter(arr_str)'''
+#     dcount = {}
+#     for k, cases in dict_ok_ko.items():
+#         dcount[k] = []
+#         for cas in cases:
+#             dcount[k].append(counts[cas])
+#             dcount[cas] = counts[cas]
+#     return dcount
 
 
 # Params
 
 imp_method = 'beagle'
-np.random.seed(123)
 genos = np.array([0, 1, 2, -1])
-probs = [0.7, 0.2, 0.07, 0.03]
-barcolors = [#'#80013f',  # missing
+barcolors = ['#80013f',  # missing
              '#047495', '#00035b', '#748b97',  # full GT 0, 1, 2
              #'#dbb40c', '#c65102'  # half-missing GT
              ]
@@ -150,11 +148,12 @@ for gT, gP, gI in zip(dTgp, dPgp, dIgp):  # bin by bin in the group
 
 dfcounts = dfcounts.set_index('bin')
 print(dfcounts)
-#TODO: save  to csv!
+dfcounts.to_csv('/home/camille/PoolImpHuman/confusion_true_pooled_imputed_beagle.csv', sep=",")
+#TODO: save dfcounts to csv!
 
 
 def get_dfbarplot_GT(gt: int):
-    """data rframe to bar plot"""
+    """data frame to bar plot"""
     dftrueGT = dfcounts[dfcounts.trueGT == gt][['pooledGT', 'imputedGT', 'counts']]
     decGT = dftrueGT[dftrueGT.pooledGT == gt][['imputedGT', 'counts']].groupby(['bin', 'imputedGT']).sum()
     nondecGT = dftrueGT[dftrueGT.pooledGT != gt][['imputedGT', 'counts']].groupby(['bin', 'imputedGT']).sum()
