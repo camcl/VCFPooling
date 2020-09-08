@@ -70,25 +70,25 @@ def rollquants(dX: pd.DataFrame, dS1: pd.Series, dS2: pd.Series) -> pd.DataFrame
 
 # Load data
 
-qbeaglegt = qual.QualityGT(true, imputed_beagle, 0, idx='chrom:pos')
-
-bgldiff = qbeaglegt.diff()
-
-qphasergt = qual.QualityGT(true, imputed_phaser, 0, idx='chrom:pos')
-print(qbeaglegt.trueobj.aaf)  # af_info
-mafS = qbeaglegt.trueobj.maf  # maf_info
-
-metrics = {'precision_score': {'beagle': qbeaglegt.precision,
-                         'phaser': qphasergt.precision},
-           'recall_score': {'beagle': qbeaglegt.recall,
-                         'phaser': qphasergt.recall},
-           'f1_score':  {'beagle': qbeaglegt.f1_score,
-                         'phaser': qphasergt.f1_score},
-           'concordance': {'beagle': qbeaglegt.concordance(),
-                           'phaser': qphasergt.concordance()},
-           'allelic_dos': None,
-           'cross_entropy': None
-           }
+# qbeaglegt = qual.QualityGT(true, imputed_beagle, 0, idx='chrom:pos')
+#
+# bgldiff = qbeaglegt.diff()
+#
+# qphasergt = qual.QualityGT(true, imputed_phaser, 0, idx='chrom:pos')
+# print(qbeaglegt.trueobj.aaf)  # af_info
+# mafS = qbeaglegt.trueobj.maf  # maf_info
+#
+# metrics = {'precision_score': {'beagle': qbeaglegt.precision,
+#                          'phaser': qphasergt.precision},
+#            'recall_score': {'beagle': qbeaglegt.recall,
+#                          'phaser': qphasergt.recall},
+#            'f1_score':  {'beagle': qbeaglegt.f1_score,
+#                          'phaser': qphasergt.f1_score},
+#            'concordance': {'beagle': qbeaglegt.concordance(),
+#                            'phaser': qphasergt.concordance()},
+#            'allelic_dos': None,
+#            'cross_entropy': None
+#            }
 
 dataquants = {'precision_score': os.path.join(outdir, 'rolling_quantiles_precision_score.json'),
               'recall_score': os.path.join(outdir, 'rolling_quantiles_recall_score.json'),
@@ -101,14 +101,19 @@ dataquants = {'precision_score': os.path.join(outdir, 'rolling_quantiles_precisi
 
 # Process and write data
 
-for metric, d in metrics.items():
-    if d is not None:
-        yS_beagle, yS_phaser = list(d.values())
-        pctY_comp = rollquants(mafS, yS_beagle, yS_phaser)
-        jsonf = dataquants[metric]
-        pctY_comp.to_json(jsonf,
-                          orient='records')
-print(pctY_comp[pctY_comp['dataset'] == 'phaser'])
+# for metric, d in metrics.items():
+#     if d is not None:
+#         yS_beagle, yS_phaser = list(d.values())
+#         # Compute quantiles
+#         print('Computing quantiles for {}'.format(metric).ljust(80, '.'))
+#         pctY_comp = rollquants(mafS, yS_beagle, yS_phaser)
+#         # Compute mean over all markers
+#         print('Computing means for {}'.format(metric).ljust(80, '.'))
+#         pctY_comp['mean'] = pctY_comp['dataset'].apply(lambda x: yS_beagle.mean() if x == 'beagle' else yS_phaser.mean())
+#         jsonf = dataquants[metric]
+#         pctY_comp.to_json(jsonf,
+#                           orient='records')
+# print(pctY_comp[pctY_comp['dataset'] == 'phaser'])
 
 
 # Read processed reshaped data for plotting and draw figures
@@ -116,12 +121,13 @@ print(pctY_comp[pctY_comp['dataset'] == 'phaser'])
 for dquant, f in dataquants.items():
     if f is not None:
         dataf = pd.read_json(f, orient='records')
-        print(dataf[dataf['dataset'] == 'phaser'])
-        
+        meanf = {}
+
         gY = sns.lineplot(data=dataf[dataf.quantiles == 0.5], x=x_data, y=dquant,
                           hue='dataset', palette="deep", linewidth=1)
         for i, dset in enumerate(['beagle', 'phaser']):
             df = dataf[dataf['dataset'] == dset]
+            meanf[dset] = df['mean'].mean()
             gY.fill_between(df[df.quantiles == 1.0][x_data],
                             df[df.quantiles == 0.0][dquant],
                             df[df.quantiles == 1.0][dquant],
@@ -139,6 +145,9 @@ for dquant, f in dataquants.items():
                             alpha=0.40)
         gY.set_xlabel('True minor allele frequency in {} population'.format('study' if x_data == 'binned_maf'
                                                                             else 'main'))
-        
+        handles, labels = gY.get_legend_handles_labels()
+        labels[-2] = '{} (mean = {:.5f})'.format(labels[-2], meanf['beagle'])
+        labels[-1] = '{} (mean = {:.5f})'.format(labels[-1], meanf['phaser'])
+        gY.legend(handles, labels)
         plt.savefig(os.path.join(outdir, '{}_percentiles_rQ={}_bS={}_xdata={}.pdf'.format(dquant, rQ, bS, x_data.lstrip('binned_'))))
         plt.show()
