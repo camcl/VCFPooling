@@ -1,4 +1,4 @@
-import sys, os
+import sys, os, shutil
 import numpy as np
 import pandas as pd
 from itertools import starmap, repeat
@@ -24,21 +24,24 @@ from persotools.files import delete_file, mkdir
 
 '''
 Parallelized file processing
-For VCF-file bigger than some dozen of thousands of varaiants (e.g. 1 million SNPs).
-To be run on Rackham at Uppmax.
+For VCF-file bigger than some dozen of thousands of variants (e.g. 1 million SNPs).
+To be run on Rackham at Uppmax or locally.
+Based on parallel_pooling_20200624.py.
 
 Steps:
 * Read main vcf and write chunks: bash script based on bcftools
-* Simulate pooling on chunks and decode into GT
+* Simulate pooling on chunks and decode into GL
 * Merge pooled chunks back to read-for-use compressed VCF file
 
 Usage: 
-$ python3 parallel_pooling_20200812.py /home/camille/PoolImpHuman/data/20200812/IMP.chr20.snps.gt.vcf.gz /home/camille/PoolImpHuman/data/20200812/IMP.chr20.pooled.snps.gt.vcf.gz 4
+$ python3 parallel_pooling_gl.py /home/camille/PoolImpHuman/data/main /home/camille/PoolImpHuman/data/omniexpress/ALL.chr20.snps.gt.vcf.gz /home/camille/PoolImpHuman/data/omniexpress/ALL.chr20.pooled.snps.gl.vcf.gz 4
+$ python3 parallel_pooling_gl.py /home/camille/PoolImpHuman/data/20200906/20200906a /home/camille/PoolImpHuman/data/20200906/20200906a/IMP.chr20.snps.gt.vcf.gz /home/camille/PoolImpHuman/data/20200906/20200906a/IMP.chr20.pooled.snps.gl.vcf.gz 4
 '''
 
 ### COMMAND-LINE PARSING AND PARAMETERS
 parser = argparse.ArgumentParser(description='Run parallelized pooling simulation'
                                              'on the whole set of samples')
+parser.add_argument('convtab', metavar='tab', type=str, help='Keys, values for decoding to GL given the pooling pattern', default=None)
 parser.add_argument('pathin', metavar='in', type=str, help='File to pool', default=None)
 parser.add_argument('pathout', metavar='out', type=str, help='Pooled file', default=None)
 parser.add_argument('cores', metavar='nc', type=int, nargs='?', help='Number of cores to use', default=None)
@@ -50,6 +53,9 @@ try:
     tmp_path = os.environ['SNIC_TMP']
 except KeyError:
     tmp_path = os.path.join(proj_dir, 'data/tmp')
+    # # clean /temp
+    # shutil.rmtree(tmp_path)
+    # os.mkdir(tmp_path)
 
 try:
     assert os.path.exists(prm.SNIC_PROJ)
@@ -70,7 +76,7 @@ date_dir = today.strftime('%Y%m%d')
 ...
 
 ### SIMULATE POOLING ON PACKED DATA CHUNKS
-data_dir = '/home/camille/PoolImpHuman/data/main'
+data_dir = argsin.convtab
 os.chdir(tmp_path)
 fingz = os.path.expanduser(argsin.pathin)  # /home/camille/...
 basin = os.path.basename(fingz).rstrip('.gz')
@@ -99,7 +105,7 @@ args1 = list(zip([os.path.join(wd, f0) for f0 in files0],
                  repeat(tmp_path, len(indices))))  # directory for temporary output
 
 with mp.Pool(processes=nb_cores) as mpool:
-    _ = all(mpool.starmap(poolvcf.pysam_pooler_gt, args1))
+    _ = all(mpool.starmap(poolvcf.pysam_pooler_gp, args1))
 
 print('\r\nTime elapsed --> ', timeit.default_timer() - start)
 
