@@ -519,7 +519,8 @@ def load_lookup_dict(path: str, log10: bool = True) -> dict:
                             'n', 'm',
                             'rr', 'ra', 'aa']
                      )
-    log10func = lambda x: math.log10(x) if x > 1e-05 else -5.0
+    # log10func = lambda x: math.log10(x) if x > 1e-05 else -5.0
+    log10func = lambda x: math.log10(x) if x > 1e-12 else -12.0
     if log10:
         df['rr'] = df['rr'].apply(log10func)
         df['ra'] = df['ra'].apply(log10func)
