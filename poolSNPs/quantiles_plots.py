@@ -39,13 +39,14 @@ dash_styles = [
 
 # Configure data/plots paths
 
-outdir = '/home/camille/PoolImpHuman/results/20200722'
+outdir = '/home/camille/PoolImpHuman/results/20200727'
 if not os.path.exists(outdir):
     os.mkdir(outdir)
 
-true = '/home/camille/PoolImpHuman/data/20200722/IMP.chr20.snps.gt.vcf.gz'
+truegt = '/home/camille/PoolImpHuman/data/20200722/IMP.chr20.snps.gt.vcf.gz'
+truegl = '/home/camille/PoolImpHuman/data/20200722/IMP.chr20.snps.gl.vcf.gz'
 imputed_beagle = '/home/camille/PoolImpHuman/data/20200722/IMP.chr20.pooled.imputed.vcf.gz'
-imputed_phaser = '/home/camille/PoolImpHuman/data/20200817/IMP.chr20.pooled.imputed.vcf.gz'
+imputed_phaser = '/home/camille/PoolImpHuman/data/20200827/IMP.chr20.pooled.imputed.vcf.gz'
 
 
 # Function/Tools
@@ -70,50 +71,54 @@ def rollquants(dX: pd.DataFrame, dS1: pd.Series, dS2: pd.Series) -> pd.DataFrame
 
 # Load data
 
-# qbeaglegt = qual.QualityGT(true, imputed_beagle, 0, idx='chrom:pos')
-#
-# bgldiff = qbeaglegt.diff()
-#
-# qphasergt = qual.QualityGT(true, imputed_phaser, 0, idx='chrom:pos')
-# print(qbeaglegt.trueobj.aaf)  # af_info
-# mafS = qbeaglegt.trueobj.maf  # maf_info
-#
-# metrics = {'precision_score': {'beagle': qbeaglegt.precision,
-#                          'phaser': qphasergt.precision},
-#            'recall_score': {'beagle': qbeaglegt.recall,
-#                          'phaser': qphasergt.recall},
-#            'f1_score':  {'beagle': qbeaglegt.f1_score,
-#                          'phaser': qphasergt.f1_score},
-#            'concordance': {'beagle': qbeaglegt.concordance(),
-#                            'phaser': qphasergt.concordance()},
-#            'allelic_dos': None,
-#            'cross_entropy': None
-#            }
+qbeaglegt = qual.QualityGT(truegt, imputed_beagle, 0, idx='chrom:pos')
+qbeaglegl = qual.QualityGL(truegl, imputed_beagle, 0, idx='chrom:pos')
+
+bgldiff = qbeaglegt.diff()
+
+qphasergt = qual.QualityGT(truegt, imputed_phaser, 0, idx='chrom:pos')
+qphasergl = qual.QualityGL(truegl, imputed_phaser, 0, idx='chrom:pos')
+
+print(qbeaglegt.trueobj.aaf)  # af_info
+mafS = qbeaglegt.trueobj.maf  # maf_info
+
+metrics = {'precision_score': {'beagle': qbeaglegt.precision,
+                         'phaser': qphasergt.precision},
+           'recall_score': {'beagle': qbeaglegt.recall,
+                         'phaser': qphasergt.recall},
+           'f1_score':  {'beagle': qbeaglegt.f1_score,
+                         'phaser': qphasergt.f1_score},
+           'concordance': {'beagle': qbeaglegt.concordance(),
+                           'phaser': qphasergt.concordance()},
+           'allelic_dos': None,
+           'cross_entropy': {'beagle': qbeaglegl.cross_entropy,
+                           'phaser': qphasergl.cross_entropy}
+           }
 
 dataquants = {'precision_score': os.path.join(outdir, 'rolling_quantiles_precision_score.json'),
               'recall_score': os.path.join(outdir, 'rolling_quantiles_recall_score.json'),
               'f1_score': os.path.join(outdir, 'rolling_quantiles_f1_score.json'),
               'concordance': os.path.join(outdir, 'rolling_quantiles_concordance.json'),
               'allelic_dos': None,
-              'cross_entropy': None
+              'cross_entropy': os.path.join(outdir, 'rolling_quantiles_cross_entropy.json')
               }
 
 
 # Process and write data
 
-# for metric, d in metrics.items():
-#     if d is not None:
-#         yS_beagle, yS_phaser = list(d.values())
-#         # Compute quantiles
-#         print('Computing quantiles for {}'.format(metric).ljust(80, '.'))
-#         pctY_comp = rollquants(mafS, yS_beagle, yS_phaser)
-#         # Compute mean over all markers
-#         print('Computing means for {}'.format(metric).ljust(80, '.'))
-#         pctY_comp['mean'] = pctY_comp['dataset'].apply(lambda x: yS_beagle.mean() if x == 'beagle' else yS_phaser.mean())
-#         jsonf = dataquants[metric]
-#         pctY_comp.to_json(jsonf,
-#                           orient='records')
-# print(pctY_comp[pctY_comp['dataset'] == 'phaser'])
+for metric, d in metrics.items():
+    if d is not None:
+        yS_beagle, yS_phaser = list(d.values())
+        # Compute quantiles
+        print('Computing quantiles for {}'.format(metric).ljust(80, '.'))
+        pctY_comp = rollquants(mafS, yS_beagle, yS_phaser)
+        # Compute mean over all markers
+        print('Computing means for {}'.format(metric).ljust(80, '.'))
+        pctY_comp['mean'] = pctY_comp['dataset'].apply(lambda x: yS_beagle.mean() if x == 'beagle' else yS_phaser.mean())
+        jsonf = dataquants[metric]
+        pctY_comp.to_json(jsonf,
+                          orient='records')
+print(pctY_comp[pctY_comp['dataset'] == 'phaser'])
 
 
 # Read processed reshaped data for plotting and draw figures

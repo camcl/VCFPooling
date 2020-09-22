@@ -68,6 +68,10 @@ df4 = dfpool.concatcols([dfpool.af_info, dftrue.aaf.rename(columns={'aaf': 'true
 print(df1.head(10))
 print(df2.head(10))
 
+print('\r\nOverall missing rates:')
+print('From LD to HD: {}'.format(dflowd.missing_rate.mean()))
+print('In pooled data: {}'.format(dfpool.missing_rate.mean()))
+
 
 # Plots' layout params
 
