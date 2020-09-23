@@ -39,14 +39,14 @@ dash_styles = [
 
 # Configure data/plots paths
 
-outdir = '/home/camille/PoolImpHuman/results/20200827'
+outdir = '/home/camille/PoolImpHuman/results/20200831'
 if not os.path.exists(outdir):
     os.mkdir(outdir)
 
-truegt = '/home/camille/PoolImpHuman/data/20200722/IMP.chr20.snps.gt.vcf.gz'
-truegl = '/home/camille/PoolImpHuman/data/20200722/IMP.chr20.snps.gl.vcf.gz'
-imputed_beagle = '/home/camille/PoolImpHuman/data/20200722/IMP.chr20.pooled.imputed.vcf.gz'
-imputed_phaser = '/home/camille/PoolImpHuman/data/20200827/IMP.chr20.pooled.imputed.vcf.gz'
+truegt = '/home/camille/PoolImpHuman/data/20200827/sHG01063.IMP.chr20.snps.gt.vcf.gz'
+truegl = '/home/camille/PoolImpHuman/data/20200827/sHG01063.IMP.chr20.snps.gl.vcf.gz'
+imputed_phaser1 = '/home/camille/PoolImpHuman/data/20200827/sHG01063.IMP.chr20.pooled.imputed.vcf.gz'
+imputed_phaser2 = '/home/camille/PoolImpHuman/data/20200831/sHG01063.IMP.chr20.pooled.imputed.vcf.gz'
 
 
 # Function/Tools
@@ -56,13 +56,13 @@ def rollquants(dX: pd.DataFrame, dS1: pd.Series, dS2: pd.Series) -> pd.DataFrame
                                    dS1,
                                    bins_step=bS)
     pctY1 = pdf1.binnedX_rolling_quantilY(rollwin=rQ)
-    pctY1['dataset'] = ['beagle'] * pctY1.shape[0]
+    pctY1['dataset'] = ['phaser1'] * pctY1.shape[0]
 
     pdf2 = qual.QuantilesDataFrame(dX,
                                    dS2,
                                    bins_step=bS)
     pctY2 = pdf2.binnedX_rolling_quantilY(rollwin=rQ)
-    pctY2['dataset'] = ['phaser'] * pctY2.shape[0]
+    pctY2['dataset'] = ['phaser2'] * pctY2.shape[0]
 
     rollquants = pd.concat([pctY1, pctY2])
 
@@ -71,28 +71,28 @@ def rollquants(dX: pd.DataFrame, dS1: pd.Series, dS2: pd.Series) -> pd.DataFrame
 
 # Load data
 
-qbeaglegt = qual.QualityGT(truegt, imputed_beagle, 0, idx='chrom:pos')
-qbeaglegl = qual.QualityGL(truegl, imputed_beagle, 0, idx='chrom:pos')
+qphaser1gt = qual.QualityGT(truegt, imputed_phaser1, 0, idx='chrom:pos')
+qphaser1gl = qual.QualityGL(truegl, imputed_phaser1, 0, idx='chrom:pos')
 
-bgldiff = qbeaglegt.diff()
+bgldiff = qphaser1gt.diff()
 
-qphasergt = qual.QualityGT(truegt, imputed_phaser, 0, idx='chrom:pos')
-qphasergl = qual.QualityGL(truegl, imputed_phaser, 0, idx='chrom:pos')
+qphaser2gt = qual.QualityGT(truegt, imputed_phaser2, 0, idx='chrom:pos')
+qphaser2gl = qual.QualityGL(truegl, imputed_phaser2, 0, idx='chrom:pos')
 
-print(qbeaglegt.trueobj.aaf)  # af_info
-mafS = qbeaglegt.trueobj.maf  # maf_info
+print(qphaser1gt.trueobj.aaf)  # af_info
+mafS = qphaser1gt.trueobj.maf  # maf_info
 
-metrics = {'precision_score': {'beagle': qbeaglegt.precision,
-                         'phaser': qphasergt.precision},
-           'recall_score': {'beagle': qbeaglegt.recall,
-                         'phaser': qphasergt.recall},
-           'f1_score':  {'beagle': qbeaglegt.f1_score,
-                         'phaser': qphasergt.f1_score},
-           'concordance': {'beagle': qbeaglegt.concordance(),
-                           'phaser': qphasergt.concordance()},
+metrics = {'precision_score': {'phaser1': qphaser1gt.precision,
+                         'phaser2': qphaser2gt.precision},
+           'recall_score': {'phaser1': qphaser1gt.recall,
+                         'phaser2': qphaser2gt.recall},
+           'f1_score':  {'phaser1': qphaser1gt.f1_score,
+                         'phaser2': qphaser2gt.f1_score},
+           'concordance': {'phaser1': qphaser1gt.concordance(),
+                           'phaser2': qphaser2gt.concordance()},
            'allelic_dos': None,
-           'cross_entropy': {'beagle': qbeaglegl.cross_entropy,
-                           'phaser': qphasergl.cross_entropy}
+           'cross_entropy': {'phaser1': qphaser1gl.cross_entropy,
+                           'phaser2': qphaser2gl.cross_entropy}
            }
 
 dataquants = {'precision_score': os.path.join(outdir, 'rolling_quantiles_precision_score.json'),
@@ -108,17 +108,17 @@ dataquants = {'precision_score': os.path.join(outdir, 'rolling_quantiles_precisi
 
 for metric, d in metrics.items():
     if d is not None:
-        yS_beagle, yS_phaser = list(d.values())
+        yS_phaser1, yS_phaser2 = list(d.values())
         # Compute quantiles
         print('Computing quantiles for {}'.format(metric).ljust(80, '.'))
-        pctY_comp = rollquants(mafS, yS_beagle, yS_phaser)
+        pctY_comp = rollquants(mafS, yS_phaser1, yS_phaser2)
         # Compute mean over all markers
         print('Computing means for {}'.format(metric).ljust(80, '.'))
-        pctY_comp['mean'] = pctY_comp['dataset'].apply(lambda x: yS_beagle.mean() if x == 'beagle' else yS_phaser.mean())
+        pctY_comp['mean'] = pctY_comp['dataset'].apply(lambda x: yS_phaser1.mean() if x == 'phaser1' else yS_phaser2.mean())
         jsonf = dataquants[metric]
         pctY_comp.to_json(jsonf,
                           orient='records')
-print(pctY_comp[pctY_comp['dataset'] == 'phaser'])
+print(pctY_comp[pctY_comp['dataset'] == 'phaser2'])
 
 
 # Read processed reshaped data for plotting and draw figures
@@ -130,7 +130,7 @@ for dquant, f in dataquants.items():
 
         gY = sns.lineplot(data=dataf[dataf.quantiles == 0.5], x=x_data, y=dquant,
                           hue='dataset', palette="deep", linewidth=1)
-        for i, dset in enumerate(['beagle', 'phaser']):
+        for i, dset in enumerate(['phaser1', 'phaser2']):
             df = dataf[dataf['dataset'] == dset]
             meanf[dset] = df['mean'].mean()
             gY.fill_between(df[df.quantiles == 1.0][x_data],
@@ -151,8 +151,8 @@ for dquant, f in dataquants.items():
         gY.set_xlabel('True minor allele frequency in {} population'.format('study' if x_data == 'binned_maf'
                                                                             else 'main'))
         handles, labels = gY.get_legend_handles_labels()
-        labels[-2] = '{} (mean = {:.5f})'.format(labels[-2], meanf['beagle'])
-        labels[-1] = '{} (mean = {:.5f})'.format(labels[-1], meanf['phaser'])
+        labels[-2] = '{} (mean = {:.5f})'.format(labels[-2], meanf['phaser1'])
+        labels[-1] = '{} (mean = {:.5f})'.format(labels[-1], meanf['phaser2'])
         gY.legend(handles, labels)
         plt.savefig(os.path.join(outdir, '{}_percentiles_rQ={}_bS={}_xdata={}.pdf'.format(dquant, rQ, bS, x_data.lstrip('binned_'))))
         plt.show()
