@@ -1,6 +1,5 @@
 """
-DRAFT!!!
-"""
+Cast the results into LaTeX-formatted tables instead of plots"""
 
 import os, sys
 import numpy as np
@@ -20,7 +19,7 @@ from VCFPooling.persotools.files import *
 # Data parameters and plotting features
 
 rQ = 1000
-bS = 0.01
+bS = 0.1
 x_data = 'binned_maf'  # 'binned_maf_info'
 
 sns.set(rc={'figure.figsize': (10, 8)})
@@ -43,10 +42,10 @@ outdir = '/home/camille/PoolImpHuman/results/20201031'
 if not os.path.exists(outdir):
     os.mkdir(outdir)
 
-truegt = '/home/camille/PoolImpHuman/data/20201031/LDonly/sHG01063.IMP.chr20.snps.gt.vcf.gz'
-truegl = '/home/camille/PoolImpHuman/data/20201031/LDonly/sHG01063.IMP.chr20.snps.gl.vcf.gz'
-imputed_phaser1 = '/home/camille/PoolImpHuman/data/20201031/LDonly/sHG01063.IMP.chr20.pooled.imputed.phaser1.vcf.gz'
-imputed_phaser2 = '/home/camille/PoolImpHuman/data/20201031/LDonly/sHG01063.IMP.chr20.snps.gl.full.postgenos.vcf.gz'
+truegt = '/home/camille/PoolImpHuman/data/20200827/sHG01063.IMP.chr20.snps.gt.vcf.gz'
+truegl = '/home/camille/PoolImpHuman/data/20200827/sHG01063.IMP.chr20.snps.gl.vcf.gz'
+imputed_phaser1 = '/home/camille/PoolImpHuman/data/20201028/sHG01063.IMP.chr20.pooled.imputed.vcf.gz'
+imputed_phaser2 = '/home/camille/PoolImpHuman/data/20201031/sHG01063.IMP.chr20.snps.gl.full.postgenos.vcf.gz'
 
 
 # Function/Tools
@@ -123,36 +122,19 @@ print(pctY_comp[pctY_comp['dataset'] == 'phaser2'])
 
 # Read processed reshaped data for plotting and draw figures
 
+qframes = {}
 for dquant, f in dataquants.items():
     if f is not None:
         dataf = pd.read_json(f, orient='records')
         meanf = {}
+        qframes[dquant] = dataf
 
-        gY = sns.lineplot(data=dataf[dataf.quantiles == 0.5], x=x_data, y=dquant,
-                          hue='dataset', palette="deep", linewidth=1)
-        for i, dset in enumerate(['phaser1', 'phaser2']):
-            df = dataf[dataf['dataset'] == dset]
-            meanf[dset] = df['mean'].mean()
-            gY.fill_between(df[df.quantiles == 1.0][x_data],
-                            df[df.quantiles == 0.0][dquant],
-                            df[df.quantiles == 1.0][dquant],
-                            color=sns.color_palette('deep')[i],
-                            alpha=0.1)
-            gY.fill_between(df[df.quantiles == 0.99][x_data],
-                            df[df.quantiles == 0.01][dquant],
-                            df[df.quantiles == 0.99][dquant],
-                            color=sns.color_palette('deep')[i],
-                            alpha=0.25)
-            gY.fill_between(df[df.quantiles == 0.75][x_data],
-                            df[df.quantiles == 0.25][dquant],
-                            df[df.quantiles == 0.75][dquant],
-                            color=sns.color_palette('deep')[i],
-                            alpha=0.40)
-        gY.set_xlabel('True minor allele frequency in {} population'.format('study' if x_data == 'binned_maf'
-                                                                            else 'main'))
-        handles, labels = gY.get_legend_handles_labels()
-        labels[-2] = '{} (mean = {:.5f})'.format(labels[-2], meanf['phaser1'])
-        labels[-1] = '{} (mean = {:.5f})'.format(labels[-1], meanf['phaser2'])
-        gY.legend(handles, labels)
-        plt.savefig(os.path.join(outdir, '{}_percentiles_rQ={}_bS={}_xdata={}.pdf'.format(dquant, rQ, bS, x_data.lstrip('binned_'))))
-        plt.show()
+qfconc = qframes['concordance']
+# qfconc[qfconc['dataset'] == 'phaser1'][qfconc['quantiles'] == 0.50]
+qfconc.set_index(['binned_maf', 'quantiles'], inplace=True)
+qfconc.index.names=['MAF bin', 'quantile']
+qfconc1 = qfconc[qfconc['dataset'] == 'phaser1']
+qfconc1['concordance'].to_latex(buf=os.path.join(outdir, 'rolling_quantiles_concordance.tex'),
+                                sparsify=True,
+                                multirow=True,
+                                caption='Phaser not logged GL')

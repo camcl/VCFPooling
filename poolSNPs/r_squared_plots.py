@@ -59,14 +59,14 @@ dash_styles = [
 
 # Configure data/plots paths
 
-outdir = '/home/camille/PoolImpHuman/results/20200722'  # '/home/camille/1000Genomes/src/VCFPooling/examples'
+outdir = '/home/camille/PoolImpHuman/results/20200923'  # '/home/camille/1000Genomes/src/VCFPooling/examples'
 if not os.path.exists(outdir):
     os.mkdir(outdir)
 
-true = '/home/camille/PoolImpHuman/data/20200722/IMP.chr20.snps.gt.vcf.gz'
-pooled = '/home/camille/PoolImpHuman/data/20200812/IMP.chr20.pooled.snps.gt.vcf.gz'
-imputed_beagle = '/home/camille/PoolImpHuman/data/20200722/IMP.chr20.pooled.imputed.vcf.gz'  # '/home/camille/PoolImpHuman/data/20200710/IMP.chr20.pooled.imputed.vcf.gz'
-imputed_phaser = '/home/camille/PoolImpHuman/data/20200817/IMP.chr20.pooled.imputed.vcf.gz'
+true = '/home/camille/PoolImpHuman/data/20200923/IMP.chr20.snps.gt.vcf.gz'
+pooled = '/home/camille/PoolImpHuman/data/20200923/IMP.chr20.pooled.snps.gt.vcf.gz'
+imputed_beagle = '/home/camille/PoolImpHuman/data/20200923/IMP.chr20.pooled.imputed.beagle.vcf.gz'  # '/home/camille/PoolImpHuman/data/20200710/IMP.chr20.pooled.imputed.vcf.gz'
+imputed_phaser = '/home/camille/PoolImpHuman/data/20200923/IMP.chr20.pooled.imputed.vcf.gz'
 
 # true = '/home/camille/1000Genomes/src/VCFPooling/examples/IMP.chr20.snps.gt.vcf.gz'
 # imputed_beagle = '/home/camille/1000Genomes/src/VCFPooling/examples/IMP.chr20.pooled.imputed.vcf.gz'

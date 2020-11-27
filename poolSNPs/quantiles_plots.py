@@ -39,14 +39,16 @@ dash_styles = [
 
 # Configure data/plots paths
 
-outdir = '/home/camille/PoolImpHuman/results/20200827'
+outdir = '/home/camille/PoolImpHuman/results/20201029/LDonly'
 if not os.path.exists(outdir):
     os.mkdir(outdir)
 
-truegt = '/home/camille/PoolImpHuman/data/20200722/IMP.chr20.snps.gt.vcf.gz'
-truegl = '/home/camille/PoolImpHuman/data/20200722/IMP.chr20.snps.gl.vcf.gz'
-imputed_beagle = '/home/camille/PoolImpHuman/data/20200722/IMP.chr20.pooled.imputed.vcf.gz'
-imputed_phaser = '/home/camille/PoolImpHuman/data/20200827/IMP.chr20.pooled.imputed.vcf.gz'
+truegt = '/home/camille/PoolImpHuman/data/20201029/LDonly/IMP.chr20.snps.gt.noNA19700.vcf.gz'
+truegl = '/home/camille/PoolImpHuman/data/20201029/LDonly/IMP.chr20.snps.gl.noNA19700.vcf.gz'
+imputed_beagle = '/home/camille/PoolImpHuman/data/20201029/LDonly/IMP.chr20.pooled.imputed.noNA19700.vcf.gz'
+imputed_phaser = '/home/camille/PoolImpHuman/data/20201029/LDonly/IMP.chr20.pooled.imputed.phaser.vcf.gz'
+
+print('\r\nData written to {}'.format(outdir))
 
 
 # Function/Tools
@@ -69,17 +71,30 @@ def rollquants(dX: pd.DataFrame, dS1: pd.Series, dS2: pd.Series) -> pd.DataFrame
     return rollquants
 
 
-# Load data
+# Load data and check
 
 qbeaglegt = qual.QualityGT(truegt, imputed_beagle, 0, idx='chrom:pos')
 qbeaglegl = qual.QualityGL(truegl, imputed_beagle, 0, idx='chrom:pos')
 
+print('\r\n{} variants from {} samples read from {}'.format(len(qbeaglegt.trueobj.variants),
+                                                            len(qbeaglegt.trueobj.samples),
+                                                            os.path.basename(truegt)))
+print('\r\n{} variants from {} samples read from {}'.format(len(qbeaglegt.imputedobj.variants),
+                                                            len(qbeaglegt.imputedobj.samples),
+                                                            os.path.basename(imputed_beagle)))
 bgldiff = qbeaglegt.diff()
 
 qphasergt = qual.QualityGT(truegt, imputed_phaser, 0, idx='chrom:pos')
 qphasergl = qual.QualityGL(truegl, imputed_phaser, 0, idx='chrom:pos')
 
-print(qbeaglegt.trueobj.aaf)  # af_info
+print('\r\n{} variants from {} samples read from {}'.format(len(qbeaglegl.trueobj.variants),
+                                                            len(qbeaglegl.trueobj.samples),
+                                                            os.path.basename(truegl)))
+print('\r\n{} variants from {} samples read from {}'.format(len(qphasergl.imputedobj.variants),
+                                                            len(qphasergl.imputedobj.samples),
+                                                            os.path.basename(imputed_phaser)))
+
+print('True AF INFO: \r{}'.format(qbeaglegt.trueobj.aaf))  # af_info
 mafS = qbeaglegt.trueobj.maf  # maf_info
 
 metrics = {'precision_score': {'beagle': qbeaglegt.precision,
