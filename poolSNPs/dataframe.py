@@ -105,16 +105,27 @@ class PandasMixedVCF(object):
         return df
 
     def trinary_encoding(self) -> pd.DataFrame:
-        # TODO: fmt GT only!
         vcfobj = self.load()
         vars = self.variants
         arr = np.empty((len(vars), len(self.samples)), dtype=float)
-        missing = np.vectorize(lambda x: np.nan if x is None else x)
-        for i, var in enumerate(vcfobj):
-            # missing are read as None
-            gts = np.array([g[self.fmt] for g in var.samples.values()]).astype(float)
-            tri = missing(gts).sum(axis=-1)
-            arr[i, :] = np.nan_to_num(tri, nan=-1)
+        if self.fmt.upper() == 'GT':
+            missing = np.vectorize(lambda x: np.nan if x is None else x)
+            for i, var in enumerate(vcfobj):
+                # missing are read as None
+                gts = np.array([g[self.fmt] for g in var.samples.values()]).astype(float)
+                tri = missing(gts).sum(axis=-1)
+                arr[i, :] = np.nan_to_num(tri, nan=-1)
+        elif self.fmt.upper() == 'GL':
+            gtnan = np.array([np.nan, np.nan, np.nan])
+            gt0 = np.array([0., 0., 0.])
+            gt1 = np.array([0., 1., 0.])
+            gt2 = np.array([0., 0., 2.])
+            for i, var in enumerate(vcfobj):
+                # convert GL to trinary
+                missing = lambda x: gtnan if 0.0 not in x else (gt0 if x[0] == 0.0 else (gt1 if x[1] == 0.0 else gt2))
+                gts = np.array([g[self.fmt] for g in var.samples.values()]).astype(float)
+                tri = np.apply_along_axis(missing, -1, gts).sum(axis=-1)
+                arr[i, :] = np.nan_to_num(tri, nan=-1)
         dftrinary = pd.DataFrame(arr, index=vars, columns=self.samples, dtype=int)
 
         return dftrinary
