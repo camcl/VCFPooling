@@ -107,10 +107,7 @@ plt.show()
 plt.imshow(genos_i)
 plt.show()
 
-from skimage.restoration import (denoise_wavelet, estimate_sigma)
-from skimage import data, img_as_float
-from skimage.util import random_noise
-from skimage.metrics import peak_signal_noise_ratio
+import pybeads as be
 from skimage.color import rgb2hsv
 
 import cv2
@@ -119,12 +116,30 @@ hsv_genos = rgb2hsv(genos_i)
 plt.imshow(hsv_genos)
 plt.show()
 
-s = hsv_genos[:, 1]
+y = 1 - genos_i[:, 0]
 
-img = genos_i
-percent = 0.5
-#percent = 0.25
-#percent = 0
 
-# desaturate
-s_desat = cv2.multiply(s, percent).astype(np.uint8)
+def sigmoid(x):
+    return 1 / (1 + np.exp(-x))
+
+
+# y is your data
+
+xscale_l, xscale_r = 100, 100
+dx = 1
+y_l = y[0]*sigmoid(1/xscale_l*np.arange(-5*xscale_l, 5*xscale_l, dx))
+y_r = y[-1]*sigmoid(-1/xscale_r*np.arange(-5*xscale_r, 5*xscale_r, dx))
+y_ext = np.hstack([y_l, y, y_r])
+
+# try changing fc and lam0-2, amp if these dont' fit your data
+fc = 0.006
+d = 1
+r = 6
+amp = 0.8
+lam0 = 0.5 * amp
+lam1 = 5 * amp
+lam2 = 4 * amp
+Nit = 15
+pen = 'L1_v2'
+
+signal_est, bg_est, cost = be.beads(y_ext, d, fc, r, Nit, lam0, lam1, lam2, pen, conv=None)
