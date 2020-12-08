@@ -1,5 +1,6 @@
 import subprocess
 import numpy as np
+import os
 
 from VCFPooling.poolSNPs import parameters as prm
 from VCFPooling.persotools.files import *
@@ -7,6 +8,7 @@ from VCFPooling.persotools.files import *
 """
 Bash commands for bcftools manipulations written as Python-functions.
 Increase readability.
+(pysam should provide samtools commands but it does not work)
 """
 
 
@@ -260,7 +262,7 @@ def concat(flist_in: list, f_out: FilePath, wd: str) -> None:
                                                check_file_creation(wd, f_out)))
 
 
-def get_first_pos(f: FilePath, wd: str):
+def get_first_pos(f: FilePath, wd: str) -> None:
     """
     Return position of the first variant in the file
     :param f:
@@ -275,3 +277,19 @@ def get_first_pos(f: FilePath, wd: str):
     process = subprocess.run(cmd, shell=True, cwd=wd, capture_output=True)
     return process.stdout
 
+
+def view_one_variant(f: FilePath, pos: str, chrom: str = '20', wd=os.getcwd()) -> None:
+    """
+        Extract a given variant on CHROM:POS identifier and create a VCF file from it.
+        :param f:
+        :param wd:
+        :return:
+        """
+    filout = 'snp.{}:{}.{}'.format(chrom, pos, os.path.basename(f))
+    cmd = ' '.join(['bcftools view ',
+                    '-r {}:{}'.format(chrom, pos),
+                    '-Oz -o {}'.format(os.path.join(wd, filout)),
+                    f
+                    ])
+    process = subprocess.run(cmd, shell=True, cwd=wd)
+    return os.path.join(wd, filout)

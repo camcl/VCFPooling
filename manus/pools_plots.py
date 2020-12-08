@@ -1,46 +1,91 @@
+#!/usr/bin/python3
+# -*- coding: utf-8 -*-
+
 import os, sys
 import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
+import argparse
+import pysam
 
 from typing import *
 
 rootdir = os.path.dirname(os.path.dirname(os.getcwd()))
 sys.path.insert(0, rootdir)
 
-from VCFPooling.poolSNPs.metrics import quality as qual
+from VCFPooling.poolSNPs import pybcf
 from VCFPooling.poolSNPs import dataframe as vcfdf
 from VCFPooling.persotools.files import *
 
 """
-RGB proportional to GL(RR|RA|AA)
+For a given variant, plot the pooling blocks as coloured square matrices with 
+genotypes displayed each with RGB color proportional to GL(RR|RA|AA).
+Useful to get a picture of how genotypes are processed from the true ones into pooled and finally imputed ones
+
+Usage example: (command-line parsing not working yet)
+VCFPooling/manus$ python3 -u /home/camille/PoolImpHuman/data/20200827/IMP.chr20.snps.gt.vcf.gz /home/camille/PoolImpHuman/data/20200827/IMP.chr20.pooled.snps.gl.vcf.gz /home/camille/PoolImpHuman/data/20200827/IMP.chr20.pooled.imputed.vcf.gz /home/camille/PoolImpHuman/results/20200827 20 62915126   
 """
 
-# TODO:
-# TODO: add command-line arguments parsing
-# TODO: pick relavant markers (middle-range AF and low AF) + show true-pooled-imputed --> create VCF with this marker only (calculation upspeeding)
-# TODO: zoom plot for 1 block only
+# # Parse command-line arguments
+#
+# parser = argparse.ArgumentParser(description="Pooling blocks as coloured square matrices with RGB colors for samples' genotypes")
+# parser.add_argument('truefile', metavar='truef', type=str, help='File with true genotypes GT', default=None)
+# parser.add_argument('pooledfile', metavar='imputedf', type=str, help='File with pooled genotypes decoded into GL', default=None)
+# parser.add_argument('imputedfile', metavar='imputedf', type=str, help='File with imputed genotypes decoded into GT', default=None)
+# parser.add_argument('outdir', metavar='outdir', type=str, help='Directory to save the plots', default=None)
+# parser.add_argument('chromosome', metavar='chrom', type=str, help='Chromosome number', default='20')
+# parser.add_argument('position', metavar='pos', type=str, help='Target variant position', default=None)
+#
+# argsin = parser.parse_args()
+#
+# truef = argsin.truefile
+# pooledf = argsin.pooledfile
+# imputedf = argsin.imputedfile
+# outdir = argsin.outdir
+# chr = argsin.chromosome
+# pos = argsin.position
 
+'''
+20:264365    0.512181  --> pools #1, #2, #4 --> row 1
+20:62915126  0.006190  --> pools #3, #4, #14 relevant with ALT carrier --> row 1
+'''
+
+chr, pos = '20', '62915126'
+myvar = '{}:{}'.format(chr, pos)
+
+
+# Paths to files to read genotypes from
 
 outdir = '/home/camille/PoolImpHuman/results/20200827'
 if not os.path.exists(outdir):
     os.mkdir(outdir)
 
-true = '/home/camille/PoolImpHuman/data/20200827/IMP.chr20.snps.gt.vcf.gz'
-pooled = '/home/camille/PoolImpHuman/data/20200827/IMP.chr20.pooled.snps.gl.vcf.gz'
-imputed = '/home/camille/PoolImpHuman/data/20200827/IMP.chr20.pooled.imputed.vcf.gz'
+truef = '/home/camille/PoolImpHuman/data/20200827/IMP.chr20.snps.gt.vcf.gz'
+pooledf = '/home/camille/PoolImpHuman/data/20200827/IMP.chr20.pooled.snps.gl.vcf.gz'
+imputedf = '/home/camille/PoolImpHuman/data/20200827/IMP.chr20.pooled.imputed.vcf.gz'
+
+for f in [truef, pooledf, imputedf]:
+    pybcf.index(f, os.path.dirname(f))
+
+
+# Create files for the chosen SNP only (speed up processing then
+
+truevar = pybcf.view_one_variant(truef, pos, chr, wd=outdir)
+pooledvar = pybcf.view_one_variant(pooledf, pos, chr, wd=outdir)
+imputedvar = pybcf.view_one_variant(imputedf, pos, chr, wd=outdir)
 
 
 # Colouring and labelling functions
 
-def gl_colors(gen, min_log_gl = -12):
+def gl_colors(gen: np.ndarray, min_log_gl: float = -12.) -> np.ndarray:
     """
-
+    Convert log-GL values to not logged ones, used as a RGB color triplet
     :param gen: genotype (log-)likelihoods. Array-like.
-    :return: triplet coding rgb
+    :param min_log_gl: float (negative) indicating the minimum value used instead of log(GP=0.0)
+    :return: triplet coding RGB channels
     """
-    gen = np.array([g for g in gen])
+    gen = np.array([g for g in gen])  # forces GL-tuple to GL-array conversion
     tenpow = np.vectorize(lambda x: 0.0 if x == min_log_gl else pow(10, x))
     rgb = tenpow(gen)
     return rgb
@@ -120,7 +165,7 @@ def plot_pools(var, gtgl, step, snp, af_info=None, aaf=None):
     :return:
     """
     pool_rgb = np.zeros((var.shape[0], 3), dtype=float)  # 3 color channels
-    pool_labels = np.empty(var.shape[0], dtype='<U3')  # 'x/x' is 3-character long
+    pool_labels = np.empty(var.shape[0], dtype='<U3')  # GT 'x/x' is 3-character long
 
     if af_info is None:
         af_info = np.nan
@@ -131,7 +176,7 @@ def plot_pools(var, gtgl, step, snp, af_info=None, aaf=None):
     plots_sz = (3, 5)
     fig, axes = plt.subplots(plots_sz[0], plots_sz[1],
                              figsize=(8, 8))
-    fig.suptitle('SNP 20:{0}; AF_INFO = {1:.5f}; AAF = {2:.5f}'.format(snp, af_info, aaf),
+    fig.suptitle('{0} data: SNP {1}; AF_INFO = {2:.5f}; AAF = {3:.5f}'.format(step.capitalize(), snp, af_info, aaf),
                  fontsize=12)
 
     if gtgl.upper() == 'GL':
@@ -148,7 +193,7 @@ def plot_pools(var, gtgl, step, snp, af_info=None, aaf=None):
         pool_labels = pool_labels.reshape(15, 16)
 
     pool_colors = np.multiply(pool_rgb, np.broadcast_to([0.5, 0.8, 0.5], pool_rgb.shape))  # modify RGB colors
-    # print(list(zip(pool_colors, pool_labels)))
+
     k = 0
     for i in range(1, plots_sz[0] + 1):
         for j in range(1, plots_sz[1] + 1):
@@ -201,7 +246,7 @@ def plot_5_first_pools(var, gtgl, step, snp, af_info=None, aaf=None):
     plots_sz = (1, 5)
     fig, axes = plt.subplots(plots_sz[0], plots_sz[1],
                              figsize=(8, 2.5))
-    fig.suptitle('SNP 20:{0}; AF_INFO = {1:.5f}; AAF = {2:.5f}'.format(snp, af_info, aaf),
+    fig.suptitle('{0} data: SNP {1}; AF_INFO = {2:.5f}; AAF = {3:.5f}'.format(step.capitalize(), snp, af_info, aaf),
                  fontsize=12)
 
     if gtgl.upper() == 'GL':
@@ -211,32 +256,31 @@ def plot_5_first_pools(var, gtgl, step, snp, af_info=None, aaf=None):
         pool_rgb = pool_rgb.reshape(15, 16, 3)  # block-wise reshaping
         pool_labels = pool_labels.reshape(15, 16)
     if gtgl.upper() == 'GT':
-        pool_rgb = gt_colors(var[:, np.newaxis])
+        pool_rgb = gt_colors(var.values[:, np.newaxis])
         for idx, g in enumerate(var):
             pool_labels[idx] = gt_labels(g)
         pool_rgb = pool_rgb.reshape(15, 16, 3)  # block-wise reshaping
         pool_labels = pool_labels.reshape(15, 16)
 
     pool_colors = np.multiply(pool_rgb, np.broadcast_to([0.5, 0.8, 0.5], pool_rgb.shape))  # modify RGB colors
-    # print(list(zip(pool_colors, pool_labels)))
+
     k = 0
-    #for i in range(1, plots_sz[0] + 1):
     for j in range(1, plots_sz[1] + 1):
         k += 1
         axes[j - 1].imshow(pool_colors[k-1, :, :].reshape((4, 4, 3)),
-                                  cmap='plasma')
+                           cmap='plasma')
         axes[j - 1].set_title('Pool #{}'.format(k), pad=2)
         axes[j - 1].set_xticks(np.arange(4) + 0.5, minor=True)
         axes[j - 1].set_yticks(np.arange(4) + 0.5, minor=True)
         axes[j - 1].tick_params(which="both",
-                                       axis='both',
-                                       bottom=False,
-                                       left=False,
-                                       labelsize=8,
-                                       length=1,
-                                       pad=0.3)
+                                axis='both',
+                                bottom=False,
+                                left=False,
+                                labelsize=8,
+                                length=1,
+                                pad=0.3)
         axes[j - 1].grid(which='minor', axis='both',
-                                color="w", linestyle='-', linewidth=0.25)
+                         color="w", linestyle='-', linewidth=0.25)
         # remnove borders
         axes[j - 1].spines['top'].set_visible(False)
         axes[j - 1].spines['right'].set_visible(False)
@@ -248,7 +292,7 @@ def plot_5_first_pools(var, gtgl, step, snp, af_info=None, aaf=None):
                 axes[j - 1].text(n, m, tx_i_j[m, n], ha="center", va="center", color="w", fontsize=10)
     plt.autoscale()
     fig.tight_layout()
-    plt.show()
+    # plt.show()
     plt.savefig(os.path.join(outdir, 'pools_patterns.{}.snp{}.jpg'.format(step, snp)),
                 dpi=500)
 
@@ -264,28 +308,15 @@ def before_after_pooling(snp):
     imglist = [os.path.join(outdir, 'pools_patterns.true.snp{}.jpg'.format(snp)),
                os.path.join(outdir, 'pools_patterns.pooled.snp{}.jpg'.format(snp)),
                os.path.join(outdir, 'pools_patterns.imputed.snp{}.jpg'.format(snp))]
-    with open(os.path.join(outdir, 'pools_patterns.snp{}.jpg'.format(snp)), "wb") as f:
+    with open(os.path.join(outdir, 'pools_patterns.snp{}.pdf'.format(snp)), "wb") as f:
         f.write(img2pdf.convert([i for i in imglist]))
 
 
-# Read files
+# Read files, extract relevant informations for plotting and plot pooling blocks
 
-'''
-20:63799     0.439497
-20:68749     0.571286 --> pool #7
-20:144570    0.515775
-20:182013    0.520567
-20:217281    0.528355
-20:263660    0.519968
-20:264365    0.512181  --> pools #1, #2, #4 --> row 1
-20:62915126  0.006190  --> pools #3, #4, #14 relevant with ALT carrier --> row 1
-'''
-myvar = '20:264365'
-# myvar = '20:62915126'
-
-dftrue = vcfdf.PandasMixedVCF(true, format='GT', indextype='chrom:pos')
-dfpooled = vcfdf.PandasMixedVCF(pooled, format='GL', indextype='chrom:pos')
-dfimputed = vcfdf.PandasMixedVCF(imputed, format='GT', indextype='chrom:pos')
+dftrue = vcfdf.PandasMixedVCF(truevar, format='GT', indextype='chrom:pos')
+dfpooled = vcfdf.PandasMixedVCF(pooledvar, format='GL', indextype='chrom:pos')
+dfimputed = vcfdf.PandasMixedVCF(imputedvar, format='GT', indextype='chrom:pos')
 
 genos_true = dftrue.trinary_encoding().loc[myvar]
 af_info = float(dftrue.af_info.loc[myvar].values)
@@ -304,4 +335,4 @@ aaf_imputed = float(dfimputed.aaf.loc[myvar].values)
 plot_5_first_pools(genos_true, 'GT', 'true', myvar, af_info=af_info, aaf=aaf_true)  # OK
 plot_5_first_pools(genos_pooled, 'GL', 'pooled', myvar, af_info=af_info, aaf=None)  # OK
 plot_5_first_pools(genos_imputed, 'GT', 'imputed', myvar, af_info=af_info, aaf=aaf_imputed)  # OK
-
+before_after_pooling(myvar)
