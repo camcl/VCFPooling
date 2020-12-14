@@ -1,5 +1,5 @@
 """
-DRAFT!!!
+Metrics across MAF range with quantiles dispersion
 """
 
 import os, sys
@@ -39,14 +39,14 @@ dash_styles = [
 
 # Configure data/plots paths
 
-outdir = '/home/camille/PoolImpHuman/results/20201029/LDonly'
+outdir = '/home/camille/PoolImpHuman/results/20201031'
 if not os.path.exists(outdir):
     os.mkdir(outdir)
 
-truegt = '/home/camille/PoolImpHuman/data/20201029/LDonly/IMP.chr20.snps.gt.noNA19700.vcf.gz'
-truegl = '/home/camille/PoolImpHuman/data/20201029/LDonly/IMP.chr20.snps.gl.noNA19700.vcf.gz'
-imputed_beagle = '/home/camille/PoolImpHuman/data/20201029/LDonly/IMP.chr20.pooled.imputed.noNA19700.vcf.gz'
-imputed_phaser = '/home/camille/PoolImpHuman/data/20201029/LDonly/IMP.chr20.pooled.imputed.phaser.vcf.gz'
+truegt = '/home/camille/PoolImpHuman/data/20201031/IMP.chr20.snps.gt.vcf.gz'
+truegl = '/home/camille/PoolImpHuman/data/20201029/IMP.chr20.snps.gl.vcf.gz'
+imputed_beagle = '/home/camille/PoolImpHuman/data/20201029/IMP.chr20.pooled.imputed.vcf.gz'
+imputed_phaser = '/home/camille/PoolImpHuman/data/20201031/IMP.chr20.pooled.imputed.vcf.gz'
 
 print('\r\nData written to {}'.format(outdir))
 

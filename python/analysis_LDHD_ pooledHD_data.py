@@ -30,17 +30,17 @@ sns.set_style('whitegrid')
 
 # Configure data/plots paths
 
-outdir = '/home/camille/PoolImpHuman/results/20201029'
+outdir = '/home/camille/PoolImpHuman/results/20201209'
 if not os.path.exists(outdir):
     os.mkdir(outdir)
 
-truegt = '/home/camille/PoolImpHuman/data/20201029/sHG01063.IMP.chr20.snps.gt.vcf.gz'
-truegl = '/home/camille/PoolImpHuman/data/20201029/sHG01063.IMP.chr20.snps.gl.vcf.gz'
+truegt = '/home/camille/PoolImpHuman/data/20201209/sHG01063.IMP.chr20.snps.gt.vcf.gz'
+truegl = '/home/camille/PoolImpHuman/data/20201209/sHG01063.IMP.chr20.snps.gl.vcf.gz'
 # pooled can also be the file with full LD and missing HD
-pooledgt = '/home/camille/PoolImpHuman/data/20201029/sHG01063.IMP.chr20.missingHD.fullLD.snps.gt.vcf.gz'
-pooledgl = None
+pooledgt = None  # '/home/camille/PoolImpHuman/data/20201029/sHG01063.IMP.chr20.missingHD.fullLD.snps.gt.vcf.gz'
+pooledgl = '/home/camille/PoolImpHuman/data/20201209/sHG01063.IMP.chr20.pooled.snps.gl.vcf.gz'
 # imputation with Beagle or with Phaser
-imputed_gtgp1 = '/home/camille/PoolImpHuman/data/20201029/sHG01063.IMP.chr20.pooled.imputed.vcf.gz'
+imputed_gtgp1 = '/home/camille/PoolImpHuman/data/20201209/HDHD/sHG01063.IMP.chr20.pooled.snps.gl.full.postgenos.vcf.gz'
 imputed_gtgp2 = None
 
 
@@ -130,20 +130,20 @@ unknown_markers1 = dfpooled.missing_rate.query('missing_rate == 1.0')
 known_markers_diff1_ok = diff1.discordance.to_frame().join(dfpooled.missing_rate, how='inner').query('missing_rate == 0.0 and discordance == 0')
 
 # Correctly imputed and unassayed markers (missing markers before imputation)
-unknown_markers_diff1_ok = diff1.discordance.to_frame().join(dfpooled.missing_rate, how='inner').query('missing_rate == 1.0 and discordance == 0')
+unknown_markers_diff1_ok = diff1.discordance.to_frame().join(dfpooled.missing_rate, how='inner').query('missing_rate != 0.0 and discordance == 0')
 
 # Wrongly imputed and correctly decoded markers or fully assayed markers (non missing markers before imputation)
-known_markers_diff1_ko = diff1.discordance.to_frame().join(dfpooled.missing_rate, how='inner').query('missing_rate == 0.0 and discordance == 1')
+known_markers_diff1_ko = diff1.discordance.to_frame().join(dfpooled.missing_rate, how='inner').query('missing_rate == 0.0 and discordance != 0')
 
 # Wrongly imputed and unassayed markers (missing markers before imputation)
-unknown_markers_diff1_ko = diff1.discordance.to_frame().join(dfpooled.missing_rate, how='inner').query('missing_rate == 1.0 and discordance == 1')
+unknown_markers_diff1_ko = diff1.discordance.to_frame().join(dfpooled.missing_rate, how='inner').query('missing_rate != 0.0 and discordance != 0')
 
 # LD coordinates x Correctly decoded markers or fully assayed LD markers (non missing markers before imputation)
 markers_diff1_ld = diff1.discordance.to_frame().join(dfpooled.missing_rate, how='inner').loc[ld_vars.index]
 assayed_impok_ld = markers_diff1_ld.query('missing_rate == 0.0 and discordance == 0')
-unassayed_impok_ld = markers_diff1_ld.query('missing_rate == 1.0 and discordance == 0')
+unassayed_impok_ld = markers_diff1_ld.query('missing_rate != 0.0 and discordance == 0')
 assayed_impko_ld = markers_diff1_ld.query('missing_rate == 0.0 and discordance != 0')
-unassayed_impko_ld = markers_diff1_ld.query('missing_rate == 1.0 and discordance != 0')
+unassayed_impko_ld = markers_diff1_ld.query('missing_rate != 0.0 and discordance != 0')
 try:
     known_markers_diff1_ld = diff1.discordance.to_frame().join(known_markers1, how='inner').loc[ld_vars.index]
 except KeyError:

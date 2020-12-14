@@ -27,6 +27,8 @@ Usage example: (command-line parsing not working yet)
 VCFPooling/manus$ python3 -u /home/camille/PoolImpHuman/data/20200827/IMP.chr20.snps.gt.vcf.gz /home/camille/PoolImpHuman/data/20200827/IMP.chr20.pooled.snps.gl.vcf.gz /home/camille/PoolImpHuman/data/20200827/IMP.chr20.pooled.imputed.vcf.gz /home/camille/PoolImpHuman/results/20200827 20 62915126   
 """
 
+# TODO: docstrings and annotations
+
 # # Parse command-line arguments
 #
 # parser = argparse.ArgumentParser(description="Pooling blocks as coloured square matrices with RGB colors for samples' genotypes")

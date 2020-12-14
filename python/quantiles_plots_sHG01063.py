@@ -43,10 +43,10 @@ outdir = '/home/camille/PoolImpHuman/results/20201031'
 if not os.path.exists(outdir):
     os.mkdir(outdir)
 
-truegt = '/home/camille/PoolImpHuman/data/20201031/LDonly/sHG01063.IMP.chr20.snps.gt.vcf.gz'
-truegl = '/home/camille/PoolImpHuman/data/20201031/LDonly/sHG01063.IMP.chr20.snps.gl.vcf.gz'
-imputed_phaser1 = '/home/camille/PoolImpHuman/data/20201031/LDonly/sHG01063.IMP.chr20.pooled.imputed.phaser1.vcf.gz'
-imputed_phaser2 = '/home/camille/PoolImpHuman/data/20201031/LDonly/sHG01063.IMP.chr20.snps.gl.full.postgenos.vcf.gz'
+truegt = '/home/camille/PoolImpHuman/data/20201031/sHG01063.IMP.chr20.snps.gt.vcf.gz'
+truegl = '/home/camille/PoolImpHuman/data/20201031/sHG01063.IMP.chr20.snps.gl.vcf.gz'
+imputed_phaser1 = '/home/camille/PoolImpHuman/data/20201028/HDHD/sHG01063.IMP.chr20.pooled.snps.gl.full.postgenos.vcf.gz'
+imputed_phaser2 = '/home/camille/PoolImpHuman/data/20201204/HDHD/sHG01063.IMP.chr20.pooled.snps.gl.full.postgenos.vcf.gz'
 
 
 # Function/Tools
