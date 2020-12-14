@@ -60,14 +60,19 @@ barcolors = ['#047495', '#00035b', '#748b97',  # full GT
              ]
 barcmap = ListedColormap([to_rgba(co) for co in barcolors])
 
-bin_step = 0.04
+xtype = 'maf'
+#bin_step = 0.04
 # x_bins = np.arange(0.0, 1.0 + bin_step, bin_step).round(decimals=2)
 x_bins = [0.0, 0.02, 0.04, 0.06, 0.1, 0.2, 0.4, 0.6, 0.8, 0.9, 0.94, 0.96, 0.98, 1.0]
+x2_bins = [0.0, 0.02, 0.04, 0.06, 0.1, 0.2, 0.4, 0.5]  # MAF
 # lab_bins = np.arange(bin_step/2, 1.0, bin_step).round(decimals=2)
 lab_bins = [0.01, 0.03, 0.05, 0.08, 0.15, 0.3, 0.5, 0.7, 0.85, 0.92, 0.95, 0.97, 0.99]
+lab_text = ['-'.join([str(x[0]), str(x[1])]) for x in list(zip(x_bins[:-1], x_bins[1:]))]
+lab2_bins = [0.01, 0.03, 0.05, 0.08, 0.15, 0.3, 0.45]  # MAF
+lab2_text = ['-'.join([str(x[0]), str(x[1])]) for x in list(zip(x2_bins[:-1], x2_bins[1:]))]
 
 figsize=4
-plt.rcParams["figure.figsize"] = [figsize*3, figsize + 1]
+plt.rcParams["figure.figsize"] = [figsize*3, figsize + 1] if xtype == 'aaf' else [figsize*3, figsize * 2]
 print('\r\nCounting genotypes'.ljust(80, '.'))
 
 
@@ -79,23 +84,45 @@ n_markers, n_samples = dftrue.genotypes().shape
 
 pooled = dfpooled.hexa_encoding()
 
-af_bins = pd.cut(dftrue.aaf.values.squeeze(), bins=x_bins, labels=lab_bins)
-binned_af = pd.Series(af_bins, index=dftrue.variants, name='binned_af')
+if xtype == 'aaf':
+    af_bins = pd.cut(dftrue.aaf.values.squeeze(), bins=x_bins, labels=lab_bins)
+    binned_af = pd.Series(af_bins, index=dftrue.variants, name='binned_aaf')
 
-pooled = pooled.join(binned_af)
-pooled['dataset'] = ['pooled'] * pooled.shape[0]
-pooled = pooled.reset_index().set_index(['variants', 'binned_af', 'dataset'])
+    pooled = pooled.join(binned_af)
+    pooled['dataset'] = ['pooled'] * pooled.shape[0]
+    pooled = pooled.reset_index().set_index(['variants', 'binned_aaf', 'dataset'])
+
+
+if xtype == 'maf':
+    maf_bins = pd.cut(dftrue.maf.values.squeeze(), bins=x2_bins, labels=lab2_bins)
+    binned_maf = pd.Series(maf_bins, index=dftrue.variants, name='binned_maf')
+
+    pooled = pooled.join(binned_maf)
+    pooled['dataset'] = ['pooled'] * pooled.shape[0]
+    pooled = pooled.reset_index().set_index(['variants', 'binned_maf', 'dataset'])
 
 # Initialize counts for each AF bin and each genotype
 print('\r\nCounting genotypes'.ljust(80, '.'))
-dfcounts = pd.DataFrame(data=None, index=lab_bins, columns=pooled_genos)
+
+if xtype == 'aaf':
+    dfcounts = pd.DataFrame(data=None, index=lab_bins, columns=pooled_genos)
+
+if xtype == 'maf':
+    dfcounts = pd.DataFrame(data=None, index=lab2_bins, columns=pooled_genos)
+
 for i in dfcounts.index:
     for j in dfcounts.columns:
-        dfbins = pooled.loc[pooled.index.get_level_values('binned_af') == i]
+        dfbins = pooled.loc[pooled.index.get_level_values('binned_{}'.format(xtype)) == i]
         dfbins.reset_index(inplace=True, drop=True)
         counts_geno = dfbins.where(dfbins == j, axis=0).count()
         dfcounts.loc[i, j] = counts_geno.sum()
 dfcounts.columns = pooled_labels
+
+if xtype == 'aaf':  # change x-ticks labels
+    dfcounts.index = lab_text
+
+if xtype == 'maf':  # change x-ticks labels
+    dfcounts.index = lab2_text
 
 
 # scale result per bin
@@ -103,6 +130,7 @@ binscales = dfcounts.sum(axis=1)
 dfcounts_scaled = pd.DataFrame(data=dfcounts.div(binscales, axis=0),  # minmax_scale(dfcounts.values, axis=0),
                                index=dfcounts.index,
                                columns=dfcounts.columns)
+print(dfcounts_scaled)
 
 dfcounts_sized = dfcounts / (n_samples * n_markers)
 
@@ -111,8 +139,8 @@ dfcounts_sized = dfcounts / (n_samples * n_markers)
 print('\r\nPlotting results'.ljust(80, '.'))
 ax = dfcounts_scaled.plot(kind='bar', stacked=True, rot=45,
                           color=barcolors, style=dashes_styles)  # cmap = sns.set_palette('GnBu_d')
-ax.set_xlabel('True alternate allele frequency')
-ax.set_ylabel('Proportions of genotypes scaled per AAF-bin')
+ax.set_xlabel('True {} allele frequency'.format('alternate' if xtype == 'aaf' else 'minor'))
+ax.set_ylabel('Proportions of genotypes scaled per {}-bin'.format(xtype.upper()))
 plt.title('Genotypes proportions from pooled data in the study population')
 plt.tight_layout()
 plt.savefig(os.path.join(outdir, 'genotypes_hexa_scaled_proportions.pdf'))
@@ -120,7 +148,7 @@ plt.show()
 
 ax_scaled = dfcounts_sized.plot(kind='bar', stacked=True, rot=45,
                                 color=barcolors, style=dashes_styles)
-ax_scaled.set_xlabel('True alternate allele frequency')
+ax.set_xlabel('True {} allele frequency'.format('alternate' if xtype == 'aaf' else 'minor'))
 ax_scaled.set_ylabel('Proportion of genotypes')
 plt.title('Genotypes proportions from pooled data in the study population (total number of genotypes = {})'.format(n_samples * n_markers))
 plt.tight_layout()
